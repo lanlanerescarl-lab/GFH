@@ -1,0 +1,14 @@
+/*
+ * Vendored fonts. No external hosts are allowed, so a font only appears here after its files are added to
+ * public/assets/fonts/ and described with @font-face. Example, for a file public/assets/fonts/inter-regular.woff2:
+ *
+ * @font-face {
+ *   font-family: "Inter";
+ *   src: url("../fonts/inter-regular.woff2") format("woff2");
+ *   font-weight: 400;
+ *   font-style: normal;
+ *   font-display: swap;
+ * }
+ *
+ * Until then the font stacks in tokens.css fall back to the fonts already on the device.
+ */

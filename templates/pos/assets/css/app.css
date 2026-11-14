@@ -1,0 +1,3 @@
+/* POS-only styles: a full-width working area with larger touch targets. */
+.app-pos .shell-main { max-width: none; }
+.app-pos .button { min-height: var(--space-7); }

@@ -1,0 +1,20 @@
+# Secrets
+.env
+
+# Runtime files
+storage/logs/*
+!storage/logs/.gitkeep
+storage/sessions/*
+!storage/sessions/.gitkeep
+storage/uploads/*
+!storage/uploads/.gitkeep
+
+# Dependencies and tooling
+vendor/
+phpunit.phar
+.phpunit.cache/
+.phpunit.result.cache
+
+# Operating system files
+.DS_Store
+Thumbs.db

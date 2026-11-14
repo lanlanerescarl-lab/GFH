@@ -1,0 +1,2 @@
+/* Admin-only styles. Use the variables from tokens.css. */
+.app-admin .shell-header { border-bottom-color: var(--color-border-soft); }

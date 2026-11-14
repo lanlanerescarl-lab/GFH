@@ -1,0 +1,247 @@
+/*
+ * Base styles for the shared page shell and for forms, buttons and notices.
+ * Uses only the variables from tokens.css, so organization branding reaches every rule here.
+ */
+*,
+*::before,
+*::after { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+  line-height: 1.5;
+}
+
+h1, h2, h3 {
+  margin: 0 0 var(--space-4);
+  font-family: var(--font-heading);
+  line-height: 1.25;
+  color: var(--color-primary-strong);
+}
+
+h1 { font-size: 1.75rem; }
+h2 { font-size: 1.375rem; }
+h3 { font-size: 1.125rem; }
+
+p { margin: 0 0 var(--space-4); }
+
+a { color: var(--color-primary); }
+a:hover { color: var(--color-primary-strong); }
+
+/* Visible keyboard focus everywhere */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+main:focus { outline: none; }
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: calc(-1 * var(--space-7));
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border-radius: var(--radius-control);
+  z-index: 100;
+}
+
+.skip-link:focus { top: var(--space-2); }
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Page shell: header with brand and navigation, main area, footer */
+.shell-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border-soft);
+  box-shadow: var(--shadow-rest);
+}
+
+.shell-brand {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--color-primary-strong);
+  text-decoration: none;
+}
+
+.shell-menu-button {
+  display: none;
+  margin-left: auto;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-4);
+  background: var(--color-surface);
+  color: var(--color-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.shell-nav { margin-left: auto; }
+
+.shell-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.shell-nav a {
+  display: block;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-control);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.shell-nav a:hover { background: var(--color-bg); }
+
+.shell-nav a[aria-current="page"] {
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+}
+
+.shell-main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--page-width);
+  margin: 0 auto;
+  padding: var(--space-5);
+}
+
+.shell-footer {
+  padding: var(--space-4) var(--space-5);
+  color: var(--color-muted);
+  font-size: 0.875rem;
+}
+
+/* With JavaScript, the navigation folds behind the menu button on narrow screens. Without it, the links stay visible. */
+@media (max-width: 640px) {
+  .js .shell-menu-button { display: inline-block; }
+  .js .shell-nav { width: 100%; margin-left: 0; }
+  .js .shell-nav:not(.is-open) { display: none; }
+  .shell-nav ul { flex-direction: column; }
+}
+
+/* Surfaces, forms, buttons and notices */
+.card {
+  padding: var(--space-5);
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-rest);
+}
+
+.field { margin: 0 0 var(--space-4); }
+
+label {
+  display: block;
+  margin: 0 0 var(--space-1);
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+input[type="number"],
+input[type="tel"],
+input[type="date"],
+select,
+textarea {
+  display: block;
+  width: 100%;
+  min-height: var(--control-height);
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  background: var(--color-surface);
+  color: var(--color-ink);
+  font: inherit;
+}
+
+.help { margin: var(--space-1) 0 0; font-size: 0.875rem; color: var(--color-muted); }
+
+.field-error { margin: var(--space-1) 0 0; font-size: 0.875rem; color: var(--color-danger); }
+
+.button {
+  display: inline-block;
+  min-height: var(--control-height);
+  padding: var(--space-3) var(--space-5);
+  background: var(--color-primary);
+  color: var(--color-on-primary);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-control);
+  font: inherit;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background-color var(--transition);
+}
+
+.button:hover { background: var(--color-primary-strong); border-color: var(--color-primary-strong); color: var(--color-on-primary); }
+
+.button--secondary { background: var(--color-surface); color: var(--color-primary); }
+.button--secondary:hover { background: var(--color-bg); color: var(--color-primary-strong); }
+
+.alert {
+  margin: 0 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 4px solid;
+  border-radius: var(--radius-control);
+}
+
+.alert--error { background: var(--color-danger-bg); border-color: var(--color-danger); }
+.alert--ok { background: var(--color-ok-bg); border-color: var(--color-ok); }
+
+table.table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+}
+
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}

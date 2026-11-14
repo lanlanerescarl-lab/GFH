@@ -1,0 +1,179 @@
+# JSON API (Stage 3)
+
+All endpoints live under `/{org}/api/v1/`. `{org}` is the organization's slug. Examples use `/demo/api/v1/...`.
+
+## Conventions
+
+**Envelope.** Success: `{"ok": true, "data": ...}`. Failure: `{"ok": false, "error": {"code", "message", "fields"}}`, where `fields`
+is an object of field name to message (empty when the error is not about a field). Errors:
+
+| Status | code | Meaning |
+| --- | --- | --- |
+| 400 | `bad_request` | Unreadable request or invalid JSON |
+| 401 | `unauthorized` / `invalid_credentials` | Not signed in |
+| 403 | `forbidden` / `csrf_mismatch` | `can()` said no, or the CSRF token is missing or wrong |
+| 404 | `not_found` | Unknown id, or someone else's order |
+| 409 | `conflict` | The change clashes with the current state (a brand in use, an open shift, a reused receipt number) |
+| 422 | `validation_failed` | Field errors in `fields`. Nested names use dots: `lines.1.batch_code`, `attributes.wattage` |
+| 429 | `too_many_requests` | Sign-in lockout (`Retry-After` header) |
+
+**CSRF.** Every state-changing request (POST, PUT, PATCH, DELETE) carries the session's token in the `X-CSRF-Token` header.
+Get one from `GET .../auth/staff/csrf` or `GET .../auth/customer/csrf` (or from the response of a sign-in).
+
+**Sessions.** Staff and customers use separate session cookies. Authentication is never kept in browser storage.
+
+**Money and quantities.** Amounts are strings with two decimals (`"112.00"`), costs have four (`"50.0000"`), quantities three (`"2.500"`).
+Send amounts and quantities as strings or numbers; more decimals than allowed is a field error. Prices include 12% VAT.
+Dates are `YYYY-MM-DD`; timestamps are ISO 8601. Calendar days are Asia/Manila.
+
+**Lists.** Every list accepts the same parameters, and returns the same shape:
+
+| Parameter | Meaning |
+| --- | --- |
+| `page` | Page number, from 1 |
+| `per_page` | Rows per page, default 20, at most 100 |
+| `sort` | A sort name; a leading `-` reverses it. Each endpoint lists its names |
+| `q` | Search text |
+| other names | Filters, listed per endpoint |
+
+```json
+{"ok": true, "data": {"items": [ ... ], "pagination": {"page": 1, "per_page": 20, "total": 57, "pages": 3}, "sort": "name"}}
+```
+
+**Permissions.** Every Admin and POS endpoint checks `can(user, organization, module, action)`; the module and action are listed per
+endpoint. A person needs an active membership in the organization. Roles and defaults: see `database/core/migrations/0002_auth.sql`.
+
+---
+
+## Catalog (public, no sign-in)
+
+Only active products with an active variant are visible. Costs and trade prices are never shown.
+
+| Method and path | Notes |
+| --- | --- |
+| `GET /catalog/products` | Sort: `name`, `price`, `newest`. Filters: `brand_id` (one or comma-separated), `category_id` (a top-level category includes its children), `min_price`, `max_price`, `attr[name]=value`, `attr[name][min]=`, `attr[name][max]=`, `attr[name]=true\|false`. Search: `q` (name, brand, SKU, barcode) |
+| `GET /catalog/filters` | Same parameters. Returns the filter options for that listing: `brands` (with counts), `categories` (two-level tree with counts), `price` (`min`, `max`), `attributes` (per key: `type`, `values` with counts, or `min` and `max` for numbers) |
+| `GET /catalog/products/{slug}` | One product with variants, photos and attributes. A signed-in customer also gets the price tiers they qualify for |
+| `GET /catalog/categories` | The two-level category tree |
+| `GET /catalog/brands` | Sort: `name` |
+
+Photos: `GET /media/{org}/{mediaId}` (add `?thumb=1` for the 400 px thumbnail). Public, served from `storage/uploads` with
+`Cache-Control: public, max-age=31536000, immutable` and an `ETag` (a matching `If-None-Match` returns 304).
+
+## Cart and checkout (Shop)
+
+| Method and path | Who | Notes |
+| --- | --- | --- |
+| `GET /checkout/options` | anyone | `pickup_branches`, `delivery_available`, `payment_methods`, `fields` (extension checkout fields) |
+| `POST /cart/price` | anyone (CSRF) | Body `{items: [{variant_id, quantity}], fulfillment?, checkout?}`. Returns the cart priced on the server: `lines` (with `unit_price`, `tier_applied`, `line_total`), `subtotal`, `discount_total`, `delivery_fee`, `assembly_fee`, `installation_fee`, `total`, `vat_amount`, `net_of_vat`, `deposit_due`, `promised_date`. Client prices are ignored |
+| `POST /checkout` | customer | Body `{items, fulfillment, checkout}`. `fulfillment` is `{method: "pickup", branch_id}` or `{method: "delivery", line1, barangay?, city, province, postal_code?, recipient?, phone?}`. Places the order and reserves the stock. 201 with the order |
+| `GET /orders` | customer | The customer's own orders. Sort: `placed`, `total`, `number`. Filters: `progress_key`, `payment_status`, `from`, `to` |
+| `GET /orders/{id}` | customer | One of their own orders with its path, payments and history. Another customer's order is 404 |
+
+Stock short at checkout is a 422 on `items` ("Not enough stock for: SKU (only 3 available)"), and nothing is created.
+
+## Orders (Admin, module `sales`)
+
+| Method and path | Permission | Notes |
+| --- | --- | --- |
+| `GET /admin/orders` | view | Sort: `placed`, `total`, `number`, `customer`. Filters: `progress_key`, `payment_status`, `customer_id`, `channel`, `refund_review`, `cancelled`, `from`, `to`. Search: `q` (number, customer) |
+| `GET /admin/orders/{id}` | view | Order with `lines`, `payments`, `history`, `path` (the steps that apply to this order, `current` marked) and `payment_summary` |
+| `POST /admin/orders/{id}/progress` | edit | Body `{step}`. The step must be in the order's own path. Reaching a step that maps to "complete" sells the reserved stock and snapshots costs. Never changes payment status |
+| `POST /admin/orders/{id}/payments` | edit | Body `{method, amount, reference?}`. Methods: `cash`, `gcash`, `maya`, `card`, `bank_transfer`, `cod` (all but cash and cod need a `reference`). Payment status becomes `unpaid`, `deposit_paid` or `paid`. Paying more than the balance is a 422 on `amount` |
+| `POST /admin/orders/{id}/cancel` | edit | Body `{reason}`. Releases the stock, keeps payments, sets `refund_review` when money was taken |
+
+Progress and payment are separate fields (`progress_key` and `payment_status`) and change independently.
+
+## Catalog management (Admin, module `products`)
+
+View to read, edit to create and change, **delete** to archive a brand or category.
+
+| Method and path | Permission |
+| --- | --- |
+| `GET /admin/products` (sort `name`, `price`, `newest`, `status`; filters as the public list plus `status`) | view |
+| `POST /admin/products` (name, description, brand_id, category_id, status, supplier_id, attributes, variants[]) | edit |
+| `GET /admin/products/{id}` (includes tiers, costs and stock) | view |
+| `PUT /admin/products/{id}`, `POST /admin/products/{id}/status` (`{status}`) | edit |
+| `POST /admin/products/{id}/variants`, `PUT /admin/variants/{id}` | edit |
+| `POST /admin/variants/{id}/tiers`, `PUT /admin/tiers/{id}` (send `variant_id`), `DELETE /admin/tiers/{id}` | edit |
+| `POST /admin/products/{id}/images` (`{media_id, variant_id?, primary?}`), `PUT /admin/products/{id}/images/order` (`{image_ids}`), `POST /admin/images/{id}/primary`, `DELETE /admin/images/{id}` | edit |
+| `POST /admin/media` (multipart, field `file`, optional `alt_text`) | edit |
+| `GET /admin/brands` (`archived=1` to include archived), `POST /admin/brands`, `PUT /admin/brands/{id}`, `PUT /admin/brands/{id}/logo` (`{media_id}`), `POST /admin/brands/{id}/restore` | view / edit |
+| `DELETE /admin/brands/{id}` (archive; 409 while products use it) | delete |
+| `GET /admin/categories`, `POST /admin/categories` (`{name, parent_id?}`), `PUT /admin/categories/{id}`, `POST /admin/categories/{id}/restore` | view / edit |
+| `DELETE /admin/categories/{id}` (archive; 409 while products or sub-categories use it) | delete |
+
+Rules: brand names must not start with GFH; categories go two levels deep; a product cannot be active without an active variant;
+SKUs and barcodes are unique; whole-number variants need whole-number quantities, and decimals need `allow_decimal_qty`
+with `qty_step` and `min_qty`. Price tiers: `basis` is `quantity` (applies from `min_qty`), `customer_tier` or `customer_type`
+(`tier_key` names the tier or type); the lowest matching price wins and a tier cannot be dearer than retail.
+Attributes are text, numbers or yes/no; an organization's `validation.attributes` hook adds its own rules and returns errors
+named `attributes.{key}`. Price changes are written to `price_history` and the audit log.
+
+Upload limits: JPEG, PNG or WebP, at most 5 MB and 24 megapixels, checked by content, re-encoded, resized to 2000 px, with a thumbnail.
+
+## Inventory (Admin, module `inventory`)
+
+| Method and path | Permission | Notes |
+| --- | --- | --- |
+| `GET /admin/inventory/levels` | view | Per branch and variant: `on_hand`, `reserved`, `available`. Sort: `product`, `sku`, `branch`, `on_hand`, `available`. Filters: `branch_id`, `variant_id`, `low_stock=1` |
+| `GET /admin/inventory/ledger` | view | The append-only movements. Sort: `time`, `sku`, `product`, `type`. Filters: `branch_id`, `variant_id`, `batch_id`, `type`, `from`, `to` |
+| `POST /admin/inventory/adjustments` | edit | `{branch_id, variant_id, delta, reason}`; `delta` may be negative; cannot take stock below zero; a reason is required |
+| `POST /admin/inventory/write-offs` | edit | `{branch_id, variant_id, quantity, reason}`; a reason is required |
+
+Stock on hand is the sum of movements. Weighted-average cost changes only on receipts and the incoming side of conversions.
+Conversions (`convert_out` and `convert_in`) are done through `InventoryService::convert()` by extensions; they are not purchases.
+
+## Procurement (Admin, module `procurement`)
+
+| Method and path | Permission | Notes |
+| --- | --- | --- |
+| `GET /admin/suppliers` | view | Sort: `name`, `lead_time`, `status`. Filter: `status` |
+| `POST /admin/suppliers`, `PUT /admin/suppliers/{id}`, `POST /admin/suppliers/{id}/status` | edit | name, contact_name, contact_email, contact_phone, address, payment_terms, lead_time_days |
+| `GET /admin/suppliers/{id}` | view | |
+| `GET /admin/purchase-orders` | view | Sort: `created`, `number`, `expected`, `supplier`. Filters: `status`, `supplier_id`, `branch_id` |
+| `POST /admin/purchase-orders` | edit | `{supplier_id, branch_id, expected_on?, notes?, lines: [{variant_id, quantity, unit_cost}]}`. Numbered `PO-2026-0001` |
+| `GET /admin/purchase-orders/{id}` | view | With lines |
+| `POST /admin/purchase-orders/{id}/send`, `.../cancel` | edit | A draft is sent; a draft or sent order that received nothing is cancelled |
+| `POST /admin/purchase-orders/{id}/receive` | edit | `{lines: [{line_id, qty_received, qty_rejected, batch_code, expires_on, bin}]}`. Accepted stock comes in at the line cost and updates the average cost; rejected quantities are recorded without stock. Variants that track batches need `batch_code` (errors are `lines.N.batch_code`). The whole receipt is refused if any line is |
+
+## POS (module `pos`; the review queue is module `sales`)
+
+A cashier works only on their own shift unless they also have edit permission on `sales`.
+
+| Method and path | Permission | Notes |
+| --- | --- | --- |
+| `GET /pos/terminals/{id}/snapshot` | pos view | Everything the terminal needs offline: terminal, VAT rate, payment methods, active discount rules, products (price, barcode, decimals rules, `on_hand` at the branch, quantity tiers, `media_id`), and an `etag` |
+| `GET /pos/terminals/{id}/shift` | pos view | `{shift}` or `{shift: null}` |
+| `POST /pos/shifts` | pos edit | `{terminal_id, opening_cash}`. 409 if the terminal already has an open shift. Returns `next_receipt_number` |
+| `POST /pos/shifts/{id}/close` | pos edit | `{counted_cash}`. Expected cash is the opening cash plus cash payments; the response has `expected_cash` and `variance` |
+| `POST /pos/sales` | pos edit | Uploads one sale: `{id, receipt_number, terminal_id, shift_id, sold_at, lines: [{variant_id, quantity, unit_price, discount?}], payments: [{method, amount, reference?}], discount?: {key, id_ref_last4?}, customer_id?}`. 201 for a new sale, 200 with `duplicate: true` when it was already uploaded |
+| `GET /pos/sales/{id}` | pos view | A sale with lines, payments and discounts (for a reprint) |
+| `GET /admin/pos-sales` | sales view | Sort: `sold`, `synced`, `receipt`, `total`. Filters: `status` (use `needs_review` for the queue), `terminal_id`, `shift_id` |
+| `POST /admin/pos-sales/{id}/resolve` | sales edit | `{note}` accepts a flagged sale |
+
+Sale sync rules: **idempotent** (the sale id is the key, so a retry returns the first result); **never rejected for stock** (a sale
+that sold more than was on record, or that a stock rule objected to, is kept with `status: "needs_review"` and a `review_reason`);
+**recomputed** (totals, VAT and discounts are worked out on the server from the unit prices sent, so an offline sale keeps its price;
+the payments must add up to that total). Receipt numbers are the terminal code and a counter, like `T3-000123`; the same number from
+a different sale is a 409. A sale dated after its shift was closed is a 409. Senior and PWD rules exist but are inactive until an
+Admin switches them on.
+
+## Reports (Admin, module `dashboard`)
+
+| Method and path | Permission | Notes |
+| --- | --- | --- |
+| `GET /admin/reports/dashboard` | view | `periods` (`today`, `month_to_date`, `last_30_days`, each with `gross_profit`, `net_sales`, `cost`, `units`, `orders`, `cost_complete_pct`), `series` (daily, last 30 days), `kpis` (low stock, out of stock, active orders, open and overdue purchase orders), `alerts`, `order_stages`, `widgets` |
+
+Gross profit is net sales (VAT removed, after discounts) minus the cost of lines that have a cost; it is never revenue. Lines with no cost
+are left out of profit and lower `cost_complete_pct`. Calendar reports by day, month and year are provided by the OLAP module, not here.
+
+## Authentication and accounts (Stage 2)
+
+`/auth/staff/{csrf,login,logout,me}`, `/auth/customer/{csrf,register,login,logout,me}`, `POST /auth/reset-password`,
+`POST /admin/reset-links`. See `docs/testing.md` for examples.
+
+## Not in this stage
+
+Customer profile, addresses and password change (Stage 7), settings, branches, terminals, discount rule and order step management
+(Stage 6), and the reserved `/{org}/api/v1/olap/` prefix (Stage 6).

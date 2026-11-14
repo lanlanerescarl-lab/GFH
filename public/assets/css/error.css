@@ -1,0 +1,167 @@
+/* Styles for the core error and welcome pages. Stage 4 replaces these with the design tokens. */
+:root {
+  --gfh-50: #EFF3FF;
+  --gfh-300: #6BAED6;
+  --gfh-500: #3182BD;
+  --gfh-800: #08519C;
+  --ink: #1a2a3a;
+  --card-radius: 10px;
+  --control-radius: 8px;
+  --shadow-rest: 0 1px 4px rgba(8, 81, 156, 0.06);
+}
+
+* { box-sizing: border-box; }
+
+html { height: 100%; }
+
+body {
+  margin: 0;
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: var(--gfh-50);
+  color: var(--ink);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.5;
+}
+
+.error-page {
+  width: 100%;
+  max-width: 520px;
+  padding: 32px;
+  background: #fff;
+  border-radius: var(--card-radius);
+  box-shadow: var(--shadow-rest);
+}
+
+.error-page__code {
+  margin: 0 0 8px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gfh-500);
+}
+
+.error-page h1 {
+  margin: 0 0 16px;
+  font-family: "Source Serif 4", Georgia, "Times New Roman", serif;
+  font-size: 1.75rem;
+  line-height: 1.25;
+  color: var(--gfh-800);
+}
+
+.error-page p { margin: 0 0 16px; }
+
+.error-page__ref {
+  font-size: 0.875rem;
+  color: #4a5b6c;
+}
+
+.error-page__debug {
+  margin: 16px 0;
+  padding: 12px 16px;
+  background: #FFFBEB;
+  border-left: 4px solid #d97706;
+  border-radius: var(--control-radius);
+  font-size: 0.875rem;
+  word-break: break-word;
+}
+
+.error-page ul { margin: 0 0 16px; padding-left: 20px; }
+
+.button {
+  display: inline-block;
+  padding: 12px 20px;
+  background: var(--gfh-800);
+  color: #fff;
+  border-radius: var(--control-radius);
+  font-weight: 600;
+  text-decoration: none;
+  transition: background-color 150ms ease;
+}
+
+.button:hover { background: var(--gfh-500); }
+
+a:focus-visible,
+.button:focus-visible {
+  outline: 3px solid var(--gfh-500);
+  outline-offset: 2px;
+}
+
+a { color: var(--gfh-800); }
+
+/* Forms and notices used by the simple sign-in and reset pages (replaced by the template styles in Stage 4). */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -48px;
+  padding: 8px 16px;
+  background: var(--gfh-800);
+  color: #fff;
+  border-radius: var(--control-radius);
+  z-index: 10;
+}
+
+.skip-link:focus { top: 8px; }
+
+.field { margin: 0 0 16px; }
+
+.field label,
+label {
+  display: block;
+  margin: 0 0 4px;
+  font-weight: 600;
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"],
+select {
+  display: block;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid #9ECAE1;
+  border-radius: var(--control-radius);
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+}
+
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+  outline: 3px solid var(--gfh-500);
+  outline-offset: 2px;
+}
+
+button.button { border: 0; cursor: pointer; font: inherit; font-weight: 600; }
+
+.button--secondary {
+  background: #fff;
+  color: var(--gfh-800);
+  border: 2px solid var(--gfh-800) !important;
+}
+
+.button--secondary:hover { background: var(--gfh-50); }
+
+.alert {
+  margin: 0 0 16px;
+  padding: 12px 16px;
+  border-radius: var(--control-radius);
+  border-left: 4px solid;
+}
+
+.alert--error { background: #FEF2F2; border-color: #dc2626; }
+.alert--ok { background: #F0FDF4; border-color: #16a34a; }
+
+.help { margin: 4px 0 0; font-size: 0.875rem; color: #4a5b6c; }
+
+main:focus { outline: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .button { transition: none; }
+}

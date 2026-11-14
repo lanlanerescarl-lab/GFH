@@ -1,0 +1,50 @@
+/*
+ * Design tokens shared by the Admin, Shop and POS apps. This is the only place that holds color, font,
+ * radius, shadow and spacing values; every other stylesheet uses var(--name).
+ * An organization's branding overrides some of these through /{org}/branding.css (see docs/templates.md).
+ */
+:root {
+  /* Colors */
+  --color-bg: #eff3ff;
+  --color-surface: #ffffff;
+  --color-ink: #1a2a3a;
+  --color-muted: #4a5b6c;
+  --color-primary: #08519c;
+  --color-primary-strong: #08306b;
+  --color-on-primary: #ffffff;
+  --color-focus: var(--color-primary);
+  --color-border: #7a93ab;
+  --color-border-soft: #d5e3f0;
+  --color-danger: #b91c1c;
+  --color-danger-bg: #fef2f2;
+  --color-ok: #166534;
+  --color-ok-bg: #f0fdf4;
+  --color-shadow: rgba(8, 81, 156, 0.12);
+
+  /* Fonts. Named fonts only show if they are vendored; see public/assets/css/fonts.css. */
+  --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  --font-heading: "Source Serif 4", Georgia, "Times New Roman", serif;
+
+  /* Corner radii */
+  --radius-card: 10px;
+  --radius-control: 8px;
+
+  /* Shadows */
+  --shadow-rest: 0 1px 4px var(--color-shadow);
+  --shadow-raised: 0 4px 16px var(--color-shadow);
+
+  /* Spacing: multiples of 4 and 8 */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+  --space-8: 64px;
+
+  /* Sizes */
+  --control-height: 44px;
+  --page-width: 1200px;
+  --transition: 150ms ease;
+}

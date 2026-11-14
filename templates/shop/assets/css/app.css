@@ -1,0 +1,2 @@
+/* Shop-only styles. Use the variables from tokens.css. */
+.app-shop .shell-main { padding-top: var(--space-6); }

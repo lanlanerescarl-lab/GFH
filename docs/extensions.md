@@ -1,0 +1,130 @@
+# Extensions (Stage 4)
+
+Extensions add optional or organization-specific behavior without changing `core/` or `templates/`. Every extension has a manifest (`extension.json`) and a PHP entry file that registers hook callbacks through `ExtensionContext`.
+
+## Where extensions live and which wins
+
+| Folder | Scope | When it loads |
+| --- | --- | --- |
+| `extensions/{key}/` | Shared across organizations | Only when the organization has the matching feature switched on (`cold_chain` enables `extensions/cold-chain/`). A disabled shared extension is not opened |
+| `orgs/{slug}/extensions/{key}/` | Local to one organization | Always loaded for `{slug}`, never for any other organization |
+
+Extensions are discovered in alphabetical order (`extensions/` first, then `orgs/{slug}/extensions/`). If both folders have an extension with the same `key`, the **organization-local extension wins** and completely replaces the shared one for that organization.
+
+Each organization has its own `Hooks` and `SettingsService` instance inside `Services::forTenant()`, so one organization's extensions never affect another organization.
+
+## `extension.json` fields
+
+`extension.json` must be a JSON object with no unknown fields.
+
+| Field | Required | Rules |
+| --- | --- | --- |
+| `key` | Yes | 2 to 41 characters (`^[a-z][a-z0-9-]{1,40}$`): lower-case letters, digits and hyphens, starting with a letter. Must equal the extension's folder name |
+| `name` | Yes | Non-empty text, at most 80 characters |
+| `version` | Yes | Three dot-separated numbers (`^\d{1,4}\.\d{1,4}\.\d{1,4}$`), such as `1.0.0` |
+| `description` | No | Text, at most 300 characters (defaults to `""`) |
+| `entry` | Yes | Plain PHP file name in the extension folder (`^[A-Za-z0-9_-]+\.php$`), such as `register.php`. Must exist inside the extension folder; no slashes, paths or surrounding whitespace |
+| `hooks` | No | JSON list of hook names from `Hooks::NAMES` that this extension may register |
+| `settings` | No | JSON object mapping setting keys to setting definitions (see below) |
+| `namespace` | No | JSON object mapping PSR-4 namespace prefixes (ending with `\`, such as `Acme\\ColdChain\\`) to plain relative folders inside the extension (such as `src/`). Parsed and validated in Stage 4; wired to `Autoloader::addNamespace()` in Stage 8 |
+
+Example:
+
+```json
+{
+  "key": "cold-chain",
+  "name": "Cold chain",
+  "version": "1.2.0",
+  "description": "Temperature checks for chilled goods.",
+  "entry": "register.php",
+  "hooks": ["stock.pick_strategy", "navigation.admin"],
+  "settings": {
+    "cold_chain.max_temp": {
+      "default": 8,
+      "type": "int",
+      "min": 0,
+      "max": 30,
+      "label": "Highest allowed temperature"
+    }
+  },
+  "namespace": {
+    "Acme\\ColdChain\\": "src/"
+  }
+}
+```
+
+## Settings and setting types
+
+Every setting key must start with the extension's key with hyphens replaced by underscores, followed by a dot (for example, extension `cold-chain` owns keys starting with `cold_chain.`), and match `^[a-z][a-z0-9_.]{2,60}$`.
+
+Each setting definition is an object with only these fields:
+
+| Field | Required | Rules |
+| --- | --- | --- |
+| `default` | Yes | Whole number (`int`), text (`string`) or `true`/`false` (`bool`) |
+| `type` | No | `int`, `string` or `bool`. Defaults to the type of `default` and must match it |
+| `min`, `max` | No | Whole numbers (`int` settings only). `min` cannot exceed `max`, and `default` must fall within `[min, max]` |
+| `label` | No | Non-empty text up to 120 characters (defaults to the setting key) |
+
+When the extension loads, its settings are registered on the organization's `SettingsService` with a validator (`ExtensionManifest::settingError()`):
+
+- `bool`: accepts `true` or `false`.
+- `string`: accepts strings up to 500 characters.
+- `int`: accepts whole numbers (or 1–9 digit numeric strings) within `min` and `max`.
+
+## Valid hook names
+
+All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
+
+| Hook name | Constant | What it filters / does |
+| --- | --- | --- |
+| `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app |
+| `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items in the Shop app |
+| `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form |
+| `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects |
+| `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections on the Shop product detail page |
+| `checkout.fields` | `Hooks::CHECKOUT_FIELDS` | Extra checkout fields returned by `GET /{org}/api/v1/checkout/options` |
+| `checkout.adjustments` | `Hooks::CHECKOUT_ADJUSTMENTS` | Online cart fees (`delivery_fee`, `assembly_fee`, `installation_fee`), `deposit_due`, `promised_date` and `made_to_order_variants` in `PricingService` |
+| `order.progress.steps` | `Hooks::ORDER_PROGRESS_STEPS` | The steps in an order's progress path (`context`: `order`, `all_steps`) in `OrderService` |
+| `order.detail.panels` | `Hooks::ORDER_DETAIL_PANELS` | Extra panels on the Admin order detail view |
+| `stock.pick_strategy` | `Hooks::STOCK_PICK_STRATEGY` | Batch picks (`list<array{batch_id: ?string, quantity_milli: int}>`) when issuing stock in `InventoryService`; may throw `HttpException` to refuse a sale |
+| `validation.attributes` | `Hooks::VALIDATION_ATTRIBUTES` | Product attribute field errors (`attributes.{key}` => message) in `CatalogService` |
+| `dashboard.widgets` | `Hooks::DASHBOARD_WIDGETS` | Extra dashboard widgets returned by `ReportService::dashboard()` |
+
+A hook callback has the signature `fn (mixed $value, array $context): mixed` and returns the modified `$value`. Lower priority numbers (`0` to `100`, default `10`) run first across all loaded extensions.
+
+## Entry file and `ExtensionContext`
+
+The entry file (`entry` in `extension.json`) must return a `Closure` that accepts `ExtensionContext`:
+
+```php
+<?php
+
+declare(strict_types=1);
+
+use Gfh\Core\Extension\ExtensionContext;
+
+return function (ExtensionContext $x): void {
+    $x->hook('navigation.admin', function (array $items) use ($x): array {
+        $limit = $x->setting('cold_chain.max_temp');
+        $items[] = ['label' => 'Cold chain (' . $limit . '°C)', 'url' => '/demo/admin/cold-chain'];
+        return $items;
+    }, 10);
+};
+```
+
+`ExtensionContext` provides:
+
+- `$x->key(): string` — the extension's key.
+- `$x->path(string $file = ''): string` — absolute path inside the extension's own folder (refuses `..`, leading slashes or unsafe segments).
+- `$x->hook(string $name, callable $callback, int $priority = 10): void` — queues a callback for a hook listed in the manifest's `hooks` array, with priority `0` to `100`.
+- `$x->setting(string $key): mixed` — reads one of this extension's declared settings from `SettingsService`. Call this **inside a hook callback**, never while the entry file is still registering.
+
+## What the loader does with a broken extension
+
+`ExtensionLoader` isolates every extension:
+
+1. Output buffered during `require` of the entry file is discarded (`ob_start()` / `ob_end_clean()`).
+2. Hook registrations and setting definitions are staged in `ExtensionContext` and only committed to `Hooks` and `SettingsService` **after** the entry file finishes without throwing. An extension that fails halfway leaves no hooks or settings behind.
+3. Any `\Throwable` (missing or invalid `extension.json`, unknown field or hook, registering an undeclared hook, reading a setting during registration, a non-Closure return value, a `ParseError` or runtime exception) is caught.
+4. The failure is recorded in the loader's report (`['loaded' => [...], 'failed' => [$key => $reason]]`, accessible via `Services::extensionReport($slug)`) and logged once through the application logger. All other extensions and the site continue to run normally.
