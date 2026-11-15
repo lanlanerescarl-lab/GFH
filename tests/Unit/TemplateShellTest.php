@@ -196,7 +196,7 @@ final class TemplateShellTest extends TestCase
         $this->assertStringContainsString('font-family: "Source Serif 4";', $fontsCss);
 
         preg_match_all('#url\("\.\./fonts/([A-Za-z0-9._-]+\.woff2)"\)#', $fontsCss, $matches);
-        $this->assertNotEmpty($matches[1]);
+        $this->assertCount(12, $matches[1], '6 latin + 6 latin-ext font files must be declared');
         foreach ($matches[1] as $file) {
             $path = $this->project . '/public/assets/fonts/' . $file;
             $this->assertFileExists($path);
@@ -204,6 +204,30 @@ final class TemplateShellTest extends TestCase
             $this->assertStringStartsWith('wOF2', $bytes, $file . ' must be a valid WOFF2 binary');
             $this->assertGreaterThan(10000, strlen($bytes), $file . ' must be a real font file');
         }
+
+        // Every used font family must have a @font-face whose unicode-range covers U+20B1 (the peso sign).
+        preg_match_all('/@font-face\s*\{([^}]*)\}/s', $fontsCss, $blocks);
+        $pesoCovered = ['Inter' => false, 'Source Serif 4' => false];
+        foreach ($blocks[1] as $block) {
+            if (preg_match('/font-family:\s*"([^"]+)"/', $block, $fam) !== 1) {
+                continue;
+            }
+            if (preg_match('/unicode-range:\s*([^;]+);/', $block, $ur) !== 1) {
+                continue;
+            }
+            foreach (explode(',', $ur[1]) as $range) {
+                $range = trim($range);
+                if (preg_match('/^U\+([0-9A-F]+)-([0-9A-F]+)$/i', $range, $r) === 1) {
+                    if (hexdec($r[1]) <= 0x20B1 && 0x20B1 <= hexdec($r[2])) {
+                        $pesoCovered[$fam[1]] = true;
+                    }
+                } elseif (preg_match('/^U\+([0-9A-F]+)$/i', $range, $r) === 1 && hexdec($r[1]) === 0x20B1) {
+                    $pesoCovered[$fam[1]] = true;
+                }
+            }
+        }
+        $this->assertTrue($pesoCovered['Inter'], 'Inter @font-face must cover U+20B1 (peso sign)');
+        $this->assertTrue($pesoCovered['Source Serif 4'], 'Source Serif 4 @font-face must cover U+20B1 (peso sign)');
 
         $this->assertFileExists($this->project . '/public/assets/fonts/Inter-OFL.txt');
         $this->assertFileExists($this->project . '/public/assets/fonts/SourceSerif4-OFL.txt');

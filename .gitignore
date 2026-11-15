@@ -10,7 +10,7 @@ storage/uploads/*
 !storage/uploads/.gitkeep
 
 # Dependencies and tooling
-vendor/
+/vendor/
 phpunit.phar
 .phpunit.cache/
 .phpunit.result.cache
