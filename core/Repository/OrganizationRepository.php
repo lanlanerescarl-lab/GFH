@@ -114,4 +114,31 @@ final class OrganizationRepository
         $statement = $this->core->prepare('UPDATE organizations SET migration_version = :version WHERE id = :id');
         $statement->execute(['version' => $version, 'id' => $organizationId]);
     }
+
+    /**
+     * Replaces only the encrypted connection (and db_schema when explicitly provided) for an existing organization.
+     */
+    public function updateConnection(string $organizationId, string $connectionEncrypted, ?string $dbSchema = null): void
+    {
+        if ($dbSchema === null) {
+            $statement = $this->core->prepare(
+                "UPDATE organizations SET connection_encrypted = decode(:connection, 'hex') WHERE id = :id",
+            );
+            $statement->execute([
+                'connection' => bin2hex($connectionEncrypted),
+                'id' => $organizationId,
+            ]);
+
+            return;
+        }
+
+        $statement = $this->core->prepare(
+            "UPDATE organizations SET connection_encrypted = decode(:connection, 'hex'), db_schema = :db_schema WHERE id = :id",
+        );
+        $statement->execute([
+            'connection' => bin2hex($connectionEncrypted),
+            'db_schema' => $dbSchema,
+            'id' => $organizationId,
+        ]);
+    }
 }
