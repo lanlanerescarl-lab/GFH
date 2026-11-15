@@ -18,6 +18,7 @@
 
   /* Chart series, in this order. Shared by every chart and sparkline (see templates/admin/assets/js/chart-theme.js). */
   --chart-1: var(--gfh-500);
+  --chart-1-fill: rgba(49, 130, 189, 0.16);
   --chart-2: var(--gfh-800);
   --chart-3: var(--gfh-300);
   --chart-4: var(--gfh-200);

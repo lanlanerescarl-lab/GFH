@@ -176,6 +176,7 @@ return static function (Router $router, App $app): void {
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);
         $r->get('/admin/account', static fn (Request $q) => $pages->account($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/ui-kit', static fn (Request $q) => $pages->uiKit($q), [$tenant, $staffSession, $requireStaff]);
         $r->get('/admin/reset-links', static fn (Request $q) => $pages->resetLinksForm($q), [$tenant, $staffSession, $requireStaff]);
         $r->post('/admin/reset-links', static fn (Request $q) => $pages->resetLinksSubmit($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/reset-password', static fn (Request $q) => $pages->resetPasswordForm($q), [$tenant]);

@@ -81,6 +81,16 @@ procurement receiving with batches and rejected quantities, shifts and expected 
 
 Stage 1 rules are covered by `MigratorTest` (runs once, runs twice changes nothing, a modified applied migration is refused).
 
+## Stage 4 acceptance rules and the tests that check them
+
+| Rule | Test |
+| --- | --- |
+| Three token sets (`admin`, `shop`, `pos`) defined as CSS variables overridable by branding | `TemplateShellTest::testEachAppHasATokenSetOfVariablesThatBrandingCanOverride`, `BrandingCssTest` |
+| Self-hosted fonts (`Inter`, `Source Serif 4`) and locally vendored Chart.js (`v4.4.8`, MIT) | `TemplateShellTest::testSelfHostedFontsAreDeclaredAndVendored` |
+| Admin sidebar filtered by `PermissionService::can()` and extended via `navigation.admin` hook | `AdminNavigationTest` |
+| UI kit page (`/{org}/admin/ui-kit`) refuses signed-out users and renders all components with labels and keyboard attributes | `UiKitPageTest` |
+| No request goes to an external host in `templates/` or `public/assets/` | `NoExternalHostsTest` |
+
 ## Manual checks in the browser (Stage 2)
 
 With the database set up as in `database/roles/README.md` and the demo organization migrated:

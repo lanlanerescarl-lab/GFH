@@ -81,6 +81,26 @@ final class StaffPagesController
         ]);
     }
 
+    /** Signed-in staff page showing every Admin component and form control in every state. */
+    public function uiKit(Request $request): Response
+    {
+        $tenant = $this->tenant($request);
+        $staff = $this->staff($request);
+        $this->services->permissions()->assert($staff, $tenant->organization, 'dashboard', 'view');
+
+        $currentPath = $request->basePath() . $request->path();
+        $navigation = $this->services->adminNavigation($tenant)->items($staff, $tenant->organization, $request->basePath(), $currentPath);
+        $view = $this->services->appView($tenant, 'admin', $request, [
+            'navigation' => $navigation,
+            'staffName' => $staff->fullName,
+            'staffRole' => (string) $tenant->role(),
+            'logoutUrl' => $this->url($request, $tenant, '/admin/logout'),
+            'csrf' => $this->csrfToken($request),
+        ]);
+
+        return Response::html($view->render('ui-kit'));
+    }
+
     public function resetLinksForm(Request $request): Response
     {
         $tenant = $this->tenant($request);

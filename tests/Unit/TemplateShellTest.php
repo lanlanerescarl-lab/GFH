@@ -202,7 +202,16 @@ final class TemplateShellTest extends TestCase
             $this->assertFileExists($path);
             $bytes = (string) file_get_contents($path);
             $this->assertStringStartsWith('wOF2', $bytes, $file . ' must be a valid WOFF2 binary');
+            $this->assertGreaterThan(10000, strlen($bytes), $file . ' must be a real font file');
         }
+
+        $this->assertFileExists($this->project . '/public/assets/fonts/Inter-OFL.txt');
+        $this->assertFileExists($this->project . '/public/assets/fonts/SourceSerif4-OFL.txt');
+
+        $chartJs = (string) file_get_contents($this->project . '/public/assets/js/vendor/chart.js');
+        $this->assertStringContainsString('Chart.js v4.4.8', substr($chartJs, 0, 200));
+        $this->assertStringContainsString('Released under the MIT License', substr($chartJs, 0, 200));
+        $this->assertFileExists($this->project . '/public/assets/js/vendor/chart.LICENSE.md');
     }
 
     public function testPublishedAppStylesMatchTheTemplates(): void
@@ -216,6 +225,13 @@ final class TemplateShellTest extends TestCase
                     'public/assets/' . $app . ' is out of date. Run php bin/publish-assets.php',
                 );
             }
+        }
+        foreach (['js/ui.js', 'js/chart-theme.js'] as $file) {
+            $this->assertFileEquals(
+                $this->project . '/templates/admin/assets/' . $file,
+                $this->project . '/public/assets/admin/' . $file,
+                'public/assets/admin/' . $file . ' is out of date. Run php bin/publish-assets.php',
+            );
         }
     }
 }

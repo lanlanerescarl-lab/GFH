@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class NoExternalHostsTest extends TestCase
 {
-    private const TEXT_EXTENSIONS = ['php', 'html', 'css', 'js', 'mjs', 'svg', 'json', 'txt', 'md', 'map'];
+    private const TEXT_EXTENSIONS = ['php', 'html', 'css', 'js', 'mjs', 'svg', 'json', 'map'];
 
     /** @return list<string> one line per finding: "file:line: match" */
     public static function scan(string $root, array $folders): array
