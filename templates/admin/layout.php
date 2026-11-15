@@ -72,6 +72,9 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
 <?php endif; ?>
             </header>
             <main class="shell-main admin-main" id="main" tabindex="-1">
+<?php if (is_array($flash ?? null) && $flash !== []): ?>
+                <?= $this->partial('partials/flash', ['flash' => $flash]) ?>
+<?php endif; ?>
                 <?= $this->section('content') ?>
             </main>
             <footer class="shell-footer">

@@ -61,4 +61,26 @@ final class InventoryAdminController extends ApiController
             (string) ($body['branch_id'] ?? ''), (string) ($body['variant_id'] ?? ''), $body['quantity'] ?? null, $this->text($request, 'reason'), $this->actorId($request),
         ), 201);
     }
+
+    public function reorderSuggestions(Request $request): Response
+    {
+        $services = $this->authorize($request, 'inventory', 'view');
+        $query = ListQuery::fromRequest(
+            $request,
+            [
+                'product' => 'product_name',
+                'sku' => 'sku',
+                'on_hand' => 'on_hand',
+                'available' => 'available',
+                'reorder_level' => 'reorder_level',
+                'suggested_qty' => 'suggested_qty',
+                'supplier' => "COALESCE(supplier_name, '')",
+            ],
+            '-suggested_qty',
+            ['supplier_id', 'status'],
+            ['supplier_id'],
+        );
+
+        return Response::ok($services->inventory()->reorderSuggestions($query));
+    }
 }

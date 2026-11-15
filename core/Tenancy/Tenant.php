@@ -13,13 +13,12 @@ use Gfh\Core\Database\Database;
  */
 final class Tenant
 {
-    private ?\PDO $connection = null;
-
     /** @param array<string, mixed>|null $membership */
     public function __construct(
         public readonly Organization $organization,
         private readonly Database $database,
         public readonly ?array $membership = null,
+        private ?\PDO $connection = null,
     ) {
     }
 

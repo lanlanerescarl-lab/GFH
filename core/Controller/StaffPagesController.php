@@ -31,7 +31,7 @@ final class StaffPagesController
 
         // Already signed in with access: go straight on.
         if ($staff instanceof StaffUser && $this->services->permissions()->activeMembership($staff, $tenant->organization) !== null) {
-            return Response::redirect($this->next($request, $tenant));
+            return Response::redirect($this->next($request, $tenant, $staff));
         }
 
         return $this->loginPage($request, $tenant);
@@ -53,7 +53,7 @@ final class StaffPagesController
         $session->put('user_id', $user->id);
         $this->services->csrf($session)->rotate();
 
-        return Response::redirect($this->next($request, $tenant));
+        return Response::redirect($this->next($request, $tenant, $user));
     }
 
     public function logout(Request $request): Response
@@ -176,7 +176,7 @@ final class StaffPagesController
         return $this->page('login', $request, [
             'organization' => $tenant->organization->name,
             'action' => $this->url($request, $tenant, '/admin/login'),
-            'next' => $this->next($request, $tenant),
+            'next' => $this->explicitNext($request, $tenant),
             'error' => $error,
             'email' => $this->text($request, 'email'),
             'csrf' => $this->csrfToken($request),
@@ -225,12 +225,25 @@ final class StaffPagesController
      * Where to go after sign-in. Only a path inside this organization's admin area is accepted,
      * so a crafted link cannot send someone to another site.
      */
-    private function next(Request $request, Tenant $tenant): string
+    private function next(Request $request, Tenant $tenant, ?StaffUser $user = null): string
     {
-        $default = $this->url($request, $tenant, '/admin/account');
+        $explicit = $this->explicitNext($request, $tenant);
+        if ($explicit !== '') {
+            return $explicit;
+        }
+
+        if ($user !== null && $this->services->permissions()->can($user, $tenant->organization, 'dashboard', 'view')) {
+            return $this->url($request, $tenant, '/admin');
+        }
+
+        return $this->url($request, $tenant, '/admin/account');
+    }
+
+    private function explicitNext(Request $request, Tenant $tenant): string
+    {
         $candidate = $request->query()['next'] ?? $request->body()['next'] ?? '';
-        if (!is_string($candidate)) {
-            return $default;
+        if (!is_string($candidate) || $candidate === '') {
+            return '';
         }
 
         $prefix = $this->url($request, $tenant, '/admin');
@@ -238,7 +251,7 @@ final class StaffPagesController
             && !str_contains($candidate, '//')
             && ($candidate === $prefix || str_starts_with($candidate, $prefix . '/') || str_starts_with($candidate, $prefix . '?'));
 
-        return $safe ? $candidate : $default;
+        return $safe ? $candidate : '';
     }
 
     private function csrfToken(Request $request): string

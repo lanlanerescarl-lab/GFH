@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Gfh\Core\App;
+use Gfh\Core\Controller\Admin\DashboardController;
+use Gfh\Core\Controller\Admin\InventoryController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -41,6 +43,8 @@ return static function (Router $router, App $app): void {
     $services = new Services($app);
     $auth = new AuthController($services);
     $pages = new StaffPagesController($services);
+    $adminDashboard = new DashboardController($services);
+    $adminInventory = new InventoryController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -67,7 +71,7 @@ return static function (Router $router, App $app): void {
     $router->get('/media/{org:[a-z][a-z0-9-]*}/{id}', static fn (Request $q) => $media->serve($q), [$tenant]);
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
-        $auth, $pages, $branding, $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
+        $auth, $pages, $adminDashboard, $adminInventory, $branding, $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
         // Every Admin and POS API call: organization, staff session, CSRF for changes, signed-in member. Each
@@ -141,6 +145,7 @@ return static function (Router $router, App $app): void {
 
         $r->get('/api/v1/admin/inventory/levels', static fn (Request $q) => $inventoryAdmin->levels($q), $staff);
         $r->get('/api/v1/admin/inventory/ledger', static fn (Request $q) => $inventoryAdmin->ledger($q), $staff);
+        $r->get('/api/v1/admin/inventory/reorder-suggestions', static fn (Request $q) => $inventoryAdmin->reorderSuggestions($q), $staff);
         $r->post('/api/v1/admin/inventory/adjustments', static fn (Request $q) => $inventoryAdmin->adjust($q), $staff);
         $r->post('/api/v1/admin/inventory/write-offs', static fn (Request $q) => $inventoryAdmin->writeOff($q), $staff);
 
@@ -172,6 +177,12 @@ return static function (Router $router, App $app): void {
         $r->get('/branding.css', static fn (Request $q) => $branding->css($q), [$tenant]);
 
         // --- Pages
+        $r->get('/admin', static fn (Request $q) => $adminDashboard->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/inventory', static fn (Request $q) => $adminInventory->levels($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/inventory/ledger', static fn (Request $q) => $adminInventory->ledger($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/inventory/reorder', static fn (Request $q) => $adminInventory->reorder($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/inventory/adjustments', static fn (Request $q) => $adminInventory->adjust($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/inventory/write-offs', static fn (Request $q) => $adminInventory->writeOff($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

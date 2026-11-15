@@ -43,8 +43,11 @@ final class Services
     /** @var array<string, array{loaded: list<string>, failed: array<string, string>}> */
     private array $extensionReports = [];
 
-    public function __construct(private readonly App $app, private readonly bool $privileged = false)
-    {
+    public function __construct(
+        private readonly App $app,
+        private readonly bool $privileged = false,
+        private readonly ?\PDO $coreConnection = null,
+    ) {
     }
 
     public function app(): App
@@ -59,6 +62,10 @@ final class Services
 
     public function core(): \PDO
     {
+        if ($this->coreConnection !== null) {
+            return $this->coreConnection;
+        }
+
         return $this->privileged ? $this->database()->coreMigrator() : $this->database()->core();
     }
 

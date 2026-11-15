@@ -233,6 +233,32 @@ final class InventoryService
         return $query->result($rows, $total);
     }
 
+    /** @return list<array<string, mixed>> */
+    public function branches(bool $activeOnly = false): array
+    {
+        return $this->repository->branches($activeOnly);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function variantsForSelect(): array
+    {
+        return $this->repository->variantsForSelect();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function reorderSuppliers(): array
+    {
+        return $this->repository->reorderSuppliers();
+    }
+
+    /** @return array{items: list<array<string, mixed>>, pagination: array<string, int>, sort: string} */
+    public function reorderSuggestions(ListQuery $query): array
+    {
+        [$rows, $total] = $this->repository->reorderSuggestions($query);
+
+        return $query->result($rows, $total);
+    }
+
     // ------------------------------------------------------------------ internals
 
     /** @return array<string, mixed> */

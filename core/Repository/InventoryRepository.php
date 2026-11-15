@@ -259,4 +259,90 @@ final class InventoryRepository
 
         return [$rows, $total];
     }
+
+    /** @return list<array<string, mixed>> */
+    public function branches(bool $activeOnly = false): array
+    {
+        $sql = 'SELECT id, code, name, kind, status FROM branches';
+        if ($activeOnly) {
+            $sql .= " WHERE status = 'active'";
+        }
+
+        return $this->rows($sql . ' ORDER BY name, code');
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function variantsForSelect(): array
+    {
+        return $this->rows(
+            "SELECT v.id, v.sku, v.name AS variant_name, p.name AS product_name, v.unit, v.allow_decimal_qty, v.qty_step, v.min_qty "
+            . "FROM product_variants v JOIN products p ON p.id = v.product_id "
+            . "WHERE v.status = 'active' AND p.status <> 'discontinued' ORDER BY p.name, v.sku",
+        );
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function reorderSuppliers(): array
+    {
+        return $this->rows("SELECT id, name FROM suppliers WHERE status = 'active' ORDER BY name");
+    }
+
+    /**
+     * Active variants whose available stock (on hand minus active reservations) is at or below reorder_level.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: int}
+     */
+    public function reorderSuggestions(ListQuery $query): array
+    {
+        $where = new SqlWhere();
+        if (is_string($supplier = $query->filter('supplier_id')) && $supplier !== '') {
+            $where->add('supplier_id = ?', $supplier);
+        }
+        $status = $query->filter('status');
+        if ($status === 'out_of_stock') {
+            $where->add('on_hand <= 0');
+        } elseif ($status === 'low_stock') {
+            $where->add('on_hand > 0');
+        } elseif ($status === 'needs_po') {
+            $where->add('suggested_qty > 0');
+        }
+        if (($pattern = $query->likePattern()) !== null) {
+            $where->add("product_name ILIKE ? OR sku ILIKE ? OR variant_name ILIKE ? OR COALESCE(supplier_name, '') ILIKE ?", $pattern, $pattern, $pattern, $pattern);
+        }
+
+        $cte = 'WITH on_hand AS ('
+            . '  SELECT variant_id, SUM(quantity_delta) AS qty FROM stock_movements GROUP BY variant_id'
+            . '), reserved AS ('
+            . "  SELECT variant_id, SUM(quantity) AS qty FROM stock_reservations WHERE status = 'active' AND expires_at > now() GROUP BY variant_id"
+            . '), on_order AS ('
+            . '  SELECT pol.variant_id, SUM(GREATEST(0, pol.qty_ordered - pol.qty_received - pol.qty_rejected)) AS qty '
+            . '  FROM purchase_order_lines pol JOIN purchase_orders po ON po.id = pol.purchase_order_id '
+            . "  WHERE po.status IN ('sent', 'partially_received') GROUP BY pol.variant_id"
+            . '), base AS ('
+            . '  SELECT v.id AS variant_id, v.sku, v.name AS variant_name, p.id AS product_id, p.name AS product_name, '
+            . '         v.unit, v.min_qty, v.reorder_level, v.avg_cost, p.supplier_id, s.name AS supplier_name, s.lead_time_days, '
+            . '         COALESCE(oh.qty, 0) AS on_hand, COALESCE(r.qty, 0) AS reserved, '
+            . '         COALESCE(oh.qty, 0) - COALESCE(r.qty, 0) AS available, '
+            . '         COALESCE(oo.qty, 0) AS on_order, '
+            . '         CASE WHEN (COALESCE(oh.qty, 0) - COALESCE(r.qty, 0) + COALESCE(oo.qty, 0)) <= v.reorder_level '
+            . '              THEN GREATEST(v.min_qty, v.reorder_level - (COALESCE(oh.qty, 0) - COALESCE(r.qty, 0) + COALESCE(oo.qty, 0))) '
+            . '              ELSE 0.000 END AS suggested_qty '
+            . '  FROM product_variants v '
+            . '  JOIN products p ON p.id = v.product_id '
+            . '  LEFT JOIN suppliers s ON s.id = p.supplier_id '
+            . '  LEFT JOIN on_hand oh ON oh.variant_id = v.id '
+            . '  LEFT JOIN reserved r ON r.variant_id = v.id '
+            . '  LEFT JOIN on_order oo ON oo.variant_id = v.id '
+            . "  WHERE v.status = 'active' AND p.status = 'active' AND v.reorder_level > 0 "
+            . '    AND (COALESCE(oh.qty, 0) - COALESCE(r.qty, 0)) <= v.reorder_level'
+            . ') ';
+
+        $total = (int) $this->scalar($cte . 'SELECT COUNT(*) FROM base ' . $where->sql(), $where->params());
+        $rows = $this->rows(
+            $cte . 'SELECT * FROM base ' . $where->sql() . ' ORDER BY ' . $query->orderBy . ', product_name ASC, sku ASC LIMIT ' . $query->perPage . ' OFFSET ' . $query->offset(),
+            $where->params(),
+        );
+
+        return [$rows, $total];
+    }
 }

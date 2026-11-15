@@ -8,9 +8,11 @@ GFH is one shared PHP + PostgreSQL codebase that serves several organizations. A
 
 ## Status (update this section at the end of every stage)
 
-- The master plan is section 12 of the Reusable Template Development Prompt. The foundation has 10 stages, numbered 0 to 9. Stages 0, 1, 2, 3 and 4 are finished and verified (271 tests, 26897 assertions passing with the database test variables set). Stage 5 has not started.
+- The master plan is section 12 of the Reusable Template Development Prompt. The foundation has 10 stages, numbered 0 to 9. Stages 0, 1, 2, 3 and 4 are finished. Stage 5 Batch 5.1 is complete and verified (`280 tests, 26998 assertions, 0 skipped, 0 failures, 0 errors`; database test variables `GFH_TEST_CORE_URL` and `GFH_TEST_ORG_URL` were set). Batches 5.2, 5.3 and 5.4 have not started.
 - Stage 4, Shared UI kit and Admin shell (complete pending the owner's browser check): template lookup, asset publishing, branding, the three layout shells, the extension loader, the three CSS-variable token sets with `docs/design-tokens.md`, self-hosted `Inter` and `Source Serif 4` WOFF2 fonts (`latin` + `latin-ext`, OFL-1.1 licenses), locally vendored Chart.js (`v4.4.8`, MIT) with shared Admin chart theme and `docs/vendored-assets.md`, the Admin component library (partials, CSS and `ui.js`), the permission- and hook-filtered Admin sidebar (`AdminNavigationService`), and the signed-in staff UI kit page (`/{org}/admin/ui-kit`).
-- Stage 5 Staff/Admin template: dashboard, inventory, products, procurement, sales and customers, reports and admin (team, settings for branches, terminals, discount rules, order steps).
+- Stage 5 Staff/Admin template (in progress):
+  - **Batch 5.1 (complete pending owner check):** Admin `Dashboard` (`/{org}/admin`) with gross profit first, net sales, orders, low-stock count, cost completeness %, charts and `dashboard.widgets` hook; `Inventory` (`/{org}/admin/inventory`, `/inventory/ledger`, `/inventory/reorder`, `/inventory/adjustments`, `/inventory/write-offs`) with `InventoryService::reorderSuggestions()` and `GET /api/v1/admin/inventory/reorder-suggestions`; `Format` helper (`₱`, `DD Mon YYYY`, `Asia/Manila`); and repeatable development seed `database/seeds/demo/0001_development.php`.
+  - **Batch 5.2–5.4 (not started):** products (5.2), procurement & sales/customers (5.3), reports & admin team/settings (5.4).
 - Stage 6 Online Shop template. Stage 7 POS template with offline sync. Stage 8 demonstration extension, orgs/_skeleton, orgs/demo and demo seed data. Stage 9 documentation and hardening.
 - Complete one stage (or one named batch), then stop and wait for the owner. Never start the next one on your own.
 - The OLAP module is built separately. Do not build it here.

@@ -118,6 +118,7 @@ Upload limits: JPEG, PNG or WebP, at most 5 MB and 24 megapixels, checked by con
 | --- | --- | --- |
 | `GET /admin/inventory/levels` | view | Per branch and variant: `on_hand`, `reserved`, `available`. Sort: `product`, `sku`, `branch`, `on_hand`, `available`. Filters: `branch_id`, `variant_id`, `low_stock=1` |
 | `GET /admin/inventory/ledger` | view | The append-only movements. Sort: `time`, `sku`, `product`, `type`. Filters: `branch_id`, `variant_id`, `batch_id`, `type`, `from`, `to` |
+| `GET /admin/inventory/reorder-suggestions` | view | Active variants at or below `reorder_level`. Sort: `suggested_qty`, `product`, `sku`, `on_hand`, `available`, `reorder_level`, `supplier`. Filters: `supplier_id`, `status` (`out_of_stock`, `low_stock`, `needs_po`) |
 | `POST /admin/inventory/adjustments` | edit | `{branch_id, variant_id, delta, reason}`; `delta` may be negative; cannot take stock below zero; a reason is required |
 | `POST /admin/inventory/write-offs` | edit | `{branch_id, variant_id, quantity, reason}`; a reason is required |
 
