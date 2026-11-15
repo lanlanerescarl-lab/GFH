@@ -22,6 +22,7 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
     <meta name="robots" content="noindex">
     <title><?= $this->section('title', 'Point of sale') ?> · <?= $this->e($organizationName) ?></title>
     <link rel="stylesheet" href="<?= $this->e($assets->shared('css/tokens.css')) ?>">
+    <link rel="stylesheet" href="<?= $this->e($assets->url('css/tokens.css')) ?>">
     <link rel="stylesheet" href="<?= $this->e($assets->shared('css/fonts.css')) ?>">
     <link rel="stylesheet" href="<?= $this->e($assets->shared('css/base.css')) ?>">
     <link rel="stylesheet" href="<?= $this->e($assets->url('css/app.css')) ?>">

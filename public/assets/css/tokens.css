@@ -1,37 +1,86 @@
 /*
- * Design tokens shared by the Admin, Shop and POS apps. This is the only place that holds color, font,
- * radius, shadow and spacing values; every other stylesheet uses var(--name).
- * An organization's branding overrides some of these through /{org}/branding.css (see docs/templates.md).
+ * Shared design tokens: the foundation every app builds on. This file, together with the per-app token sets in
+ * templates/{admin,shop,pos}/assets/css/tokens.css, is the only place that holds raw color, font, radius, shadow,
+ * motion and spacing values; every other stylesheet uses var(--name). See docs/design-tokens.md.
+ *
+ * Layers, loaded in this order by every layout:
+ *   1. this file          palette, status colors, spacing, radii, shadows, motion, plus semantic defaults
+ *                         (the Admin values, so a page that loads only this file still looks right)
+ *   2. app token set      the app's own semantic mapping (Admin, Shop or POS)
+ *   3. /{org}/branding.css an organization's overrides of --color-primary, --color-primary-strong, --color-bg,
+ *                         --color-ink, --font-body, --font-heading, --radius-card, --radius-control
  */
 :root {
-  /* Colors */
+  /* Palette: the GFH blues. gfh-600 is not part of the brand scale; it is the nearest blue that keeps 4.5:1
+     against white, so action text and white-on-blue buttons stay readable (gfh-500 only reaches about 4.2:1). */
+  --gfh-50: #eff3ff;
+  --gfh-100: #c6dbef;
+  --gfh-200: #9ecae1;
+  --gfh-300: #6baed6;
+  --gfh-500: #3182bd;
+  --gfh-600: #2171b5;
+  --gfh-800: #08519c;
+
+  /* Status tones. The base color is for dots, borders, icons and chart marks; text uses the -ink shade because
+     the base greens and ambers are below 4.5:1 on their own backgrounds. */
+  --status-ok: #16a34a;
+  --status-ok-bg: #f0fdf4;
+  --status-ok-ink: #166534;
+  --status-warn: #d97706;
+  --status-warn-bg: #fffbeb;
+  --status-warn-ink: #92400e;
+  --status-danger: #dc2626;
+  --status-danger-bg: #fef2f2;
+  --status-danger-ink: #b91c1c;
+  --status-info: var(--gfh-500);
+  --status-info-bg: var(--gfh-50);
+  --status-info-ink: var(--gfh-800);
+  --status-neutral: #64748b;
+  --status-neutral-bg: #f1f5f9;
+  --status-neutral-ink: #334155;
+
+  /* Semantic colors (defaults; each app's token set restates its own) */
   --color-bg: #eff3ff;
   --color-surface: #ffffff;
+  --color-surface-muted: #f7f9fd;
   --color-ink: #1a2a3a;
   --color-muted: #4a5b6c;
-  --color-primary: #08519c;
-  --color-primary-strong: #08306b;
+  --color-primary: #2171b5;
+  --color-primary-strong: #08519c;
+  --color-heading: var(--color-primary-strong);
+  --color-accent: var(--gfh-500);
+  --color-accent-soft: var(--gfh-100);
   --color-on-primary: #ffffff;
-  --color-focus: var(--color-primary);
+  --color-focus: var(--gfh-500);
   --color-border: #7a93ab;
   --color-border-soft: #d5e3f0;
-  --color-danger: #b91c1c;
-  --color-danger-bg: #fef2f2;
-  --color-ok: #166534;
-  --color-ok-bg: #f0fdf4;
-  --color-shadow: rgba(8, 81, 156, 0.12);
+  --color-danger: var(--status-danger-ink);
+  --color-danger-bg: var(--status-danger-bg);
+  --color-ok: var(--status-ok-ink);
+  --color-ok-bg: var(--status-ok-bg);
+  --color-backdrop: rgba(26, 42, 58, 0.45);
 
-  /* Fonts. Named fonts only show if they are vendored; see public/assets/css/fonts.css. */
+  /* Fonts. Inter and Source Serif 4 are self-hosted (public/assets/css/fonts.css); the rest are fallbacks. */
   --font-body: Inter, system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
   --font-heading: "Source Serif 4", Georgia, "Times New Roman", serif;
+  --font-mono: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.75rem;
 
   /* Corner radii */
   --radius-card: 10px;
   --radius-control: 8px;
+  --radius-pill: 999px;
 
   /* Shadows */
-  --shadow-rest: 0 1px 4px var(--color-shadow);
-  --shadow-raised: 0 4px 16px var(--color-shadow);
+  --color-shadow: rgba(8, 81, 156, 0.12);
+  --shadow-rest: 0 1px 4px rgba(8, 81, 156, 0.06);
+  --shadow-raised: 0 4px 16px rgba(8, 81, 156, 0.12);
+  --shadow-overlay: 0 12px 32px rgba(8, 81, 156, 0.18);
 
   /* Spacing: multiples of 4 and 8 */
   --space-1: 4px;
@@ -43,8 +92,26 @@
   --space-7: 48px;
   --space-8: 64px;
 
-  /* Sizes */
+  /* Motion: 150 to 250 ms */
+  --motion-fast: 150ms;
+  --motion-base: 200ms;
+  --motion-slow: 250ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --transition: var(--motion-fast) var(--ease-standard);
+
+  /* Sizes and layers */
   --control-height: 44px;
   --page-width: 1200px;
-  --transition: 150ms ease;
+  --z-sticky: 10;
+  --z-sidebar: 20;
+  --z-overlay: 40;
+  --z-toast: 50;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-fast: 0ms;
+    --motion-base: 0ms;
+    --motion-slow: 0ms;
+  }
 }

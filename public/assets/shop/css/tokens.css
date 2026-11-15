@@ -1,0 +1,40 @@
+/*
+ * Online Shop token set. Defined only as CSS variables so an organization's branding (/{org}/branding.css,
+ * loaded after this file) re-themes the whole storefront: primary, primary-strong, background, ink, fonts and radii.
+ * See docs/design-tokens.md.
+ */
+:root {
+  --shop-teal-50: #eef7f6;
+  --shop-teal-100: #cfe8e5;
+  --shop-teal-600: #0b6e69;
+  --shop-teal-800: #084c48;
+  --shop-sand-50: #fbfaf7;
+  --shop-coral-600: #b4462f;
+
+  --color-bg: var(--shop-sand-50);
+  --color-surface: #ffffff;
+  --color-surface-muted: var(--shop-teal-50);
+  --color-ink: #1f2328;
+  --color-muted: #4f5660;
+  --color-primary: var(--shop-teal-600);
+  --color-primary-strong: var(--shop-teal-800);
+  --color-heading: var(--color-ink);
+  --color-accent: var(--shop-coral-600);
+  --color-accent-soft: var(--shop-teal-100);
+  --color-focus: var(--shop-teal-600);
+  --color-border: #8a9099;
+  --color-border-soft: #e6e3dc;
+  --color-price: var(--color-ink);
+  --color-sale: var(--shop-coral-600);
+
+  --radius-card: 14px;
+  --radius-control: 999px;
+  --radius-media: 12px;
+
+  --shadow-rest: 0 1px 3px rgba(31, 35, 40, 0.08);
+  --shadow-overlay: 0 16px 40px rgba(31, 35, 40, 0.18);
+
+  --control-height: 48px;
+  --page-width: 1240px;
+  --product-grid-min: 220px;
+}

@@ -18,6 +18,7 @@ use Gfh\Core\Repository\PasswordResetRepository;
 use Gfh\Core\Repository\PermissionRepository;
 use Gfh\Core\Repository\UserRepository;
 use Gfh\Core\Service\AccountService;
+use Gfh\Core\Service\AdminNavigationService;
 use Gfh\Core\Service\AuditService;
 use Gfh\Core\Service\AuthService;
 use Gfh\Core\Service\PasswordResetService;
@@ -216,6 +217,19 @@ final class Services
             'homeUrl' => $basePath . '/' . $slug . '/' . $app,
             'assets' => new AssetUrls($this->app->path('public'), $basePath, $slug, $app),
         ]);
+    }
+
+    /**
+     * The Admin sidebar builder for one organization: permission checks plus that organization's own
+     * navigation.admin hook callbacks. The UI kit link is offered everywhere except production.
+     */
+    public function adminNavigation(Tenant $tenant): AdminNavigationService
+    {
+        return $this->once('admin-navigation:' . $tenant->organization->slug, fn (): AdminNavigationService => new AdminNavigationService(
+            $this->permissions(),
+            $this->forTenant($tenant)->hooks(),
+            !$this->app->config()->isProduction(),
+        ));
     }
 
     /** The session for one kind of person. Secure cookies on HTTPS and always in production. */

@@ -57,6 +57,9 @@ final class TemplateShellTest extends TestCase
             $this->assertStringContainsString('href="/assets/css/tokens.css"', $html, $app);
             $this->assertStringContainsString('href="/assets/css/base.css"', $html, $app);
             $this->assertStringContainsString('href="/assets/' . $app . '/css/app.css"', $html, $app);
+            $this->assertStringContainsString('href="/assets/' . $app . '/css/tokens.css"', $html, $app . ' loads its own token set');
+            $this->assertLessThan(strpos($html, '/assets/' . $app . '/css/tokens.css'), strpos($html, '/assets/css/tokens.css'), $app . ': shared tokens first');
+            $this->assertLessThan(strpos($html, '/demo/branding.css'), strpos($html, '/assets/' . $app . '/css/tokens.css'), $app . ': branding wins over the token set');
             $this->assertStringContainsString('href="/demo/branding.css"', $html, $app);
             $this->assertStringContainsString('<script type="module" src="/assets/js/shell.js"></script>', $html, $app);
             $this->assertStringContainsString('<p>Welcome Ana</p>', $html, $app);
@@ -114,6 +117,25 @@ final class TemplateShellTest extends TestCase
         $this->assertStringContainsString('href="/demo/pos/sale"', $other);
     }
 
+    public function testAdminShellHasASidebarAndASignOutFormWithTheCsrfToken(): void
+    {
+        $html = $this->render('admin', [
+            'navigation' => [['label' => 'Inventory', 'url' => '/demo/admin/inventory', 'group' => 'Stock', 'current' => true]],
+            'staffName' => 'Ana <Reyes>',
+            'staffRole' => 'manager',
+            'logoutUrl' => '/demo/admin/logout',
+            'csrf' => 'tok"en',
+        ]);
+
+        $this->assertStringContainsString('<aside class="admin-sidebar" aria-label="Sidebar">', $html);
+        $this->assertStringContainsString('<nav class="shell-nav admin-nav" id="shell-nav" aria-label="Main">', $html);
+        $this->assertStringContainsString('>Stock</p>', $html);
+        $this->assertStringContainsString('Ana &lt;Reyes&gt;', $html);
+        $this->assertStringContainsString('<form class="admin-user__logout" method="post" action="/demo/admin/logout">', $html);
+        $this->assertStringContainsString('name="_csrf" value="tok&quot;en"', $html);
+        $this->assertLessThan(strpos($html, 'id="main"'), strpos($html, 'class="skip-link"'), 'the skip link comes first');
+    }
+
     public function testAdminAndPosAreNotIndexedAndTheShopIs(): void
     {
         $this->assertStringContainsString('name="robots" content="noindex"', $this->render('admin'));
@@ -145,15 +167,55 @@ final class TemplateShellTest extends TestCase
         }
     }
 
+    public function testEachAppHasATokenSetOfVariablesThatBrandingCanOverride(): void
+    {
+        foreach (TemplateLocator::APPS as $app) {
+            $file = 'templates/' . $app . '/assets/css/tokens.css';
+            $text = (string) file_get_contents($this->project . '/' . $file);
+
+            // Only custom properties inside :root, so the set themes the app without styling anything itself.
+            $withoutComments = (string) preg_replace('#/\*.*?\*/#s', '', $text);
+            $this->assertMatchesRegularExpression('/^\s*:root\s*\{[^{}]*\}\s*$/s', $withoutComments, $file . ' must hold only a :root block');
+            foreach (preg_split('/;\s*/', trim((string) preg_replace('/^\s*:root\s*\{|\}\s*$/s', '', $withoutComments))) ?: [] as $declaration) {
+                if (trim($declaration) !== '') {
+                    $this->assertStringStartsWith('--', trim($declaration), $file . ' declares only variables');
+                }
+            }
+            // The branding keys of BrandingCss must be names this set uses, or branding would not reach the app.
+            foreach (['--color-primary', '--color-primary-strong', '--color-bg', '--color-ink'] as $variable) {
+                $this->assertStringContainsString($variable . ':', $text, $file);
+            }
+            $this->assertSame(0, preg_match('#url\(|@import|https?://#i', $text), $file);
+        }
+    }
+
+    public function testSelfHostedFontsAreDeclaredAndVendored(): void
+    {
+        $fontsCss = (string) file_get_contents($this->project . '/public/assets/css/fonts.css');
+        $this->assertStringContainsString('font-family: "Inter";', $fontsCss);
+        $this->assertStringContainsString('font-family: "Source Serif 4";', $fontsCss);
+
+        preg_match_all('#url\("\.\./fonts/([A-Za-z0-9._-]+\.woff2)"\)#', $fontsCss, $matches);
+        $this->assertNotEmpty($matches[1]);
+        foreach ($matches[1] as $file) {
+            $path = $this->project . '/public/assets/fonts/' . $file;
+            $this->assertFileExists($path);
+            $bytes = (string) file_get_contents($path);
+            $this->assertStringStartsWith('wOF2', $bytes, $file . ' must be a valid WOFF2 binary');
+        }
+    }
+
     public function testPublishedAppStylesMatchTheTemplates(): void
     {
         // If this fails, run: php bin/publish-assets.php
         foreach (TemplateLocator::APPS as $app) {
-            $this->assertFileEquals(
-                $this->project . '/templates/' . $app . '/assets/css/app.css',
-                $this->project . '/public/assets/' . $app . '/css/app.css',
-                'public/assets/' . $app . ' is out of date. Run php bin/publish-assets.php',
-            );
+            foreach (['css/app.css', 'css/tokens.css'] as $file) {
+                $this->assertFileEquals(
+                    $this->project . '/templates/' . $app . '/assets/' . $file,
+                    $this->project . '/public/assets/' . $app . '/' . $file,
+                    'public/assets/' . $app . ' is out of date. Run php bin/publish-assets.php',
+                );
+            }
         }
     }
 }

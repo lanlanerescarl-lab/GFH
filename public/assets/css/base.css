@@ -23,7 +23,7 @@ h1, h2, h3 {
   margin: 0 0 var(--space-4);
   font-family: var(--font-heading);
   line-height: 1.25;
-  color: var(--color-primary-strong);
+  color: var(--color-heading);
 }
 
 h1 { font-size: 1.75rem; }

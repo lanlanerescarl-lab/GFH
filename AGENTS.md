@@ -8,11 +8,12 @@ GFH is one shared PHP + PostgreSQL codebase that serves several organizations. A
 
 ## Status (update this section at the end of every stage)
 
-- The foundation has 10 stages, numbered 0 to 9. Stages 0, 1, 2, 3 and 4 are finished and verified (251 tests passed at the end of Stage 4).
-- Stage 4 delivered: template lookup (`orgs/{slug}/{app}/` first, then `templates/{app}/` via `TemplateLocator` and `AppView`), asset publishing into `public/assets/` (`AssetPublisher`, `bin/publish-assets.php`), organization branding as CSS variables (`BrandingCss`, `BrandingController`), the three layout shells under `templates/`, and the extension loader (`ExtensionManifest`, `ExtensionLoader`, `ExtensionContext`).
-- Later stages: 5 Admin dashboard. 6 settings, branches, terminals, discount rules, order steps, reserved OLAP API prefix. 7 customer profile. 8 enabling and disabling extensions, extension migrations, extension namespaces. 9 final docs and setup guide.
-- The OLAP module is built separately and integrated later. Do not build it here.
-- If the scope of a task is unclear, state your assumption in one line and build the smaller version. Do not pull in features from later stages.
+- The master plan is section 12 of the Reusable Template Development Prompt. The foundation has 10 stages, numbered 0 to 9. Stages 0, 1, 2 and 3 are finished and verified (251 tests passing after Stage 4 work).
+- Stage 4, Shared UI kit and Admin shell: template lookup, asset publishing, branding, the three layout shells and the extension loader are built. The Admin component library, the UI kit page, the token sets with docs/design-tokens.md and the permission and hook based sidebar are being checked.
+- Stage 5 Staff/Admin template: dashboard, inventory, products, procurement, sales and customers, reports and admin (team, settings for branches, terminals, discount rules, order steps).
+- Stage 6 Online Shop template. Stage 7 POS template with offline sync. Stage 8 demonstration extension, orgs/_skeleton, orgs/demo and demo seed data. Stage 9 documentation and hardening.
+- Complete one stage (or one named batch), then stop and wait for the owner. Never start the next one on your own.
+- The OLAP module is built separately. Do not build it here.
 
 ## Read first
 
@@ -62,3 +63,4 @@ $p = ((Get-Content .env | Where-Object { $_ -match '^CORE_DB_MIGRATOR_PASSWORD='
 - Comment the reason for a rule, not what the line does. Keep `docs/` in step with the code: a new feature is not done until its document is updated.
 - End every batch with: the files you changed, the test result, and exactly what the owner must do next (migrate, grants, publish assets, restart the server).
 - Two local fixes are part of the baseline. Keep them. `PermissionService::activeMembership()` caches only active memberships, so a miss is looked up again. `MediaService` no longer calls `imagedestroy()`, which PHP 8.5 deprecates.
+- Git: the repository is lanlanerescarl-lab/GFH on the main branch. After the tests pass you may run git add and git commit when the owner asks. Never push, never force-push, never run Git commands outside this folder, and never commit .env or phpunit.phar.

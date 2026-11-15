@@ -1,0 +1,39 @@
+/*
+ * Admin token set: the Staff/Admin design language. Loaded after public/assets/css/tokens.css and before
+ * /{org}/branding.css, so an organization's branding still wins. Raw values belong in tokens.css; this file
+ * maps them onto the names the Admin components use. See docs/design-tokens.md.
+ */
+:root {
+  --color-bg: var(--gfh-50);
+  --color-surface: #ffffff;
+  --color-ink: #1a2a3a;
+  --color-primary: var(--gfh-600);
+  --color-primary-strong: var(--gfh-800);
+  /* gfh-800 is kept for headings and key numbers only. */
+  --color-heading: var(--color-primary-strong);
+  --color-accent: var(--gfh-500);
+  --color-accent-soft: var(--gfh-100);
+  --color-row-hover: var(--gfh-50);
+  --color-selected: var(--gfh-50);
+
+  /* Chart series, in this order. Shared by every chart and sparkline (see templates/admin/assets/js/chart-theme.js). */
+  --chart-1: var(--gfh-500);
+  --chart-2: var(--gfh-800);
+  --chart-3: var(--gfh-300);
+  --chart-4: var(--gfh-200);
+  --chart-grid: var(--color-border-soft);
+
+  /* Shell */
+  --sidebar-width: 248px;
+  --topbar-height: 60px;
+  --sidebar-bg: #ffffff;
+  --sidebar-ink: var(--color-ink);
+  --sidebar-active-bg: var(--gfh-50);
+  --sidebar-active-ink: var(--color-primary-strong);
+  --sidebar-active-bar: var(--gfh-500);
+
+  /* Density */
+  --control-height: 40px;
+  --table-row-height: 44px;
+  --page-width: 1280px;
+}

@@ -1,0 +1,36 @@
+/*
+ * POS token set: high contrast and large touch targets for a counter screen used all day. Defined only as CSS
+ * variables so an organization's branding (/{org}/branding.css, loaded after this file) can re-theme it.
+ * See docs/design-tokens.md.
+ */
+:root {
+  --pos-blue-50: #eef3fd;
+  --pos-blue-600: #1d4ed8;
+  --pos-blue-900: #1e3a8a;
+  --pos-slate-50: #f4f6f8;
+
+  --color-bg: var(--pos-slate-50);
+  --color-surface: #ffffff;
+  --color-surface-muted: var(--pos-blue-50);
+  --color-ink: #111827;
+  --color-muted: #374151;
+  --color-primary: var(--pos-blue-600);
+  --color-primary-strong: var(--pos-blue-900);
+  --color-heading: var(--color-ink);
+  --color-accent: var(--pos-blue-600);
+  --color-accent-soft: var(--pos-blue-50);
+  /* Amber focus stands out from the blue actions; this shade keeps 3:1 against white. */
+  --color-focus: #b45309;
+  --color-border: #6b7280;
+  --color-border-soft: #d1d5db;
+  --color-pay: var(--status-ok-ink);
+  --color-offline: var(--status-warn-ink);
+
+  --radius-card: 12px;
+  --radius-control: 10px;
+
+  --text-md: 1.0625rem;
+  --control-height: 56px;
+  --key-size: 72px;
+  --page-width: none;
+}
