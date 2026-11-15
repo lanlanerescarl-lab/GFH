@@ -3,8 +3,11 @@
 declare(strict_types=1);
 
 use Gfh\Core\App;
+use Gfh\Core\Controller\Admin\BrandsController;
+use Gfh\Core\Controller\Admin\CategoriesController;
 use Gfh\Core\Controller\Admin\DashboardController;
 use Gfh\Core\Controller\Admin\InventoryController;
+use Gfh\Core\Controller\Admin\ProductsController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -45,6 +48,9 @@ return static function (Router $router, App $app): void {
     $pages = new StaffPagesController($services);
     $adminDashboard = new DashboardController($services);
     $adminInventory = new InventoryController($services);
+    $adminProducts = new ProductsController($services);
+    $adminBrands = new BrandsController($services);
+    $adminCategories = new CategoriesController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -71,7 +77,8 @@ return static function (Router $router, App $app): void {
     $router->get('/media/{org:[a-z][a-z0-9-]*}/{id}', static fn (Request $q) => $media->serve($q), [$tenant]);
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
-        $auth, $pages, $adminDashboard, $adminInventory, $branding, $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
+        $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories, $branding,
+        $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
         // Every Admin and POS API call: organization, staff session, CSRF for changes, signed-in member. Each
@@ -183,6 +190,32 @@ return static function (Router $router, App $app): void {
         $r->get('/admin/inventory/reorder', static fn (Request $q) => $adminInventory->reorder($q), [$tenant, $staffSession, $requireStaff]);
         $r->post('/admin/inventory/adjustments', static fn (Request $q) => $adminInventory->adjust($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/inventory/write-offs', static fn (Request $q) => $adminInventory->writeOff($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/products', static fn (Request $q) => $adminProducts->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/products/new', static fn (Request $q) => $adminProducts->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/products', static fn (Request $q) => $adminProducts->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/products/{id}', static fn (Request $q) => $adminProducts->edit($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/products/{id}', static fn (Request $q) => $adminProducts->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/products/{id}/status', static fn (Request $q) => $adminProducts->setStatus($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/products/{id}/variants', static fn (Request $q) => $adminProducts->addVariant($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/variants/{id}', static fn (Request $q) => $adminProducts->updateVariant($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/variants/{id}/tiers', static fn (Request $q) => $adminProducts->addTier($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/tiers/{id}', static fn (Request $q) => $adminProducts->updateTier($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/tiers/{id}/delete', static fn (Request $q) => $adminProducts->deleteTier($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/products/{id}/photos', static fn (Request $q) => $adminProducts->uploadPhotos($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/products/{id}/photos/order', static fn (Request $q) => $adminProducts->reorderPhotos($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/images/{id}/primary', static fn (Request $q) => $adminProducts->setPrimaryPhoto($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/images/{id}/delete', static fn (Request $q) => $adminProducts->removePhoto($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/brands', static fn (Request $q) => $adminBrands->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/brands', static fn (Request $q) => $adminBrands->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/brands/{id}/rename', static fn (Request $q) => $adminBrands->rename($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/brands/{id}/logo', static fn (Request $q) => $adminBrands->uploadLogo($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/brands/{id}/archive', static fn (Request $q) => $adminBrands->archive($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/brands/{id}/restore', static fn (Request $q) => $adminBrands->restore($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/categories', static fn (Request $q) => $adminCategories->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/categories', static fn (Request $q) => $adminCategories->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/categories/{id}/rename', static fn (Request $q) => $adminCategories->rename($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/categories/{id}/archive', static fn (Request $q) => $adminCategories->archive($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/categories/{id}/restore', static fn (Request $q) => $adminCategories->restore($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

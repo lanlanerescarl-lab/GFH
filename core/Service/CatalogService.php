@@ -37,6 +37,24 @@ final class CatalogService
 
     // ------------------------------------------------------------------ brands
 
+    /** @return list<array<string, mixed>> */
+    public function activeBrands(): array
+    {
+        return $this->repository->activeBrands();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function activeSuppliers(): array
+    {
+        return $this->repository->activeSuppliers();
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function priceHistory(string $productId): array
+    {
+        return Uuid::isValid($productId) ? $this->repository->priceHistoryForProduct($productId) : [];
+    }
+
     /** @return array{items: list<array<string, mixed>>, pagination: array<string, int>, sort: string} */
     public function listBrands(ListQuery $query, bool $includeArchived): array
     {

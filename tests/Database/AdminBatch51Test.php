@@ -12,7 +12,9 @@ use Gfh\Core\Controller\Api\InventoryAdminController;
 use Gfh\Core\Database\Database;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Http\HttpException;
+use Gfh\Core\Http\Middleware\CsrfMiddleware;
 use Gfh\Core\Http\Request;
+use Gfh\Core\Http\Response;
 use Gfh\Core\Support\ListQuery;
 use Gfh\Core\Support\Services;
 use Gfh\Core\Tenancy\Organization;
@@ -418,5 +420,41 @@ final class AdminBatch51Test extends DatabaseTestCase
         ] as $expected) {
             $this->assertStringContainsString($expected, $routes);
         }
+    }
+
+    public function testCsrfMiddlewareBlocksStateChangeWithoutValidToken(): void
+    {
+        $services = $this->bootServices();
+        $organization = $this->kit->organization('csrf-org');
+        $staff = $this->kit->member($organization, 'staff@example.test', 'staff');
+        $tenant = $this->makeTenant($organization, 'staff');
+        $session = $this->makeSession($services);
+        $csrfMiddleware = new CsrfMiddleware();
+
+        $missingToken = $this->staffRequest(
+            'POST',
+            '/csrf-org/admin/inventory/adjustments',
+            $services,
+            $tenant,
+            $staff,
+            post: ['delta' => '1', 'reason' => 'No token'],
+            session: $session,
+        )->withAttribute('csrf', $services->csrf($session));
+
+        $this->assertHttpStatus(403, fn () => $csrfMiddleware($missingToken, static fn (): Response => Response::html('ok')));
+
+        $token = $services->csrf($session)->token();
+        $withToken = $this->staffRequest(
+            'POST',
+            '/csrf-org/admin/inventory/adjustments',
+            $services,
+            $tenant,
+            $staff,
+            post: ['_csrf' => $token, 'delta' => '1', 'reason' => 'Valid token'],
+            session: $session,
+        )->withAttribute('csrf', $services->csrf($session));
+
+        $allowed = $csrfMiddleware($withToken, static fn (): Response => Response::html('ok'));
+        $this->assertSame(200, $allowed->status());
     }
 }

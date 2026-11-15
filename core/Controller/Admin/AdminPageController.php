@@ -11,6 +11,7 @@ use Gfh\Core\Http\Request;
 use Gfh\Core\Http\Response;
 use Gfh\Core\Support\Services;
 use Gfh\Core\Support\TenantServices;
+use Gfh\Core\Support\Uuid;
 use Gfh\Core\Tenancy\Tenant;
 
 /**
@@ -20,8 +21,20 @@ use Gfh\Core\Tenancy\Tenant;
  */
 abstract class AdminPageController
 {
-    public function __construct(protected readonly Services $services)
-    {
+    private const UPLOAD_ERRORS = [
+        UPLOAD_ERR_INI_SIZE => 'The file is larger than the server allows.',
+        UPLOAD_ERR_FORM_SIZE => 'The file is larger than the form allows.',
+        UPLOAD_ERR_PARTIAL => 'The upload was interrupted. Please try again.',
+        UPLOAD_ERR_NO_FILE => 'Choose an image to upload.',
+        UPLOAD_ERR_NO_TMP_DIR => 'The server has no place to keep the upload.',
+        UPLOAD_ERR_CANT_WRITE => 'The server could not save the upload.',
+    ];
+
+    /** @param (\Closure(string): bool)|null $uploadVerifier test-only verifier; web requests always use is_uploaded_file(). */
+    public function __construct(
+        protected readonly Services $services,
+        private readonly ?\Closure $uploadVerifier = null,
+    ) {
     }
 
     /**
@@ -123,6 +136,79 @@ abstract class AdminPageController
         $value = $request->query()[$key] ?? $default;
 
         return is_string($value) ? $value : $default;
+    }
+
+    protected function id(Request $request, string $param = 'id'): string
+    {
+        $id = $request->param($param, '');
+        if (!Uuid::isValid($id)) {
+            throw HttpException::notFound('That record could not be found.');
+        }
+
+        return $id;
+    }
+
+    /**
+     * Validates and stores one or more multipart image uploads via MediaService.
+     *
+     * @return list<array{id: string, mime: string, width: int, height: int, bytes: int}>
+     * @throws HttpException 422 with a field error on $field
+     */
+    protected function uploadImages(
+        Request $request,
+        TenantServices $services,
+        StaffUser $staff,
+        string $field = 'file',
+        ?string $altText = null,
+    ): array {
+        $entry = $request->files()[$field] ?? null;
+        if (!is_array($entry) || !isset($entry['tmp_name'], $entry['error'])) {
+            throw HttpException::unprocessable([$field => 'Choose an image to upload.']);
+        }
+
+        $items = [];
+        if (is_array($entry['tmp_name'])) {
+            $errors = is_array($entry['error']) ? $entry['error'] : [];
+            $names = is_array($entry['name'] ?? null) ? $entry['name'] : [];
+            foreach ($entry['tmp_name'] as $index => $tmp) {
+                $err = (int) ($errors[$index] ?? UPLOAD_ERR_NO_FILE);
+                if ($err === UPLOAD_ERR_NO_FILE && (string) $tmp === '') {
+                    continue;
+                }
+                $items[] = ['tmp_name' => (string) $tmp, 'error' => $err, 'name' => (string) ($names[$index] ?? 'upload')];
+            }
+        } else {
+            if ((int) $entry['error'] !== UPLOAD_ERR_NO_FILE || (string) $entry['tmp_name'] !== '') {
+                $items[] = [
+                    'tmp_name' => (string) $entry['tmp_name'],
+                    'error' => (int) $entry['error'],
+                    'name' => (string) ($entry['name'] ?? 'upload'),
+                ];
+            }
+        }
+
+        if ($items === []) {
+            throw HttpException::unprocessable([$field => 'Choose an image to upload.']);
+        }
+
+        $verify = $this->uploadVerifier ?? static fn (string $path): bool => is_uploaded_file($path);
+        $uploaded = [];
+        foreach ($items as $item) {
+            if ($item['error'] !== UPLOAD_ERR_OK) {
+                throw HttpException::unprocessable([$field => self::UPLOAD_ERRORS[$item['error']] ?? 'The upload failed.']);
+            }
+            if (!$verify($item['tmp_name'])) {
+                throw HttpException::unprocessable([$field => 'The upload could not be verified.']);
+            }
+            try {
+                $uploaded[] = $services->media()->upload($item['tmp_name'], $item['name'], $altText, $staff->id);
+            } catch (HttpException $exception) {
+                $message = $exception->fields()['file'] ?? $exception->getMessage();
+                throw HttpException::unprocessable([$field => $message]);
+            }
+        }
+
+        return $uploaded;
     }
 
     protected function tenant(Request $request): Tenant

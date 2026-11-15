@@ -116,6 +116,18 @@ final class CatalogRepository
         return (int) $this->scalar("SELECT COUNT(*) FROM products WHERE brand_id = ? AND status <> 'discontinued'", [$id]);
     }
 
+    /** @return list<array<string, mixed>> */
+    public function activeBrands(): array
+    {
+        return $this->rows("SELECT id, name FROM brands WHERE status = 'active' ORDER BY name");
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function activeSuppliers(): array
+    {
+        return $this->rows("SELECT id, name FROM suppliers WHERE status = 'active' ORDER BY name");
+    }
+
     // ------------------------------------------------------------------ categories
 
     /** @return array<string, mixed>|null */
@@ -454,6 +466,17 @@ final class CatalogRepository
             "INSERT INTO price_history (variant_id, effective_on, retail_price, trade_price, cost, created_by) "
             . "VALUES (?, (now() AT TIME ZONE 'Asia/Manila')::date, ?, ?, ?, ?)",
         )->execute([$variantId, $retailPrice, $tradePrice, $cost, $createdBy]);
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function priceHistoryForProduct(string $productId): array
+    {
+        return $this->rows(
+            'SELECT ph.id, ph.variant_id, v.sku, v.name AS variant_name, ph.effective_on, ph.retail_price, ph.trade_price, ph.cost, ph.created_at '
+            . 'FROM price_history ph JOIN product_variants v ON v.id = ph.variant_id '
+            . 'WHERE v.product_id = ? ORDER BY ph.effective_on DESC, ph.created_at DESC LIMIT 100',
+            [$productId],
+        );
     }
 
     /**

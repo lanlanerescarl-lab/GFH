@@ -12,9 +12,9 @@ use Gfh\Core\Security\SecretBox;
 use Gfh\Core\Service\OrganizationRegistry;
 
 /**
- * php bin/make-org.php --slug=fnb --name="Food & Beverages" [--short-name=F&B]
+ * php bin/make-org.php --slug=acme --name="Acme Trading" [--short-name=Acme]
  *                      [--schema=public] [--features=a,b] [--branding='{"..."}'] [--no-test]
- * php bin/make-org.php --slug=fnb --update-connection [--schema=public] [--no-test]
+ * php bin/make-org.php --slug=acme --update-connection [--schema=public] [--no-test]
  *
  * Registers an organization in the core registry with an encrypted connection string, or replaces the stored
  * encrypted connection for an existing organization. The connection is read only from GFH_ORG_CONNECTION

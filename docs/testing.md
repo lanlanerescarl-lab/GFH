@@ -91,6 +91,18 @@ Stage 1 rules are covered by `MigratorTest` (runs once, runs twice changes nothi
 | UI kit page (`/{org}/admin/ui-kit`) refuses signed-out users and renders all components with labels and keyboard attributes | `UiKitPageTest` |
 | No request goes to an external host in `templates/` or `public/assets/` | `NoExternalHostsTest` |
 
+## Stage 5 acceptance rules and the tests that check them
+
+| Rule | Test |
+| --- | --- |
+| `PermissionService::can()` checked on every Admin Dashboard, Inventory, Products, Brands and Categories action (signed-out -> 401; unauthorized role / view-only on edit or archive -> 403) | `AdminBatch51Test::testDashboardEnforcesPermissionsAndRendersGrossProfitFirstWithWidgetsHook`, `AdminBatch51Test::testInventoryControllerEnforcesPermissionsValidatesFormsAndSupportsListQueries`, `AdminBatch52Test::testPermissionsAndFiltersOnProductsBrandsAndCategories`, `AdminBatch52Test::testBrandAndCategoryRulesPermissionsAndLogoUpload` |
+| Reason required on inventory adjustments and write-offs; rejected forms return 422 with inline field errors (`aria-invalid="true"`, `.field-error`) | `AdminBatch51Test::testInventoryControllerEnforcesPermissionsValidatesFormsAndSupportsListQueries`, `InventoryTest` |
+| State-changing Admin POST routes register `CsrfMiddleware` and reject missing/invalid `_csrf` tokens with 403 while accepting valid tokens | `AdminBatch51Test::testAdminBatch51RoutesAreRegisteredBehindStaffAndCsrfMiddleware`, `AdminBatch51Test::testCsrfMiddlewareBlocksStateChangeWithoutValidToken`, `AdminBatch52Test::testCsrfMiddlewareBlocksProductStateChangeWithoutToken` (note: live HTTP routing of Batch 5.2 routes is inspected via `core/routes.php`; end-to-end router dispatch of Batch 5.2 POST routes is covered at middleware + controller boundary, not full front-controller HTTP dispatch) |
+| Server-side validation renders inline field errors on Product, Variant, Tier, Photo, Brand, Category and `validation.attributes` forms | `AdminBatch52Test::testProductEditingVariantsTiersPriceHistoryPhotosAndHooks`, `AdminBatch52Test::testBrandAndCategoryRulesPermissionsAndLogoUpload`, `CatalogTest` |
+| Every list supports `ListQuery` search (`q`), `sort`, filters and pagination (`page`, `per_page`) matching `docs/api.md` | `AdminBatch51Test::testInventoryControllerEnforcesPermissionsValidatesFormsAndSupportsListQueries`, `AdminBatch51Test::testReorderSuggestionsCalculateAvailableMinusOnOrderAndSupportListQuery`, `AdminBatch52Test::testPermissionsAndFiltersOnProductsBrandsAndCategories`, `AdminBatch52Test::testBrandAndCategoryRulesPermissionsAndLogoUpload` |
+| Brands/categories: `edit` creates/renames/uploads logo; `delete` archives/restores; in-use refuses archive (409); `GFH` prefix refused (422) | `AdminBatch52Test::testBrandAndCategoryRulesPermissionsAndLogoUpload`, `CatalogTest` |
+| Development seed (`php bin/seed.php --demo`) is repeatable with no duplicate rows | `AdminBatch51Test::testDevelopmentSeedIsCompleteAndIdempotent` |
+
 ## Manual checks in the browser (Stage 2)
 
 With the database set up as in `database/roles/README.md` and the demo organization migrated:
