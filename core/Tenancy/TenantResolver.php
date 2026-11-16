@@ -21,6 +21,7 @@ final class TenantResolver
         private readonly OrganizationRepository $organizations,
         private readonly PermissionService $permissions,
         private readonly Database $database,
+        private readonly ?\PDO $orgConnection = null,
     ) {
     }
 
@@ -43,7 +44,7 @@ final class TenantResolver
             throw HttpException::forbidden('This organization is currently unavailable.');
         }
 
-        return new Tenant($organization, $this->database);
+        return new Tenant($organization, $this->database, connection: $this->orgConnection);
     }
 
     /**

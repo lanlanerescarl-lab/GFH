@@ -294,6 +294,18 @@ final class PosService
         return $query->result($rows, $total);
     }
 
+    /** @return list<array<string, mixed>> */
+    public function terminals(): array
+    {
+        return $this->repository->terminals();
+    }
+
+    /** How many sales wait in the needs-review queue. */
+    public function needsReviewCount(): int
+    {
+        return $this->repository->needsReviewCount();
+    }
+
     // ------------------------------------------------------------------ internals
 
     /** @return array<string, mixed> */

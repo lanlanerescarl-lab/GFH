@@ -175,6 +175,16 @@ final class OrderService
         return array_values(is_array($filtered) ? $filtered : $path);
     }
 
+    /**
+     * All active progress steps defined for the organization (for Admin filter dropdowns).
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function allSteps(): array
+    {
+        return $this->repository->steps();
+    }
+
     /** @param array<string, mixed> $context */
     private function stepApplies(string $condition, array $context): bool
     {
@@ -345,6 +355,26 @@ final class OrderService
         [$rows, $total] = $this->repository->list($query, $onlyCustomerId);
 
         return $query->result($rows, $total);
+    }
+
+    /** @return array{items: list<array<string, mixed>>, pagination: array<string, int>, sort: string} */
+    public function listCustomers(ListQuery $query): array
+    {
+        [$rows, $total] = $this->repository->listCustomers($query);
+
+        return $query->result($rows, $total);
+    }
+
+    /**
+     * One organization customer record (the Admin Customers screen).
+     *
+     * @return array<string, mixed>
+     * @throws HttpException 404
+     */
+    public function getCustomer(string $id): array
+    {
+        return (Uuid::isValid($id) ? $this->repository->customerById($id) : null)
+            ?? throw HttpException::notFound('That customer could not be found.');
     }
 
     // ------------------------------------------------------------------ internals

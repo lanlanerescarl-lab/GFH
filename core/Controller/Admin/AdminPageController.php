@@ -149,6 +149,46 @@ abstract class AdminPageController
     }
 
     /**
+     * The field errors of a 422, or the message on a fallback field when the exception has none.
+     * Anything that is not a client error (5xx) is not turned into a form message: it is thrown again.
+     *
+     * @return array<string, string>
+     */
+    protected function errorsOf(HttpException $exception, string $fallbackField): array
+    {
+        if ($exception->status() >= 500) {
+            throw $exception;
+        }
+
+        return $exception->fields() !== [] ? $exception->fields() : [$fallbackField => $exception->getMessage()];
+    }
+
+    /**
+     * Reads one posted list of rows, for example lines[0][variant_id]. Only arrays of arrays of text are kept.
+     *
+     * @return list<array<string, string>>
+     */
+    protected function postedRows(Request $request, string $key): array
+    {
+        $raw = $request->body()[$key] ?? [];
+        $rows = [];
+        foreach (is_array($raw) ? array_values($raw) : [] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $clean = [];
+            foreach ($row as $field => $value) {
+                if (is_string($value)) {
+                    $clean[(string) $field] = trim($value);
+                }
+            }
+            $rows[] = $clean;
+        }
+
+        return array_slice($rows, 0, 100);
+    }
+
+    /**
      * Validates and stores one or more multipart image uploads via MediaService.
      *
      * @return list<array{id: string, mime: string, width: int, height: int, bytes: int}>

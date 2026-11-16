@@ -76,6 +76,18 @@ final class PasswordResetService
         return $this->issue('customer', (string) $customer['id'], $actor, $organization);
     }
 
+    /** Whether $actor is allowed to issue one-time reset links for this organization's customers. */
+    public function mayIssueForCustomers(StaffUser $actor, Organization $organization): bool
+    {
+        try {
+            $this->assertMayIssueForCustomers($actor, $organization);
+
+            return true;
+        } catch (HttpException) {
+            return false;
+        }
+    }
+
     /**
      * Sets a new password from a link. Returns whose password was set.
      *

@@ -100,14 +100,14 @@ final class App
     }
 
     /** Request in, Response out. Never throws: every failure becomes an error response. */
-    public function handle(Request $request): Response
+    public function handle(Request $request, ?Support\Services $services = null): Response
     {
         $this->logger->setRequestId($request->id());
 
         try {
             $router = new Router();
             $define = require $this->path('core/routes.php');
-            $define($router, $this);
+            $define($router, $this, $services);
 
             return $router->dispatch($request);
         } catch (\Throwable $exception) {

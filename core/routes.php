@@ -5,9 +5,14 @@ declare(strict_types=1);
 use Gfh\Core\App;
 use Gfh\Core\Controller\Admin\BrandsController;
 use Gfh\Core\Controller\Admin\CategoriesController;
+use Gfh\Core\Controller\Admin\CustomersController;
 use Gfh\Core\Controller\Admin\DashboardController;
 use Gfh\Core\Controller\Admin\InventoryController;
+use Gfh\Core\Controller\Admin\OrdersController;
+use Gfh\Core\Controller\Admin\PosSalesController;
 use Gfh\Core\Controller\Admin\ProductsController;
+use Gfh\Core\Controller\Admin\PurchaseOrdersController;
+use Gfh\Core\Controller\Admin\SuppliersController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -35,7 +40,7 @@ use Gfh\Core\Support\Services;
 // Reserved first path segments, never usable as organization slugs:
 // health, api, media, assets, superadmin.
 
-return static function (Router $router, App $app): void {
+return static function (Router $router, App $app, ?Services $services = null): void {
     $system = new SystemController($app);
 
     $router->get('/', static fn (Request $request) => $system->welcome($request));
@@ -43,7 +48,7 @@ return static function (Router $router, App $app): void {
 
     // Everything below belongs to one organization. The slug is only a lookup key: TenantMiddleware
     // loads the organization (and its connection) from the core registry.
-    $services = new Services($app);
+    $services ??= new Services($app);
     $auth = new AuthController($services);
     $pages = new StaffPagesController($services);
     $adminDashboard = new DashboardController($services);
@@ -51,6 +56,11 @@ return static function (Router $router, App $app): void {
     $adminProducts = new ProductsController($services);
     $adminBrands = new BrandsController($services);
     $adminCategories = new CategoriesController($services);
+    $adminSuppliers = new SuppliersController($services);
+    $adminPurchaseOrders = new PurchaseOrdersController($services);
+    $adminOrders = new OrdersController($services);
+    $adminCustomers = new CustomersController($services);
+    $adminPosSales = new PosSalesController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -77,7 +87,8 @@ return static function (Router $router, App $app): void {
     $router->get('/media/{org:[a-z][a-z0-9-]*}/{id}', static fn (Request $q) => $media->serve($q), [$tenant]);
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
-        $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories, $branding,
+        $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
+        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -216,6 +227,28 @@ return static function (Router $router, App $app): void {
         $r->post('/admin/categories/{id}/rename', static fn (Request $q) => $adminCategories->rename($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/categories/{id}/archive', static fn (Request $q) => $adminCategories->archive($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/categories/{id}/restore', static fn (Request $q) => $adminCategories->restore($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/procurement', static fn (Request $q) => $adminPurchaseOrders->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/procurement/new', static fn (Request $q) => $adminPurchaseOrders->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/procurement', static fn (Request $q) => $adminPurchaseOrders->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/procurement/suppliers', static fn (Request $q) => $adminSuppliers->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/procurement/suppliers', static fn (Request $q) => $adminSuppliers->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/procurement/suppliers/{id}', static fn (Request $q) => $adminSuppliers->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/procurement/suppliers/{id}', static fn (Request $q) => $adminSuppliers->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/procurement/suppliers/{id}/status', static fn (Request $q) => $adminSuppliers->setStatus($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/procurement/{id}', static fn (Request $q) => $adminPurchaseOrders->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/procurement/{id}/send', static fn (Request $q) => $adminPurchaseOrders->send($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/procurement/{id}/cancel', static fn (Request $q) => $adminPurchaseOrders->cancel($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/procurement/{id}/receive', static fn (Request $q) => $adminPurchaseOrders->receive($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/orders', static fn (Request $q) => $adminOrders->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/orders/{id}', static fn (Request $q) => $adminOrders->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/orders/{id}/progress', static fn (Request $q) => $adminOrders->advance($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/orders/{id}/payments', static fn (Request $q) => $adminOrders->recordPayment($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/orders/{id}/cancel', static fn (Request $q) => $adminOrders->cancel($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/customers', static fn (Request $q) => $adminCustomers->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/customers/{id}/reset-link', static fn (Request $q) => $adminCustomers->issueResetLink($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/pos-sales', static fn (Request $q) => $adminPosSales->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/pos-sales/{id}', static fn (Request $q) => $adminPosSales->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/pos-sales/{id}/resolve', static fn (Request $q) => $adminPosSales->resolve($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

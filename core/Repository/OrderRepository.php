@@ -245,4 +245,39 @@ final class OrderRepository
 
         return [$rows, $total];
     }
+
+    /**
+     * The organization's customer records for the Admin Customers screen.
+     * Filters: status, tier, customer_type, has_account (only customers with an online account).
+     *
+     * @return array{0: list<array<string, mixed>>, 1: int}
+     */
+    public function listCustomers(ListQuery $query): array
+    {
+        $where = new SqlWhere();
+        foreach (['status' => 'c.status', 'tier' => 'c.tier', 'customer_type' => 'c.customer_type'] as $key => $column) {
+            $value = $query->filter($key);
+            if (is_string($value) && $value !== '') {
+                $where->add($column . ' = ?', $value);
+            }
+        }
+        if (filter_var($query->filter('has_account'), FILTER_VALIDATE_BOOLEAN)) {
+            $where->add('c.core_customer_id IS NOT NULL');
+        }
+        if (($pattern = $query->likePattern()) !== null) {
+            $where->add('c.full_name ILIKE ? OR c.email ILIKE ? OR c.phone ILIKE ?', $pattern, $pattern, $pattern);
+        }
+
+        $total = (int) $this->scalar('SELECT COUNT(*) FROM customers c ' . $where->sql(), $where->params());
+        $rows = $this->rows(
+            'SELECT c.id, c.core_customer_id, c.full_name, c.email, c.phone, c.customer_type, c.tier, c.status, c.created_at, '
+            . '(SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS order_count, '
+            . '(SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id AND o.cancelled_at IS NULL) AS lifetime_total '
+            . 'FROM customers c ' . $where->sql() . ' ORDER BY ' . $query->orderBy . ', c.id'
+            . ' LIMIT ' . $query->perPage . ' OFFSET ' . $query->offset(),
+            $where->params(),
+        );
+
+        return [$rows, $total];
+    }
 }

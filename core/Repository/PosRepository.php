@@ -266,4 +266,15 @@ final class PosRepository
 
         return [$rows, $total];
     }
+
+    /** @return list<array<string, mixed>> every terminal, for the sales filter */
+    public function terminals(): array
+    {
+        return $this->rows('SELECT t.id, t.code, t.name, t.status, b.name AS branch_name FROM terminals t JOIN branches b ON b.id = t.branch_id ORDER BY b.name, t.code');
+    }
+
+    public function needsReviewCount(): int
+    {
+        return (int) $this->scalar("SELECT COUNT(*) FROM pos_sales WHERE status = 'needs_review'");
+    }
 }

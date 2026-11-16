@@ -43,10 +43,16 @@ final class Services
     /** @var array<string, array{loaded: list<string>, failed: array<string, string>}> */
     private array $extensionReports = [];
 
+    /**
+     * @param array<string, Session>|null $testSessions test-only in-memory sessions keyed by scope ('staff', 'customer')
+     */
     public function __construct(
         private readonly App $app,
         private readonly bool $privileged = false,
         private readonly ?\PDO $coreConnection = null,
+        private readonly ?\PDO $orgConnection = null,
+        private readonly ?string $sessionPath = null,
+        private readonly ?array $testSessions = null,
     ) {
     }
 
@@ -147,6 +153,7 @@ final class Services
             $this->organizations(),
             $this->permissions(),
             $this->database(),
+            $this->orgConnection,
         ));
     }
 
@@ -242,10 +249,14 @@ final class Services
     /** The session for one kind of person. Secure cookies on HTTPS and always in production. */
     public function session(string $scope, Request $request): Session
     {
+        if ($this->testSessions !== null && isset($this->testSessions[$scope])) {
+            return $this->testSessions[$scope];
+        }
+
         return new Session(
             $scope,
             $this->app->config(),
-            $this->app->path('storage/sessions'),
+            $this->sessionPath ?? $this->app->path('storage/sessions'),
             $request->isSecure() || $this->app->config()->isProduction(),
         );
     }

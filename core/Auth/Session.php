@@ -19,21 +19,45 @@ final class Session
     public const SCOPES = ['staff', 'customer'];
 
     private bool $started = false;
+    /** @var array<string, mixed> */
+    private array $memory = [];
 
     public function __construct(
         private readonly string $scope,
         private readonly Config $config,
         private readonly string $savePath,
         private readonly bool $secureCookie,
+        private readonly bool $inMemory = false,
     ) {
         if (!in_array($scope, self::SCOPES, true)) {
             throw new \InvalidArgumentException('Unknown session scope.');
         }
     }
 
+    /**
+     * Test-only session backed by an in-memory array so Router tests in CLI (where PHPUnit has already
+     * written output) can still execute SessionMiddleware and CSRF checks without touching $_SESSION or cookies.
+     *
+     * @param array<string, mixed> $initial
+     */
+    public static function inMemory(string $scope, Config $config, array $initial = []): self
+    {
+        $session = new self($scope, $config, sys_get_temp_dir(), false, true);
+        $session->memory = $initial;
+
+        return $session;
+    }
+
     public function start(): void
     {
         if ($this->started) {
+            return;
+        }
+        if ($this->inMemory) {
+            $this->started = true;
+            $this->memory['_created'] ??= time();
+            $this->memory['_seen'] = time();
+
             return;
         }
         if (session_status() === PHP_SESSION_ACTIVE) {
@@ -81,22 +105,41 @@ final class Session
 
     public function get(string $key, mixed $default = null): mixed
     {
-        return $_SESSION[$key] ?? $default;
+        return $this->inMemory ? ($this->memory[$key] ?? $default) : ($_SESSION[$key] ?? $default);
     }
 
     public function put(string $key, mixed $value): void
     {
+        if ($this->inMemory) {
+            $this->memory[$key] = $value;
+
+            return;
+        }
+
         $_SESSION[$key] = $value;
     }
 
     public function forget(string $key): void
     {
+        if ($this->inMemory) {
+            unset($this->memory[$key]);
+
+            return;
+        }
+
         unset($_SESSION[$key]);
     }
 
     /** Called right after a successful sign-in: a new id defeats session fixation, and the absolute clock restarts. */
     public function regenerate(): void
     {
+        if ($this->inMemory) {
+            $this->memory['_created'] = time();
+            $this->memory['_seen'] = time();
+
+            return;
+        }
+
         session_regenerate_id(true);
         $_SESSION['_created'] = time();
         $_SESSION['_seen'] = time();
@@ -106,6 +149,12 @@ final class Session
     public function destroy(): void
     {
         $this->clear();
+
+        if ($this->inMemory) {
+            $this->started = false;
+
+            return;
+        }
 
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_destroy();
@@ -125,6 +174,12 @@ final class Session
 
     private function clear(): void
     {
+        if ($this->inMemory) {
+            $this->memory = [];
+
+            return;
+        }
+
         $_SESSION = [];
     }
 }

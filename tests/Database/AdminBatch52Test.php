@@ -556,4 +556,71 @@ final class AdminBatch52Test extends DatabaseTestCase
             self::assertSame(403, $e->status());
         }
     }
+
+    public function testWithoutTheTestOnlyVerifierARealUploadCheckStillRunsAndNothingIsStored(): void
+    {
+        $services = $this->bootServices();
+        $org = $this->createTestOrg($services, 'upl');
+        $adminUser = $this->kit->member($org, 'owner@example.test', 'admin');
+        $tenant = $this->makeTenant($org, 'admin');
+        $catalog = $services->forTenant($tenant)->catalog();
+        $brand = $catalog->createBrand('Upload Check Brand', null, $adminUser->id);
+        $product = $catalog->createProduct(['name' => 'Upload Check', 'status' => 'draft'], $adminUser->id);
+
+        // Built the way core/routes.php builds them: no verifier, so PHP's is_uploaded_file() decides.
+        // A file made by the test is not an HTTP upload, so both screens must refuse it before MediaService runs.
+        $png = $this->createTempPng();
+        $products = new ProductsController($services);
+        $photoRes = $products->uploadPhotos($this->staffRequest(
+            'POST',
+            '/admin/products/' . $product['id'] . '/photos',
+            $services,
+            $tenant,
+            $adminUser,
+            files: ['files' => ['tmp_name' => [$png], 'error' => [UPLOAD_ERR_OK], 'name' => ['x.png']]],
+        )->withParams(['id' => $product['id']]));
+        self::assertSame(422, $photoRes->status());
+        self::assertStringContainsString('The upload could not be verified.', $photoRes->body());
+
+        $brands = new BrandsController($services);
+        $logoRes = $brands->uploadLogo($this->staffRequest(
+            'POST',
+            '/admin/brands/' . $brand['id'] . '/logo',
+            $services,
+            $tenant,
+            $adminUser,
+            files: ['file' => ['tmp_name' => $png, 'error' => UPLOAD_ERR_OK, 'name' => 'x.png']],
+        )->withParams(['id' => $brand['id']]));
+        self::assertSame(422, $logoRes->status());
+        self::assertStringContainsString('The upload could not be verified.', $logoRes->body());
+
+        self::assertSame(0, (int) $this->org->query('SELECT COUNT(*) FROM media')->fetchColumn(), 'no media row may exist');
+    }
+
+    public function testMediaServiceStillChecksContentTypeEvenWhenTheVerifierIsTheTestOne(): void
+    {
+        $services = $this->bootServices();
+        $org = $this->createTestOrg($services, 'mime');
+        $adminUser = $this->kit->member($org, 'owner@example.test', 'admin');
+        $tenant = $this->makeTenant($org, 'admin');
+        $brand = $services->forTenant($tenant)->catalog()->createBrand('Mime Check Brand', null, $adminUser->id);
+
+        // A text file named .png passes the (test) upload verifier but MediaService reads the bytes and refuses it.
+        $fake = tempnam(sys_get_temp_dir(), 'gfh-fake-');
+        file_put_contents($fake, 'this is not an image');
+        $this->temporaryFiles[] = $fake;
+
+        $brands = new BrandsController($services, static fn (string $path): bool => is_file($path));
+        $res = $brands->uploadLogo($this->staffRequest(
+            'POST',
+            '/admin/brands/' . $brand['id'] . '/logo',
+            $services,
+            $tenant,
+            $adminUser,
+            files: ['file' => ['tmp_name' => $fake, 'error' => UPLOAD_ERR_OK, 'name' => 'logo.png']],
+        )->withParams(['id' => $brand['id']]));
+        self::assertSame(422, $res->status());
+        self::assertStringContainsString('Upload a JPEG, PNG or WebP image.', $res->body());
+        self::assertSame(0, (int) $this->org->query('SELECT COUNT(*) FROM media')->fetchColumn());
+    }
 }
