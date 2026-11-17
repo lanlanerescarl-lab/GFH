@@ -238,7 +238,8 @@ final class OrderRepository
         $total = (int) $this->scalar('SELECT COUNT(*) ' . $from . $where->sql(), $where->params());
         $rows = $this->rows(
             'SELECT o.id, o.order_number, o.channel, o.progress_key, s.label AS progress_label, o.payment_status, o.fulfillment_method, o.total, o.deposit_due, '
-            . 'o.cancelled_at, o.refund_review, o.placed_at, o.customer_id, c.full_name AS customer_name '
+            . 'o.cancelled_at, o.refund_review, o.placed_at, o.customer_id, c.full_name AS customer_name, '
+            . "(SELECT COALESCE(SUM(pay.amount), 0) FROM payments pay WHERE pay.order_id = o.id AND pay.status = 'recorded') AS paid_total "
             . $from . $where->sql() . ' ORDER BY ' . $query->orderBy . ' LIMIT ' . $query->perPage . ' OFFSET ' . $query->offset(),
             $where->params(),
         );

@@ -18,6 +18,32 @@ final class FormatTest extends TestCase
         $this->assertSame('-₱250.75', Format::peso('-250.75'));
     }
 
+    public function testPesoRoundsHalfUpInsteadOfCuttingOffExtraDecimals(): void
+    {
+        $this->assertSame('₱124.67', Format::peso('124.6667'), 'a four-decimal average cost');
+        $this->assertSame('₱124.66', Format::peso('124.664'));
+        $this->assertSame('₱124.67', Format::peso('124.665'), 'half rounds up');
+        $this->assertSame('₱1.00', Format::peso('0.9999'));
+        $this->assertSame('₱0.00', Format::peso('0.004'));
+        $this->assertSame('₱1,235.00', Format::peso('1234.9951'));
+        $this->assertSame('-₱1.01', Format::peso('-1.005'), 'half rounds away from zero');
+        $this->assertSame('₱0.00', Format::peso('-0.004'), 'no negative zero');
+    }
+
+    public function testPaymentStatusReadsPartlyPaidOnlyBetweenZeroAndTheTotal(): void
+    {
+        $this->assertSame('Partly paid (₱250.00 of ₱620.00)', Format::paymentStatus('unpaid', '250.00', '620.00'));
+        $this->assertSame('Deposit paid (₱250.00 of ₱620.00)', Format::paymentStatus('deposit_paid', '250.00', '620.00'));
+        $this->assertSame('Unpaid', Format::paymentStatus('unpaid', '0.00', '620.00'));
+        $this->assertSame('Unpaid', Format::paymentStatus('unpaid', '0', '620.00'));
+        $this->assertSame('Deposit paid', Format::paymentStatus('deposit_paid', '620.00', '620.00'));
+        $this->assertSame('Paid', Format::paymentStatus('paid', '620.00', '620.00'));
+        $this->assertSame('Refunded', Format::paymentStatus('refunded', '250.00', '620.00'));
+        $this->assertTrue(Format::isPartlyPaid('0.01', '620.00'));
+        $this->assertFalse(Format::isPartlyPaid('620.00', '620.00'));
+        $this->assertFalse(Format::isPartlyPaid(null, '620.00'));
+    }
+
     public function testQtyTrimsTrailingZerosAndPreservesDecimals(): void
     {
         $this->assertSame('0', Format::qty(null));

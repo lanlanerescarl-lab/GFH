@@ -145,7 +145,7 @@ final class ProcurementRepository
     public function po(string $id, bool $lock = false): ?array
     {
         return $this->rows(
-            'SELECT p.id, p.po_number, p.supplier_id, s.name AS supplier_name, p.branch_id, b.name AS branch_name, p.status, p.expected_on, p.notes, p.created_at, p.updated_at '
+            'SELECT p.id, p.po_number, p.supplier_id, s.name AS supplier_name, p.branch_id, b.name AS branch_name, p.status, p.expected_on, p.sent_at, p.notes, p.created_at, p.updated_at '
             . 'FROM purchase_orders p JOIN suppliers s ON s.id = p.supplier_id JOIN branches b ON b.id = p.branch_id WHERE p.id = ?' . ($lock ? ' FOR UPDATE OF p' : ''),
             [$id],
         )[0] ?? null;
@@ -166,6 +166,12 @@ final class ProcurementRepository
     public function setPoStatus(string $id, string $status): void
     {
         $this->pdo->prepare('UPDATE purchase_orders SET status = ? WHERE id = ?')->execute([$status, $id]);
+    }
+
+    /** Sets the status to sent and records when, so the order page can show the sent date. */
+    public function markPoSent(string $id): void
+    {
+        $this->pdo->prepare("UPDATE purchase_orders SET status = 'sent', sent_at = now() WHERE id = ?")->execute([$id]);
     }
 
     public function setLineReceipt(string $lineId, string $received, string $rejected): void

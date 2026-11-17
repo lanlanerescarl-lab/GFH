@@ -315,7 +315,7 @@ final class AdminBatch53Test extends DatabaseTestCase
             [
                 'lines' => [
                     ['line_id' => $plainLineId, 'qty_received' => '4', 'qty_rejected' => '1', 'batch_code' => '', 'expires_on' => '', 'bin' => ''],
-                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => '', 'expires_on' => '2027-06-01', 'bin' => 'B-02'],
+                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => '', 'expires_on' => '2099-06-01', 'bin' => 'B-02'],
                 ],
             ],
             ['id' => $poId],
@@ -335,7 +335,7 @@ final class AdminBatch53Test extends DatabaseTestCase
             [
                 'lines' => [
                     ['line_id' => $plainLineId, 'qty_received' => '4', 'qty_rejected' => '1', 'batch_code' => '', 'expires_on' => '', 'bin' => ''],
-                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-1', 'expires_on' => '2027-06-01', 'bin' => 'B-02'],
+                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-1', 'expires_on' => '2099-06-01', 'bin' => 'B-02'],
                 ],
             ],
             ['id' => $poId],
@@ -348,7 +348,7 @@ final class AdminBatch53Test extends DatabaseTestCase
         $this->assertSame('70.0000', (string) $this->shop->scalar('SELECT avg_cost FROM product_variants WHERE id = ?', [$plainVariant]));
         $this->assertSame('2.000', $services->forTenant($managerTenant)->inventory()->onHand($branchId, $batchVariant));
         $this->assertSame('LOT-GLUE-1', (string) $this->shop->scalar('SELECT batch_code FROM stock_batches WHERE variant_id = ? LIMIT 1', [$batchVariant]));
-        $this->assertSame('2027-06-01', (string) $this->shop->scalar('SELECT expires_on FROM stock_batches WHERE variant_id = ? LIMIT 1', [$batchVariant]));
+        $this->assertSame('2099-06-01', (string) $this->shop->scalar('SELECT expires_on FROM stock_batches WHERE variant_id = ? LIMIT 1', [$batchVariant]));
         $this->assertSame('B-02', (string) $this->shop->scalar('SELECT bin FROM stock_batches WHERE variant_id = ? LIMIT 1', [$batchVariant]));
 
         // Over-receiving a partially received line (1 remaining on batchLine) is refused with 422 and zero stock change
@@ -361,7 +361,7 @@ final class AdminBatch53Test extends DatabaseTestCase
             [],
             [
                 'lines' => [
-                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-X', 'expires_on' => '2027-08-01', 'bin' => 'B-03'],
+                    ['line_id' => $batchLineId, 'qty_received' => '2', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-X', 'expires_on' => '2099-08-01', 'bin' => 'B-03'],
                 ],
             ],
             ['id' => $poId],
@@ -399,7 +399,7 @@ final class AdminBatch53Test extends DatabaseTestCase
             [],
             [
                 'lines' => [
-                    ['line_id' => $batchLineId, 'qty_received' => '1', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-2', 'expires_on' => '2027-08-01', 'bin' => 'B-03'],
+                    ['line_id' => $batchLineId, 'qty_received' => '1', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-2', 'expires_on' => '2099-08-01', 'bin' => 'B-03'],
                 ],
             ],
             ['id' => $poId],
@@ -417,7 +417,7 @@ final class AdminBatch53Test extends DatabaseTestCase
             [],
             [
                 'lines' => [
-                    ['line_id' => $batchLineId, 'qty_received' => '1', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-3', 'expires_on' => '2027-09-01', 'bin' => 'B-03'],
+                    ['line_id' => $batchLineId, 'qty_received' => '1', 'qty_rejected' => '0', 'batch_code' => 'LOT-GLUE-3', 'expires_on' => '2099-09-01', 'bin' => 'B-03'],
                 ],
             ],
             ['id' => $poId],

@@ -97,14 +97,14 @@ final class ProcurementTest extends DatabaseTestCase
 
         $partial = $procurement->receive($order['id'], [
             ['line_id' => $flour['id'], 'qty_received' => '6', 'qty_rejected' => '1'],
-            ['line_id' => $milk['id'], 'qty_received' => '5', 'batch_code' => 'MILK-2611-A', 'expires_on' => '2026-12-20', 'bin' => 'COLD-2'],
+            ['line_id' => $milk['id'], 'qty_received' => '5', 'batch_code' => 'MILK-2611-A', 'expires_on' => '2099-12-20', 'bin' => 'COLD-2'],
         ], null);
 
         $this->assertSame('partially_received', $partial['status']);
         $this->assertSame('6.000', $inventory->onHand($this->branch, $this->plain), 'rejected goods do not enter stock');
         $this->assertSame('5.000', $inventory->onHand($this->branch, $this->tracked));
         $this->assertSame('40.0000', (string) $this->shop->scalar('SELECT avg_cost FROM product_variants WHERE id = ?', [$this->plain]));
-        $this->assertSame('2026-12-20', (string) $this->shop->scalar("SELECT expires_on FROM stock_batches WHERE batch_code = 'MILK-2611-A'"));
+        $this->assertSame('2099-12-20', (string) $this->shop->scalar("SELECT expires_on FROM stock_batches WHERE batch_code = 'MILK-2611-A'"));
         $this->assertSame('COLD-2', (string) $this->shop->scalar("SELECT bin FROM stock_batches WHERE batch_code = 'MILK-2611-A'"));
 
         // 10 ordered, 6 received and 1 rejected: 3 left to come.

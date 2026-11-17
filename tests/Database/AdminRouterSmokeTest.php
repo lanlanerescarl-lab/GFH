@@ -88,6 +88,42 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
             }
 
             $this->assertSame([], $failures, implode("\n", $failures));
+
+            // Phase 1 fixes, checked on the pages as the real router renders them.
+            $page = static fn (string $path): string => $app->handle(new Request('GET', $path), $services)->body();
+
+            // A sent order shows when it was sent; the receive form shows batch fields only where they are stored.
+            $sentPage = $page("/$slug/admin/procurement/$sentPoId");
+            $this->assertStringNotContainsString('Not sent yet', $sentPage);
+            $open = $this->org->prepare(
+                'SELECT COUNT(*) FILTER (WHERE v.track_batches) AS tracked, COUNT(*) FILTER (WHERE NOT v.track_batches) AS plain '
+                . 'FROM purchase_order_lines l JOIN product_variants v ON v.id = l.variant_id '
+                . 'WHERE l.purchase_order_id = ? AND l.qty_received + l.qty_rejected < l.qty_ordered',
+            );
+            $open->execute([$sentPoId]);
+            $counts = $open->fetch();
+            foreach (['batch_code', 'expires_on', 'bin'] as $field) {
+                $this->assertSame((int) $counts['tracked'], preg_match_all('/name="lines\[\d+\]\[' . $field . '\]"/', $sentPage), "$field is offered only for variants that track batches");
+            }
+            $this->assertSame((int) $counts['plain'], substr_count($sentPage, 'Batch not tracked for this item'));
+            $this->assertStringNotContainsString('Not sent yet', $page("/$slug/admin/procurement/$receivedPoId"));
+
+            // The dashboard and Customers screens say what their figures count.
+            $this->assertStringContainsString('all branches combined', $page("/$slug/admin"));
+            $this->assertStringContainsString('whether or not it has been paid or delivered', $page("/$slug/admin"));
+            $this->assertStringContainsString('whether or not it has been paid', $page("/$slug/admin/customers"));
+
+            // A partial payment reads "Partly paid (...)" on the list and on the order, while the stored status stays.
+            $unpaid = $this->org->query(
+                "SELECT id, total FROM orders WHERE payment_status = 'unpaid' AND cancelled_at IS NULL AND total > 100 ORDER BY placed_at ASC LIMIT 1",
+            )->fetch();
+            $this->assertIsArray($unpaid, 'the seed has an unpaid order to part-pay');
+            $this->shop->services->orders()->recordPayment((string) $unpaid['id'], ['method' => 'cash', 'amount' => '50.00'], null);
+            $expected = 'Partly paid (₱50.00 of ' . \Gfh\Core\Support\Format::peso((string) $unpaid['total']) . ')';
+            $this->assertStringContainsString($expected, $page("/$slug/admin/orders/" . $unpaid['id']));
+            $this->assertStringContainsString($expected, $page("/$slug/admin/orders"));
+            $this->assertStringContainsString('Amount (₱)', $page("/$slug/admin/orders/" . $unpaid['id']));
+            $this->assertSame('unpaid', (string) $this->shop->scalar('SELECT payment_status FROM orders WHERE id = ?', [$unpaid['id']]));
         } finally {
             restore_error_handler();
             restore_exception_handler();

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gfh\Core\Service;
 
+use Gfh\Core\Config\Config;
 use Gfh\Core\Database\Database;
 use Gfh\Core\Http\HttpException;
 use Gfh\Core\Repository\ProcurementRepository;
@@ -229,7 +230,7 @@ final class ProcurementService
         if ($po['status'] !== 'draft') {
             throw HttpException::unprocessable(['status' => 'Only a draft purchase order can be sent.']);
         }
-        $this->repository->setPoStatus($id, 'sent');
+        $this->repository->markPoSent($id);
         $this->audit->organization($this->pdo, 'po.sent', $actorId, 'purchase_order', $id, ['po_number' => $po['po_number']]);
     }
 
@@ -272,6 +273,7 @@ final class ProcurementService
             }
 
             // Everything is checked first, so a bad entry rejects the whole receipt.
+            $today = (new \DateTimeImmutable('now', new \DateTimeZone(Config::TIMEZONE)))->format('Y-m-d');
             $plan = [];
             $errors = [];
             $seen = [];
@@ -306,6 +308,15 @@ final class ProcurementService
                 if ($received + $rejected > $remaining) {
                     $errors["lines.$index.qty_received"] = sprintf('Only %s is still to be received on this line.', rtrim(rtrim(Decimal::format($remaining, 3), '0'), '.'));
                     continue;
+                }
+
+                // The expiry date is stored only for a variant that tracks batches and only for accepted stock.
+                if ($received > 0 && (bool) $line['track_batches']) {
+                    $expiryError = $this->expiryError($entry['expires_on'] ?? null, $today);
+                    if ($expiryError !== null) {
+                        $errors["lines.$index.expires_on"] = $expiryError;
+                        continue;
+                    }
                 }
 
                 $plan[] = ['index' => $index, 'line' => $line, 'received' => $received, 'rejected' => $rejected, 'entry' => $entry];
@@ -375,6 +386,25 @@ final class ProcurementService
     private function loadPo(string $id): array
     {
         return (Uuid::isValid($id) ? $this->repository->po($id) : null) ?? throw HttpException::notFound('That purchase order could not be found.');
+    }
+
+    /**
+     * Goods that are already past their expiry date must not enter stock. Today is still accepted. The date is
+     * compared as YYYY-MM-DD text in Asia/Manila, so there is no time-of-day or time-zone edge.
+     */
+    private function expiryError(mixed $expires, string $today): ?string
+    {
+        if ($expires === null || $expires === '') {
+            return null;
+        }
+
+        $text = is_string($expires) ? $expires : '';
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $text);
+        if ($date === false || $date->format('Y-m-d') !== $text) {
+            return 'Enter the expiry date as YYYY-MM-DD.';
+        }
+
+        return $text < $today ? 'The expiry date cannot be earlier than today.' : null;
     }
 
     /**

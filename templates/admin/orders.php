@@ -96,9 +96,10 @@ foreach ($result['items'] as $order) {
         : $this->partial('partials/badge', ['label' => (string) $order['progress_label'], 'tone' => 'info']);
 
     $ps = (string) $order['payment_status'];
+    $partlyPaid = Format::isPartlyPaid((string) ($order['paid_total'] ?? '0'), (string) $order['total']);
     $paymentBadge = $this->partial('partials/badge', [
-        'label' => $paymentLabels[$ps] ?? ucfirst($ps),
-        'tone' => $paymentTones[$ps] ?? 'muted',
+        'label' => Format::paymentStatus($ps, (string) ($order['paid_total'] ?? '0'), (string) $order['total']),
+        'tone' => $partlyPaid ? 'info' : ($paymentTones[$ps] ?? 'muted'),
     ]);
     if (!empty($order['refund_review'])) {
         $paymentBadge .= ' ' . $this->partial('partials/badge', ['label' => 'Refund review', 'tone' => 'warn']);

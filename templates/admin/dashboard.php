@@ -117,7 +117,7 @@ $periodLinksHtml .= '</nav>';
             'value' => (string) $lowCount,
             'delta' => $outCount > 0 ? $outCount . ' out of stock' : 'In stock',
             'tone' => $outCount > 0 ? 'danger' : ($lowCount > 0 ? 'warn' : 'ok'),
-            'period' => 'Variants at or below reorder',
+            'period' => 'Variants, all branches combined',
             'points' => [$lowCount, $lowCount],
         ]) ?>
         <?= $this->partial('partials/kpi-card', [
@@ -129,6 +129,10 @@ $periodLinksHtml .= '</nav>';
             'points' => [0, $costCompletePct === null ? 0 : (Decimal::parse((string) $costCompletePct, 2) ?? 0)],
         ]) ?>
     </div>
+    <ul class="kpi-notes cell-meta" id="dashboard-kpi-notes">
+        <li><strong>Net sales</strong> are order totals without the 12% VAT. They count every completed POS sale (including sales still waiting for review) and every online or staff order that is not cancelled, on the day it was placed, whether or not it has been paid or delivered.</li>
+        <li><strong>Low-stock count</strong> counts variants, not products, and adds up their stock across all branches combined. A variant is low when it is active, has a reorder level, and its stock is above zero and at or below that level. Variants with no stock left are counted separately as out of stock.</li>
+    </ul>
 </section>
 
 <section class="kit-section" aria-labelledby="dashboard-charts-heading">

@@ -70,12 +70,6 @@ foreach ($path as $step) {
     ];
 }
 
-$paymentLabels = [
-    'unpaid' => 'Unpaid',
-    'deposit_paid' => 'Deposit paid',
-    'paid' => 'Paid',
-    'refunded' => 'Refunded',
-];
 $paymentTones = [
     'unpaid' => 'warn',
     'deposit_paid' => 'info',
@@ -83,6 +77,8 @@ $paymentTones = [
     'refunded' => 'muted',
 ];
 $paymentStatus = (string) ($paymentSummary['status'] ?? $order['payment_status']);
+$paidAmount = (string) ($paymentSummary['paid'] ?? '0.00');
+$partlyPaid = Format::isPartlyPaid($paidAmount, (string) $order['total']);
 
 $methodOptions = ['' => 'Choose payment method…'] + $paymentMethods;
 $fulfillmentBranchId = (string) ($order['pickup_branch_id'] ?? $order['ship_from_branch_id'] ?? '');
@@ -139,7 +135,7 @@ $shipTo = is_array($order['ship_to'] ?? null) ? $order['ship_to'] : null;
 <?php endif; ?>
 
 <?php if ($canEdit && !$isCancelled && !$isTerminal && count($stepOptions) > 1): ?>
-        <form class="inline-form kit-stack" method="post" action="<?= $this->e($detailUrl . '/progress') ?>" novalidate>
+        <form class="inline-form inline-form--spaced" method="post" action="<?= $this->e($detailUrl . '/progress') ?>" novalidate>
             <input type="hidden" name="_csrf" value="<?= $this->e($csrf) ?>">
             <?= $this->partial('partials/field', [
                 'id' => 'order-next-step',
@@ -167,8 +163,8 @@ $shipTo = is_array($order['ship_to'] ?? null) ? $order['ship_to'] : null;
                 </div>
                 <div>
                     <?= $this->partial('partials/badge', [
-                        'label' => $paymentLabels[$paymentStatus] ?? ucfirst($paymentStatus),
-                        'tone' => $paymentTones[$paymentStatus] ?? 'muted',
+                        'label' => Format::paymentStatus($paymentStatus, $paidAmount, (string) $order['total']),
+                        'tone' => $partlyPaid ? 'info' : ($paymentTones[$paymentStatus] ?? 'muted'),
                     ]) ?>
                     <?php if (!empty($order['refund_review'])): ?>
                         <?= $this->partial('partials/badge', ['label' => 'Refund review required', 'tone' => 'warn']) ?>
@@ -220,7 +216,7 @@ $shipTo = is_array($order['ship_to'] ?? null) ? $order['ship_to'] : null;
 <?php endif; ?>
 
 <?php if ($canEdit && !$isCancelled): ?>
-            <form class="kit-stack" method="post" action="<?= $this->e($detailUrl . '/payments') ?>" novalidate>
+            <form class="detail-form" method="post" action="<?= $this->e($detailUrl . '/payments') ?>" novalidate>
                 <input type="hidden" name="_csrf" value="<?= $this->e($csrf) ?>">
                 <h3 class="detail-subheading">Record payment</h3>
 <?php if (!empty($paymentErrors['order'])): ?>
@@ -240,7 +236,7 @@ $shipTo = is_array($order['ship_to'] ?? null) ? $order['ship_to'] : null;
                     <?= $this->partial('partials/field', [
                         'id' => 'payment-amount',
                         'name' => 'amount',
-                        'label' => 'Amount (PHP)',
+                        'label' => 'Amount (₱)',
                         'value' => $paymentInput['amount'] ?? '',
                         'placeholder' => '500.00',
                         'required' => true,

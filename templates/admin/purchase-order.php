@@ -50,6 +50,15 @@ $statusTones = [
 ];
 
 $canReceive = $canEdit && in_array($status, ['sent', 'partially_received'], true);
+
+// Orders sent before the date was recorded have a status but no date, so they must not read "Not sent yet".
+if (!empty($po['sent_at'])) {
+    $sentText = Format::dateTime((string) $po['sent_at']);
+} elseif (in_array($status, ['sent', 'partially_received', 'received'], true)) {
+    $sentText = 'Sent (date not recorded)';
+} else {
+    $sentText = 'Not sent yet';
+}
 ?>
 <?= $this->partial('partials/page-header', [
     'eyebrow' => 'Purchase order',
@@ -98,7 +107,7 @@ $canReceive = $canEdit && in_array($status, ['sent', 'partially_received'], true
             </div>
             <div>
                 <dt>Sent</dt>
-                <dd><?= $this->e(!empty($po['sent_at']) ? Format::dateTime((string) $po['sent_at']) : 'Not sent yet') ?></dd>
+                <dd><?= $this->e($sentText) ?></dd>
             </div>
             <div>
                 <dt>Notes</dt>
@@ -222,14 +231,14 @@ $canReceive = $canEdit && in_array($status, ['sent', 'partially_received'], true
 <?php endif; ?>
                             </td>
                             <td>
-<?php if ($remaining > 0): ?>
+<?php if ($remaining > 0 && $trackBatches): ?>
                                 <div class="po-batch-fields">
                                     <?= $this->partial('partials/field', [
                                         'id' => "receive-$i-batch",
                                         'name' => "lines[$i][batch_code]",
-                                        'label' => 'Batch code' . ($trackBatches ? ' *' : ''),
+                                        'label' => 'Batch code *',
                                         'value' => $in['batch_code'] ?? '',
-                                        'placeholder' => $trackBatches ? 'LOT-001' : 'Optional',
+                                        'placeholder' => 'LOT-001',
                                         'error' => $err['batch_code'] ?? null,
                                     ]) ?>
                                     <?= $this->partial('partials/field', [
@@ -249,6 +258,8 @@ $canReceive = $canEdit && in_array($status, ['sent', 'partially_received'], true
                                         'error' => $err['bin'] ?? null,
                                     ]) ?>
                                 </div>
+<?php elseif ($remaining > 0): ?>
+                                <span class="cell-meta">Batch not tracked for this item</span>
 <?php else: ?>
                                 —
 <?php endif; ?>

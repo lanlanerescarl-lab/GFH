@@ -100,6 +100,7 @@ foreach ($result['items'] as $customer) {
     'title' => 'Customers',
     'subtitle' => 'View customer spend history. Organization Admins can issue one-time password reset links.',
 ]) ?>
+<p class="cell-meta" id="customers-lifetime-note">Lifetime spent adds up the totals of every order that is not cancelled, whether or not it has been paid. It is not money received.</p>
 
 <?= $this->partial('partials/sales-nav', [
     'ordersUrl' => $ordersUrl,

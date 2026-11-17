@@ -10,6 +10,7 @@ use Gfh\Core\Http\HttpException;
 use Gfh\Core\Payments\PaymentProvider;
 use Gfh\Core\Repository\OrderRepository;
 use Gfh\Core\Support\Decimal;
+use Gfh\Core\Support\Format;
 use Gfh\Core\Support\ListQuery;
 use Gfh\Core\Support\Uuid;
 
@@ -229,13 +230,27 @@ final class OrderService
                 return $this->getOrder($orderId);
             }
 
-            if ($byKey[$stepKey]['maps_to'] === 'complete' && !$this->repository->hasSaleMovements($orderId)) {
+            // Moving forward passes every step in between, so each one is logged in order. A move back, or from a
+            // step that is no longer on the path, logs only the step it lands on.
+            $keys = array_map(static fn (array $step): string => (string) $step['key'], array_values($path));
+            $from = array_search((string) $order['progress_key'], $keys, true);
+            $to = array_search($stepKey, $keys, true);
+            $passed = ($from !== false && $to > $from) ? array_slice($keys, $from + 1, $to - $from) : [$stepKey];
+
+            // Stock is sold once, the first time the order passes a step that means "complete".
+            $reachesComplete = false;
+            foreach ($passed as $passedKey) {
+                $reachesComplete = $reachesComplete || $byKey[$passedKey]['maps_to'] === 'complete';
+            }
+            if ($reachesComplete && !$this->repository->hasSaleMovements($orderId)) {
                 $this->fulfil($order, $actorId);
             }
 
             $this->repository->setProgress($orderId, $stepKey);
-            $this->repository->addHistory($orderId, $stepKey, $actorId);
-            $this->audit->organization($this->pdo, 'order.status_changed', $actorId, 'order', $orderId, ['from' => $order['progress_key'], 'to' => $stepKey]);
+            foreach ($passed as $passedKey) {
+                $this->repository->addHistory($orderId, $passedKey, $actorId);
+            }
+            $this->audit->organization($this->pdo, 'order.status_changed', $actorId, 'order', $orderId, ['from' => $order['progress_key'], 'to' => $stepKey, 'steps' => $passed]);
 
             return $this->getOrder($orderId);
         });
@@ -297,7 +312,7 @@ final class OrderService
             $total = Decimal::parse((string) $order['total'], 2) ?? 0;
             $paid = Decimal::parse($this->repository->paidTotal($orderId), 2) ?? 0;
             if ($paid + $amount > $total) {
-                throw HttpException::unprocessable(['amount' => sprintf('This is more than the balance of PHP %s.', Decimal::format($total - $paid, 2))]);
+                throw HttpException::unprocessable(['amount' => sprintf('This is more than the balance of %s.', Format::peso(Decimal::format($total - $paid, 2)))]);
             }
 
             $paymentId = $this->repository->addPayment($orderId, $clean['method'], Decimal::format($amount, 2), $clean['reference'], $actorId);

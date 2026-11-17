@@ -22,11 +22,18 @@ final class Format
         if ($units !== null) {
             $formatted = Decimal::format($units, 2);
         } else {
+            // More than two decimals (a weighted-average cost keeps four): round half up to the centavo for display.
+            // Cutting the digits off would show 124.6667 as 124.66; the stored value is never changed here.
             $text = trim((string) $amount);
-            if (preg_match('/^(-?)(\d+)(?:\.(\d+))?$/', $text, $m) !== 1) {
+            if (preg_match('/^(-?)(\d{1,16})(?:\.(\d+))?$/', $text, $m) !== 1) {
                 return '₱0.00';
             }
-            $formatted = $m[1] . $m[2] . '.' . str_pad(substr($m[3] ?? '', 0, 2), 2, '0');
+            $fraction = $m[3] ?? '';
+            $centavos = (int) ($m[2] . str_pad(substr($fraction, 0, 2), 2, '0'));
+            if (isset($fraction[2]) && (int) $fraction[2] >= 5) {
+                ++$centavos;
+            }
+            $formatted = ($m[1] === '-' && $centavos !== 0 ? '-' : '') . Decimal::format($centavos, 2);
         }
 
         $negative = str_starts_with($formatted, '-');
@@ -35,6 +42,37 @@ final class Format
         $grouped = (string) preg_replace('/\B(?=(\d{3})+(?!\d))/', ',', $whole);
 
         return ($negative ? '-₱' : '₱') . $grouped . '.' . $frac;
+    }
+
+    /** True when something has been paid but not the whole total (amounts in pesos, up to two decimals). */
+    public static function isPartlyPaid(string|int|null $paid, string|int|null $total): bool
+    {
+        $paidUnits = Decimal::parse($paid ?? '0', 2);
+        $totalUnits = Decimal::parse($total ?? '0', 2);
+
+        return $paidUnits !== null && $totalUnits !== null && $paidUnits > 0 && $paidUnits < $totalUnits;
+    }
+
+    /**
+     * The payment status as people read it. The stored status only says "deposit_paid" when the order has a deposit
+     * requirement, so an order with a partial payment and no deposit still reads "unpaid" in the database. Display
+     * only: the stored states and the rule that sets them are not touched.
+     */
+    public static function paymentStatus(string $status, string|int|null $paid, string|int|null $total): string
+    {
+        if ($status !== 'refunded' && self::isPartlyPaid($paid, $total)) {
+            $label = $status === 'deposit_paid' ? 'Deposit paid' : 'Partly paid';
+
+            return sprintf('%s (%s of %s)', $label, self::peso($paid), self::peso($total));
+        }
+
+        return match ($status) {
+            'unpaid' => 'Unpaid',
+            'deposit_paid' => 'Deposit paid',
+            'paid' => 'Paid',
+            'refunded' => 'Refunded',
+            default => ucfirst(str_replace('_', ' ', $status)),
+        };
     }
 
     public static function qty(string|int|null $quantity): string
