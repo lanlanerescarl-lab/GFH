@@ -11,6 +11,7 @@ use Gfh\Core\Database\Database;
 use Gfh\Core\Http\HttpException;
 use Gfh\Core\Repository\MembershipRepository;
 use Gfh\Core\Repository\UserRepository;
+use Gfh\Core\Support\ListQuery;
 use Gfh\Core\Support\Validation;
 use Gfh\Core\Tenancy\Organization;
 
@@ -28,6 +29,11 @@ use Gfh\Core\Tenancy\Organization;
  */
 final class AccountService
 {
+    /** Sort names the Team list accepts (name => SQL expression, fixed in the repository). */
+    public const TEAM_SORTS = MembershipRepository::TEAM_SORTS;
+
+    public const TEAM_STATUSES = ['active', 'inactive', 'pending'];
+
     public function __construct(
         private readonly \PDO $core,
         private readonly UserRepository $users,
@@ -139,6 +145,82 @@ final class AccountService
             $this->audit->core('user.created', $actor->id, null, 'user', $userId, ['org_role' => $orgRole, 'via' => $actor->isSystem ? 'cli' : 'app']);
 
             return ['user_id' => $userId];
+        });
+    }
+
+    /**
+     * The organization's team for the Team page, with the same list parameters as every other list. Admin and Manager
+     * accounts are included so the page shows the whole team; the other methods here still refuse to change them.
+     *
+     * Filters: "role" (admin, manager, staff or cashier) and "status" (active, inactive or pending). Search matches
+     * name and email.
+     *
+     * @return array{items: list<array<string, mixed>>, pagination: array<string, int>, sort: string}
+     * @throws HttpException 403 unless the actor may manage this team, 422 for an unknown role or status filter
+     */
+    public function listTeam(StaffUser $actor, Organization $organization, ListQuery $query): array
+    {
+        $this->assertMayManageTeam($actor, $organization);
+
+        $role = $query->filter('role');
+        $status = $query->filter('status');
+        $errors = [];
+        if (is_string($role) && $role !== '' && !in_array($role, Modules::ROLES, true)) {
+            $errors['role'] = 'Choose Admin, Manager, Staff or Cashier.';
+        }
+        if (is_string($status) && $status !== '' && !in_array($status, self::TEAM_STATUSES, true)) {
+            $errors['status'] = 'Choose active, inactive or pending.';
+        }
+        if ($errors !== []) {
+            throw HttpException::unprocessable($errors);
+        }
+
+        [$rows, $total] = $this->memberships->listTeam(
+            $organization->id,
+            $query,
+            is_string($role) && $role !== '' ? $role : null,
+            is_string($status) && $status !== '' ? $status : null,
+        );
+
+        $rows = array_map(fn (array $row): array => $this->withManageable($actor, $row), $rows);
+
+        return $query->result($rows, $total);
+    }
+
+    /**
+     * One person on this organization's team, for the edit screen and for the reset-link screen. Someone who is not on
+     * this team (another organization's member, a group-level account, an unknown id) gets the same 404.
+     *
+     * @return array<string, mixed>
+     * @throws HttpException 403 unless the actor may manage this team, 404 when the person is not on it
+     */
+    public function teamMember(StaffUser $actor, Organization $organization, string $userId): array
+    {
+        $this->assertMayManageTeam($actor, $organization);
+
+        $notFound = HttpException::notFound('That person is not on your team.');
+        if (preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $userId) !== 1) {
+            throw $notFound;
+        }
+
+        $member = $this->memberships->findTeamMember($userId, $organization->id) ?? throw $notFound;
+
+        return $this->withManageable($actor, $member);
+    }
+
+    /**
+     * Saves the edit screen in one step: name and email, and the role when it changed. It only calls updateStaffProfile()
+     * and changeRole(), so every rule of those two applies unchanged, and either both changes are kept or neither is.
+     */
+    public function updateTeamMember(StaffUser $actor, Organization $organization, string $targetUserId, string $fullName, string $email, string $role): void
+    {
+        $member = $this->teamMember($actor, $organization, $targetUserId);
+
+        Database::transaction($this->core, function () use ($actor, $organization, $targetUserId, $fullName, $email, $role, $member): void {
+            $this->updateStaffProfile($actor, $organization, $targetUserId, $fullName, $email);
+            if ($role !== (string) $member['role']) {
+                $this->changeRole($actor, $organization, $targetUserId, $role);
+            }
         });
     }
 
@@ -363,6 +445,21 @@ final class AccountService
         }
 
         return $membership;
+    }
+
+    /**
+     * Marks whether the actor may change this row. It mirrors assertMayManageMember() for the Team screens: only
+     * Staff and Cashier, and never the actor's own account. The checks in the change methods remain the real gate.
+     *
+     * @param array<string, mixed> $row
+     * @return array<string, mixed>
+     */
+    private function withManageable(StaffUser $actor, array $row): array
+    {
+        $row['manageable'] = in_array((string) $row['role'], Modules::ORG_ADMIN_MANAGEABLE_ROLES, true)
+            && ($actor->id === null || $actor->id !== (string) $row['id']);
+
+        return $row;
     }
 
     /** @return array<string, mixed> */

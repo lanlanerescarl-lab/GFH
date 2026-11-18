@@ -325,11 +325,13 @@ final class AdminBatch54aTest extends DatabaseTestCase
         $bad = $controller->index($this->staffRequest($path, $services, $tenant, $admin, ['view' => 'day', 'date' => '2026-02-30']));
         $this->assertSame(422, $bad->status());
         $this->assertStringContainsString('aria-invalid="true"', $bad->body());
-        $this->assertStringContainsString('Enter a date as YYYY-MM-DD', $bad->body());
+        // 2026-02-30 has the right shape but no such day, so it gets the "does not exist" message (Batch 5.4b polish d).
+        $this->assertStringContainsString('That date does not exist in the calendar.', $bad->body());
 
         // Anything unknown for the view falls back to the day view; a script in the date is only ever shown escaped.
         $odd = $controller->index($this->staffRequest($path, $services, $tenant, $admin, ['view' => 'week', 'date' => '<script>alert(1)</script>']));
         $this->assertSame(422, $odd->status());
+        $this->assertStringContainsString('Enter a date as YYYY-MM-DD', $odd->body());
         $this->assertStringNotContainsString('<script>alert(1)</script>', $odd->body());
     }
 

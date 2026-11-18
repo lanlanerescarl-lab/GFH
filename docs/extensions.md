@@ -78,7 +78,7 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 
 | Hook name | Constant | What it filters / does |
 | --- | --- | --- |
-| `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app |
+| `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app. An item with a `module` is shown only to people who pass `can()` for it; add `action` (`view`, `edit` or `delete`, default `view`) when the page needs more than view |
 | `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items in the Shop app |
 | `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form |
 | `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects |

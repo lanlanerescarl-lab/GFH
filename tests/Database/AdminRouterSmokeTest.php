@@ -22,6 +22,7 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
         $slug = 'smoke-' . bin2hex(random_bytes(3));
         $organization = $this->kit->organization($slug);
         $admin = $this->kit->member($organization, 'admin@' . $slug . '.test', 'admin');
+        $crew = $this->kit->member($organization, 'crew@' . $slug . '.test', 'staff');
 
         $root = dirname(__DIR__, 2);
         $app = App::boot($root);
@@ -64,6 +65,9 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
                 "/$slug/admin/orders/$deliveryOrderId",
                 "/$slug/admin/customers",
                 "/$slug/admin/reports",
+                "/$slug/admin/team",
+                "/$slug/admin/team/new",
+                "/$slug/admin/team/{$crew->id}",
                 "/$slug/admin/pos-sales",
                 "/$slug/admin/pos-sales/$completedPosSaleId",
                 "/$slug/admin/pos-sales/$reviewPosSaleId",

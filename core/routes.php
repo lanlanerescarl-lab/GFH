@@ -14,6 +14,7 @@ use Gfh\Core\Controller\Admin\ProductsController;
 use Gfh\Core\Controller\Admin\PurchaseOrdersController;
 use Gfh\Core\Controller\Admin\ReportsController;
 use Gfh\Core\Controller\Admin\SuppliersController;
+use Gfh\Core\Controller\Admin\TeamController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -63,6 +64,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminCustomers = new CustomersController($services);
     $adminPosSales = new PosSalesController($services);
     $adminReports = new ReportsController($services);
+    $adminTeam = new TeamController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -90,7 +92,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
-        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $branding,
+        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -252,6 +254,14 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/admin/pos-sales/{id}', static fn (Request $q) => $adminPosSales->show($q), [$tenant, $staffSession, $requireStaff]);
         $r->post('/admin/pos-sales/{id}/resolve', static fn (Request $q) => $adminPosSales->resolve($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/reports', static fn (Request $q) => $adminReports->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/team', static fn (Request $q) => $adminTeam->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/team/new', static fn (Request $q) => $adminTeam->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/team', static fn (Request $q) => $adminTeam->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/team/{id}', static fn (Request $q) => $adminTeam->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/team/{id}', static fn (Request $q) => $adminTeam->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/team/{id}/deactivate', static fn (Request $q) => $adminTeam->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/team/{id}/reactivate', static fn (Request $q) => $adminTeam->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/team/{id}/reset-link', static fn (Request $q) => $adminTeam->issueResetLink($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

@@ -4,9 +4,29 @@ declare(strict_types=1);
 
 namespace Gfh\Core\Repository;
 
+use Gfh\Core\Support\ListQuery;
+use Gfh\Core\Support\SqlWhere;
+
 /** All SQL for memberships: the role a person holds in each organization. */
 final class MembershipRepository
 {
+    /**
+     * What the Team list shows as a person's status. A person is inactive when either the membership or the account
+     * is switched off, and pending until they have set a password through a reset link.
+     */
+    private const TEAM_STATUS = "CASE WHEN m.status = 'inactive' OR u.status = 'inactive' THEN 'inactive' "
+        . "WHEN m.status = 'pending' OR u.status = 'pending' THEN 'pending' ELSE 'active' END";
+
+    /** Public sort name => SQL expression, for ListQuery::fromRequest(). Fixed here, never taken from a request. */
+    public const TEAM_SORTS = [
+        'name' => 'u.full_name',
+        'email' => 'u.email',
+        'role' => 'm.role',
+        'status' => self::TEAM_STATUS,
+        'joined' => 'm.created_at',
+        'last_login' => 'u.last_login_at',
+    ];
+
     public function __construct(private readonly \PDO $core)
     {
     }
@@ -68,5 +88,63 @@ final class MembershipRepository
             'UPDATE memberships SET role = :role, status = :status WHERE user_id = :user_id AND organization_id = :organization_id',
         );
         $statement->execute(['role' => $role, 'status' => $status, 'user_id' => $userId, 'organization_id' => $organizationId]);
+    }
+
+    /**
+     * One organization's team. Group-level accounts (Super Admin, Group Viewer) are not team members and are left out.
+     * Every query here is tied to the organization id, so another organization's people can never appear.
+     *
+     * @return array{0: list<array<string, mixed>>, 1: int} the page of rows and the total number of matches
+     */
+    public function listTeam(string $organizationId, ListQuery $query, ?string $role, ?string $status): array
+    {
+        $where = new SqlWhere();
+        $where->add('m.organization_id = ?', $organizationId);
+        $where->add('u.org_role IS NULL');
+        if ($role !== null) {
+            $where->add('m.role = ?', $role);
+        }
+        if ($status !== null) {
+            $where->add(self::TEAM_STATUS . ' = ?', $status);
+        }
+        if (($pattern = $query->likePattern()) !== null) {
+            $where->add('u.full_name ILIKE ? OR u.email ILIKE ?', $pattern, $pattern);
+        }
+
+        $from = 'FROM memberships m JOIN users u ON u.id = m.user_id ';
+
+        $count = $this->core->prepare('SELECT COUNT(*) ' . $from . $where->sql());
+        $count->execute($where->params());
+        $total = (int) $count->fetchColumn();
+
+        $rows = $this->core->prepare(
+            'SELECT u.id, u.full_name, u.email, u.last_login_at, m.role, m.created_at AS joined_at, '
+            . self::TEAM_STATUS . ' AS status '
+            . $from . $where->sql()
+            . ' ORDER BY ' . $query->orderBy . ', u.id ASC LIMIT ' . $query->perPage . ' OFFSET ' . $query->offset(),
+        );
+        $rows->execute($where->params());
+
+        return [$rows->fetchAll(), $total];
+    }
+
+    /**
+     * One member of this organization's team, or null. The organization filter is what keeps another organization's
+     * people out of the Team pages, so it must stay in this query.
+     *
+     * @return array<string, mixed>|null
+     */
+    public function findTeamMember(string $userId, string $organizationId): ?array
+    {
+        $statement = $this->core->prepare(
+            'SELECT u.id, u.full_name, u.email, u.last_login_at, m.role, m.created_at AS joined_at, '
+            . self::TEAM_STATUS . ' AS status '
+            . 'FROM memberships m JOIN users u ON u.id = m.user_id '
+            . 'WHERE m.organization_id = ? AND m.user_id = ? AND u.org_role IS NULL',
+        );
+        $statement->execute([$organizationId, $userId]);
+        $row = $statement->fetch();
+
+        return $row === false ? null : $row;
     }
 }

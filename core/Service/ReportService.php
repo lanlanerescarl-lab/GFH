@@ -168,16 +168,21 @@ final class ReportService
             };
         }
 
-        [$pattern, $format, $example] = match ($view) {
-            'day' => ['/^\d{4}-\d{2}-\d{2}$/', '!Y-m-d', 'a date as YYYY-MM-DD, for example 2026-11-16'],
-            'month' => ['/^\d{4}-\d{2}$/', '!Y-m', 'a month as YYYY-MM, for example 2026-11'],
-            default => ['/^\d{4}$/', '!Y', 'a four-digit year, for example 2026'],
+        // The examples come from today in Manila, so they never go stale like a fixed date would.
+        [$pattern, $format, $example, $missing] = match ($view) {
+            'day' => ['/^\d{4}-\d{2}-\d{2}$/', '!Y-m-d', 'a date as YYYY-MM-DD, for example ' . $today->format('Y-m-d'), 'That date does not exist in the calendar. Enter a real date, for example ' . $today->format('Y-m-d') . '.'],
+            'month' => ['/^\d{4}-\d{2}$/', '!Y-m', 'a month as YYYY-MM, for example ' . $today->format('Y-m'), 'That month does not exist. Use a month from 01 to 12, for example ' . $today->format('Y-m') . '.'],
+            default => ['/^\d{4}$/', '!Y', 'a four-digit year, for example ' . $today->format('Y'), 'That year does not exist. Enter a four-digit year, for example ' . $today->format('Y') . '.'],
         };
 
-        $start = preg_match($pattern, $value) === 1 ? \DateTimeImmutable::createFromFormat($format, $value, $zone) : false;
-        $valid = $start !== false && $start->format(substr($format, 1)) === $value;
-        if (!$valid) {
+        // Two different mistakes: the text is not in the expected shape, or it is in the shape but names a day (or month)
+        // the calendar does not have, such as 2026-02-30 or 2026-13.
+        if (preg_match($pattern, $value) !== 1) {
             throw HttpException::unprocessable([$field => 'Enter ' . $example . '.']);
+        }
+        $start = \DateTimeImmutable::createFromFormat($format, $value, $zone);
+        if ($start === false || $start->format(substr($format, 1)) !== $value) {
+            throw HttpException::unprocessable([$field => $missing]);
         }
 
         $year = (int) $start->format('Y');

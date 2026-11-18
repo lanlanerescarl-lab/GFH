@@ -180,6 +180,7 @@ input[type="search"],
 input[type="number"],
 input[type="tel"],
 input[type="date"],
+input[type="month"],
 select,
 textarea {
   display: block;

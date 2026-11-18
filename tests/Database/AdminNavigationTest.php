@@ -41,6 +41,64 @@ final class AdminNavigationTest extends DatabaseTestCase
         $this->assertSame([], $this->keys($navigation, $cashier, $organization));
     }
 
+    public function testTeamAndSettingsAreShownOnlyToPeopleWhoMayEditThem(): void
+    {
+        $organization = $this->kit->organization('nav-h');
+        $navigation = new AdminNavigationService($this->kit->permissions, new Hooks());
+        $users = [];
+        foreach (['admin', 'manager', 'staff', 'cashier'] as $role) {
+            $users[$role] = $this->kit->member($organization, $role . '@example.test', $role);
+        }
+
+        // Both items ask for edit on reports_admin, which only an Admin has.
+        $edit = array_column(array_filter(AdminNavigationService::ITEMS, static fn (array $item): bool => in_array($item['key'], ['team', 'settings'], true)), 'action', 'key');
+        $this->assertSame(['team' => 'edit', 'settings' => 'edit'], $edit);
+
+        $adminKeys = $this->keys($navigation, $users['admin'], $organization);
+        $this->assertContains('team', $adminKeys);
+        $this->assertContains('settings', $adminKeys);
+
+        // A Manager still sees Reports (view) but not links that would answer 403.
+        $managerKeys = $this->keys($navigation, $users['manager'], $organization);
+        $this->assertContains('reports', $managerKeys);
+        $this->assertNotContains('team', $managerKeys);
+        $this->assertNotContains('settings', $managerKeys);
+        foreach (['staff', 'cashier'] as $role) {
+            $keys = $this->keys($navigation, $users[$role], $organization);
+            $this->assertNotContains('team', $keys, $role);
+            $this->assertNotContains('settings', $keys, $role);
+        }
+
+        // Every item a person is shown is one the page would let them open: the sidebar and the pages agree.
+        $needs = array_column([...AdminNavigationService::ITEMS], null, 'key');
+        foreach ($users as $role => $user) {
+            foreach ($this->keys($navigation, $user, $organization) as $key) {
+                $this->assertTrue($this->kit->permissions->can($user, $organization, $needs[$key]['module'], $needs[$key]['action'] ?? 'view'), "$role sees $key");
+            }
+        }
+    }
+
+    public function testAnExtensionItemCanNameTheActionItNeedsAndAnUnknownActionFallsBackToView(): void
+    {
+        $organization = $this->kit->organization('nav-i');
+        $admin = $this->kit->member($organization, 'admin@example.test', 'admin');
+        $manager = $this->kit->member($organization, 'manager@example.test', 'manager');
+
+        $hooks = new Hooks();
+        $hooks->add(Hooks::NAVIGATION_ADMIN, static function (array $items, array $context): array {
+            $items[] = ['key' => 'ext-edit', 'label' => 'Edit only', 'url' => $context['base_url'] . '/ext-edit', 'module' => 'reports_admin', 'action' => 'edit'];
+            $items[] = ['key' => 'ext-odd', 'label' => 'Odd action', 'url' => $context['base_url'] . '/ext-odd', 'module' => 'reports_admin', 'action' => 'fly'];
+
+            return $items;
+        });
+        $navigation = new AdminNavigationService($this->kit->permissions, $hooks);
+
+        $this->assertContains('ext-edit', $this->keys($navigation, $admin, $organization));
+        $managerKeys = $this->keys($navigation, $manager, $organization);
+        $this->assertNotContains('ext-edit', $managerKeys, 'a Manager has view, not edit');
+        $this->assertContains('ext-odd', $managerKeys, 'an unknown action is treated as view');
+    }
+
     public function testEveryShownItemIsOneTheUserMayView(): void
     {
         $organization = $this->kit->organization('nav-b');

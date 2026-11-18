@@ -145,7 +145,7 @@ ob_start();
         <?= $this->partial('partials/kpi-card', [
             'label' => 'Cost',
             'value' => Format::peso((string) $totals['cost']),
-            'delta' => 'Cost known for ' . Format::pct($costComplete !== null ? (string) $costComplete : null) . ' of sales',
+            'delta' => $costComplete === null ? 'No cost recorded' : 'Cost known for ' . Format::pct((string) $costComplete) . ' of sales',
             'tone' => 'neutral',
             'period' => $report['label'],
             'points' => [0, 0],

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Gfh\Core\Service;
 
+use Gfh\Core\Auth\Modules;
 use Gfh\Core\Auth\StaffUser;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Tenancy\Organization;
@@ -25,7 +26,10 @@ final class AdminNavigationService
      * The built-in sidebar. Paths are relative to /{org}/admin. Pages arrive in Stage 5; the list is the
      * information architecture they will fill.
      *
-     * @var list<array{key: string, label: string, path: string, module: string, group: string}>
+     * An item may carry an optional "action" (view, edit or delete). It is the permission the page itself asks for, and
+     * it defaults to view. Team and Settings need edit, so a Manager is not shown links that would answer 403.
+     *
+     * @var list<array{key: string, label: string, path: string, module: string, group: string, action?: string}>
      */
     public const ITEMS = [
         ['key' => 'dashboard', 'label' => 'Dashboard', 'path' => '', 'module' => 'dashboard', 'group' => 'Overview'],
@@ -35,8 +39,8 @@ final class AdminNavigationService
         ['key' => 'inventory', 'label' => 'Inventory', 'path' => '/inventory', 'module' => 'inventory', 'group' => 'Stock'],
         ['key' => 'procurement', 'label' => 'Procurement', 'path' => '/procurement', 'module' => 'procurement', 'group' => 'Stock'],
         ['key' => 'reports', 'label' => 'Reports', 'path' => '/reports', 'module' => 'reports_admin', 'group' => 'Manage'],
-        ['key' => 'team', 'label' => 'Team', 'path' => '/team', 'module' => 'reports_admin', 'group' => 'Manage'],
-        ['key' => 'settings', 'label' => 'Settings', 'path' => '/settings', 'module' => 'reports_admin', 'group' => 'Manage'],
+        ['key' => 'team', 'label' => 'Team', 'path' => '/team', 'module' => 'reports_admin', 'group' => 'Manage', 'action' => 'edit'],
+        ['key' => 'settings', 'label' => 'Settings', 'path' => '/settings', 'module' => 'reports_admin', 'group' => 'Manage', 'action' => 'edit'],
     ];
 
     /** Shown only outside production, to anyone who may open the dashboard. */
@@ -66,7 +70,8 @@ final class AdminNavigationService
 
         $items = [];
         foreach ($definitions as $definition) {
-            if (!$can($definition['module'])) {
+            $action = $definition['action'] ?? 'view';
+            if (!$can($definition['module'], $action)) {
                 continue;
             }
             $items[] = [
@@ -75,6 +80,7 @@ final class AdminNavigationService
                 'url' => $prefix . $definition['path'],
                 'group' => $definition['group'],
                 'module' => $definition['module'],
+                'action' => $action,
             ];
         }
 
@@ -105,8 +111,12 @@ final class AdminNavigationService
             if ($label === '' || preg_match('#^/(?!/)[^\s\\\\]*$#D', $item['url']) !== 1) {
                 continue;
             }
-            if (isset($item['module']) && (!is_string($item['module']) || !$can($item['module']))) {
-                continue;
+            if (isset($item['module'])) {
+                // An extension item may name the action it needs; anything that is not a known action falls back to view.
+                $action = isset($item['action']) && is_string($item['action']) && in_array($item['action'], Modules::ACTIONS, true) ? $item['action'] : 'view';
+                if (!is_string($item['module']) || !$can($item['module'], $action)) {
+                    continue;
+                }
             }
 
             $clean[] = [
