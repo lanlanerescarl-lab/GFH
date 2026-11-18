@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Gfh\Core\Service;
 
 use Gfh\Core\Hooks\Hooks;
+use Gfh\Core\Http\HttpException;
 use Gfh\Core\Repository\ReportRepository;
+use Gfh\Core\Support\Format;
 
 /**
  * Dashboard figures, read from the org_contract views so the Admin dashboard, the Super Admin app and (later)
- * the OLAP module all show the same numbers. Calendar reports by day, month and year are not here: the OLAP module
- * replaces them.
+ * the OLAP module all show the same numbers. The Reports page (periodReport) uses the same views and the same period
+ * totals as the dashboard, so the two can never disagree; the OLAP module adds deeper analysis later.
  *
  * Gross profit is net sales (VAT removed, after discounts) minus the cost of the lines that have a cost.
  * Cost completeness is the share of net sales that comes from lines with a known cost; for a period it is the
@@ -18,6 +20,18 @@ use Gfh\Core\Repository\ReportRepository;
  */
 final class ReportService
 {
+    /** The calendar views of the Reports page. */
+    public const VIEWS = ['day' => 'Day', 'month' => 'Month', 'year' => 'Year'];
+
+    /** The query-string field each view reads its calendar value from. */
+    public const FIELDS = ['day' => 'date', 'month' => 'month', 'year' => 'year'];
+
+    /** Every calendar day, month and year is reckoned in this zone (never UTC). */
+    public const TIMEZONE = 'Asia/Manila';
+
+    private const FIRST_YEAR = 2000;
+    private const LAST_YEAR = 2100;
+
     public function __construct(private readonly ReportRepository $repository, private readonly Hooks $hooks)
     {
     }
@@ -28,8 +42,7 @@ final class ReportService
      */
     public function dashboard(?\DateTimeImmutable $now = null): array
     {
-        $zone = new \DateTimeZone('Asia/Manila');
-        $today = ($now ?? new \DateTimeImmutable('now', $zone))->setTimezone($zone);
+        $today = $this->today($now);
 
         $todayText = $today->format('Y-m-d');
         $monthStart = $today->modify('first day of this month')->format('Y-m-d');
@@ -62,6 +75,248 @@ final class ReportService
             'order_stages' => $this->repository->stageCounts(),
             'widgets' => is_array($widgets) ? $widgets : [],
         ];
+    }
+
+    /** The current moment as a Manila calendar date. A sale at 00:30 Manila time is already tomorrow's, whatever UTC says. */
+    public function today(?\DateTimeImmutable $now = null): \DateTimeImmutable
+    {
+        $zone = new \DateTimeZone(self::TIMEZONE);
+
+        return ($now ?? new \DateTimeImmutable('now', $zone))->setTimezone($zone);
+    }
+
+    /**
+     * One calendar period of the Reports page.
+     *
+     * $view is day, month or year and $value is what the person picked: YYYY-MM-DD, YYYY-MM or YYYY. An empty value
+     * means the current day, month or year in Manila. An unreadable value is refused with a field error named after
+     * the field (date, month or year). Totals come from the same queries as the dashboard. The breakdown is by branch
+     * for a day, by day for a month and by month for a year, with zero rows where nothing was sold, so an empty
+     * period reads as zeros.
+     *
+     * @return array<string, mixed>
+     * @throws HttpException 422 when the value is not a real date inside the supported years
+     */
+    public function periodReport(string $view, string $value = '', ?\DateTimeImmutable $now = null): array
+    {
+        if (!isset(self::VIEWS[$view])) {
+            $view = 'day';
+        }
+
+        $today = $this->today($now);
+        [$start, $end] = $this->range($view, trim($value), $today);
+        $from = $start->format('Y-m-d');
+        $to = $end->format('Y-m-d');
+
+        $totals = $this->period($from, $to);
+        $breakdown = match ($view) {
+            'day' => $this->byBranch($from),
+            'month' => $this->byDay($start, $end),
+            default => $this->byMonth($start),
+        };
+
+        $report = [
+            'view' => $view,
+            'field' => self::FIELDS[$view],
+            'value' => match ($view) {
+                'day' => $from,
+                'month' => $start->format('Y-m'),
+                default => $start->format('Y'),
+            },
+            'label' => match ($view) {
+                'day' => Format::date($from),
+                'month' => $start->format('F Y'),
+                default => $start->format('Y'),
+            },
+            'from' => $from,
+            'to' => $to,
+            'totals' => $totals,
+            'breakdown' => $breakdown,
+            'previous' => $this->neighbour($view, $start, -1),
+            'next' => $this->neighbour($view, $start, 1),
+            'switch' => [
+                'day' => ['view' => 'day', 'date' => $from],
+                'month' => ['view' => 'month', 'month' => $start->format('Y-m')],
+                'year' => ['view' => 'year', 'year' => $start->format('Y')],
+            ],
+        ];
+
+        $tabs = $this->hooks->filter(Hooks::REPORTS_TABS, [], [
+            'view' => $view,
+            'from' => $from,
+            'to' => $to,
+            'totals' => $totals,
+        ]);
+        $report['extension_tabs'] = $this->normalizeTabs(is_array($tabs) ? $tabs : []);
+
+        return $report;
+    }
+
+    /**
+     * @return array{0: \DateTimeImmutable, 1: \DateTimeImmutable} first and last calendar day of the period
+     */
+    private function range(string $view, string $value, \DateTimeImmutable $today): array
+    {
+        $zone = new \DateTimeZone(self::TIMEZONE);
+        $field = self::FIELDS[$view];
+
+        if ($value === '') {
+            $value = match ($view) {
+                'day' => $today->format('Y-m-d'),
+                'month' => $today->format('Y-m'),
+                default => $today->format('Y'),
+            };
+        }
+
+        [$pattern, $format, $example] = match ($view) {
+            'day' => ['/^\d{4}-\d{2}-\d{2}$/', '!Y-m-d', 'a date as YYYY-MM-DD, for example 2026-11-16'],
+            'month' => ['/^\d{4}-\d{2}$/', '!Y-m', 'a month as YYYY-MM, for example 2026-11'],
+            default => ['/^\d{4}$/', '!Y', 'a four-digit year, for example 2026'],
+        };
+
+        $start = preg_match($pattern, $value) === 1 ? \DateTimeImmutable::createFromFormat($format, $value, $zone) : false;
+        $valid = $start !== false && $start->format(substr($format, 1)) === $value;
+        if (!$valid) {
+            throw HttpException::unprocessable([$field => 'Enter ' . $example . '.']);
+        }
+
+        $year = (int) $start->format('Y');
+        if ($year < self::FIRST_YEAR || $year > self::LAST_YEAR) {
+            throw HttpException::unprocessable([$field => sprintf('Choose a year between %d and %d.', self::FIRST_YEAR, self::LAST_YEAR)]);
+        }
+
+        $end = match ($view) {
+            'day' => $start,
+            'month' => $start->modify('last day of this month'),
+            default => $start->setDate((int) $start->format('Y'), 12, 31),
+        };
+
+        return [$start, $end];
+    }
+
+    /** The value of the period before (-1) or after (+1), or null when it would leave the supported years. */
+    private function neighbour(string $view, \DateTimeImmutable $start, int $step): ?string
+    {
+        $moved = match ($view) {
+            'day' => $start->modify(sprintf('%+d day', $step)),
+            'month' => $start->modify(sprintf('%+d month', $step)),
+            default => $start->modify(sprintf('%+d year', $step)),
+        };
+        $year = (int) $moved->format('Y');
+        if ($year < self::FIRST_YEAR || $year > self::LAST_YEAR) {
+            return null;
+        }
+
+        return match ($view) {
+            'day' => $moved->format('Y-m-d'),
+            'month' => $moved->format('Y-m'),
+            default => $moved->format('Y'),
+        };
+    }
+
+    /** @return array<string, mixed> */
+    private function byBranch(string $day): array
+    {
+        $sold = [];
+        foreach ($this->repository->branchRows($day) as $row) {
+            $sold[(string) ($row['branch_id'] ?? '')] = $row;
+        }
+
+        $rows = [];
+        foreach ($this->repository->branches() as $branch) {
+            $id = (string) $branch['id'];
+            // An inactive branch is listed only if it still sold something that day.
+            if ($branch['status'] !== 'active' && !isset($sold[$id])) {
+                continue;
+            }
+            $rows[] = $this->row($id, (string) $branch['name'], $sold[$id] ?? []);
+            unset($sold[$id]);
+        }
+        if (isset($sold[''])) {
+            $rows[] = $this->row('none', 'No branch', $sold['']);
+        }
+
+        return ['kind' => 'branch', 'title' => 'By branch', 'column' => 'Branch', 'rows' => $rows];
+    }
+
+    /** @return array<string, mixed> */
+    private function byDay(\DateTimeImmutable $start, \DateTimeImmutable $end): array
+    {
+        $sold = [];
+        foreach ($this->repository->dailyRows($start->format('Y-m-d'), $end->format('Y-m-d')) as $row) {
+            $sold[(string) $row['date']] = $row;
+        }
+
+        $rows = [];
+        for ($day = $start; $day <= $end; $day = $day->modify('+1 day')) {
+            $key = $day->format('Y-m-d');
+            $rows[] = $this->row($key, Format::date($key), $sold[$key] ?? [], $day->format('j M'));
+        }
+
+        return ['kind' => 'day', 'title' => 'By day', 'column' => 'Day', 'rows' => $rows];
+    }
+
+    /** @return array<string, mixed> */
+    private function byMonth(\DateTimeImmutable $start): array
+    {
+        $sold = [];
+        foreach ($this->repository->monthlyRows($start->format('Y-01-01'), $start->format('Y-12-31')) as $row) {
+            $sold[(string) $row['month']] = $row;
+        }
+
+        $rows = [];
+        for ($month = 1; $month <= 12; $month++) {
+            $key = sprintf('%s-%02d', $start->format('Y'), $month);
+            $first = \DateTimeImmutable::createFromFormat('!Y-m', $key, new \DateTimeZone(self::TIMEZONE));
+            $rows[] = $this->row($key, $first->format('F Y'), $sold[$key] ?? [], $first->format('M'));
+        }
+
+        return ['kind' => 'month', 'title' => 'By month', 'column' => 'Month', 'rows' => $rows];
+    }
+
+    /**
+     * One breakdown row. A missing source row is a row of zeros.
+     *
+     * @param array<string, mixed> $source
+     * @return array<string, mixed>
+     */
+    private function row(string $key, string $label, array $source, ?string $short = null): array
+    {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'short' => $short ?? $label,
+            'net_sales' => $this->money($source['net_revenue'] ?? '0'),
+            'gross_profit' => $this->money($source['gross_profit'] ?? '0'),
+            'cost' => $this->money($source['cost'] ?? '0'),
+            'units' => (string) ($source['units'] ?? '0'),
+            'orders' => (int) ($source['orders'] ?? 0),
+        ];
+    }
+
+    /**
+     * Extension tabs: each needs a label; the id is cleaned to letters, digits, underscore and hyphen, and the
+     * built-in "sales" tab cannot be replaced. contentHtml is the extension's own HTML, as in product.form.tabs.
+     *
+     * @param array<mixed> $raw
+     * @return list<array{id: string, label: string, contentHtml: string}>
+     */
+    private function normalizeTabs(array $raw): array
+    {
+        $tabs = [];
+        foreach ($raw as $index => $tab) {
+            if (!is_array($tab)) {
+                continue;
+            }
+            $label = trim((string) ($tab['label'] ?? ''));
+            $id = preg_replace('/[^a-zA-Z0-9_-]/', '-', (string) ($tab['id'] ?? 'ext-' . $index)) ?? ('ext-' . $index);
+            if ($label === '' || $id === '' || $id === 'sales') {
+                continue;
+            }
+            $tabs[] = ['id' => $id, 'label' => $label, 'contentHtml' => (string) ($tab['contentHtml'] ?? $tab['content'] ?? '')];
+        }
+
+        return $tabs;
     }
 
     /** @return array<string, mixed> */

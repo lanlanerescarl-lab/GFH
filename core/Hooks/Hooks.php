@@ -24,6 +24,7 @@ final class Hooks
     public const STOCK_PICK_STRATEGY = 'stock.pick_strategy';
     public const VALIDATION_ATTRIBUTES = 'validation.attributes';
     public const DASHBOARD_WIDGETS = 'dashboard.widgets';
+    public const REPORTS_TABS = 'reports.tabs';
 
     public const NAMES = [
         self::NAVIGATION_ADMIN,
@@ -38,6 +39,7 @@ final class Hooks
         self::STOCK_PICK_STRATEGY,
         self::VALIDATION_ATTRIBUTES,
         self::DASHBOARD_WIDGETS,
+        self::REPORTS_TABS,
     ];
 
     /** @var array<string, array<int, list<callable>>> hook name => priority => callbacks */

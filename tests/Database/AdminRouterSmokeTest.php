@@ -63,6 +63,7 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
                 "/$slug/admin/orders/$pickupOrderId",
                 "/$slug/admin/orders/$deliveryOrderId",
                 "/$slug/admin/customers",
+                "/$slug/admin/reports",
                 "/$slug/admin/pos-sales",
                 "/$slug/admin/pos-sales/$completedPosSaleId",
                 "/$slug/admin/pos-sales/$reviewPosSaleId",
@@ -89,6 +90,21 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
 
             $this->assertSame([], $failures, implode("\n", $failures));
 
+            // Batch 5.4a: the Reports page in each view, through the real router, with the current Manila date.
+            $manilaToday = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
+            foreach ([
+                ['view' => 'day', 'date' => $manilaToday->format('Y-m-d')],
+                ['view' => 'month', 'month' => $manilaToday->format('Y-m')],
+                ['view' => 'year', 'year' => $manilaToday->format('Y')],
+            ] as $query) {
+                $reportResponse = $app->handle(new Request('GET', "/$slug/admin/reports", query: $query), $services);
+                $this->assertSame(200, $reportResponse->status(), 'GET reports ' . $query['view']);
+                $this->assertStringContainsString('Net sales', $reportResponse->body());
+                $this->assertStringContainsString('whether or not it has been paid or delivered', $reportResponse->body());
+            }
+            $badReport = $app->handle(new Request('GET', "/$slug/admin/reports", query: ['view' => 'day', 'date' => '2026-02-30']), $services);
+            $this->assertSame(422, $badReport->status());
+
             // Phase 1 fixes, checked on the pages as the real router renders them.
             $page = static fn (string $path): string => $app->handle(new Request('GET', $path), $services)->body();
 
@@ -111,7 +127,7 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
             // The dashboard and Customers screens say what their figures count.
             $this->assertStringContainsString('all branches combined', $page("/$slug/admin"));
             $this->assertStringContainsString('whether or not it has been paid or delivered', $page("/$slug/admin"));
-            $this->assertStringContainsString('whether or not it has been paid', $page("/$slug/admin/customers"));
+            $this->assertStringContainsString('whether or not they have been paid', $page("/$slug/admin/customers"));
 
             // A partial payment reads "Partly paid (...)" on the list and on the order, while the stored status stays.
             $unpaid = $this->org->query(

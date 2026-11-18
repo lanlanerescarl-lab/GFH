@@ -90,6 +90,7 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | `stock.pick_strategy` | `Hooks::STOCK_PICK_STRATEGY` | Batch picks (`list<array{batch_id: ?string, quantity_milli: int}>`) when issuing stock in `InventoryService`; may throw `HttpException` to refuse a sale |
 | `validation.attributes` | `Hooks::VALIDATION_ATTRIBUTES` | Product attribute field errors (`attributes.{key}` => message) in `CatalogService` |
 | `dashboard.widgets` | `Hooks::DASHBOARD_WIDGETS` | Extra dashboard widgets returned by `ReportService::dashboard()` |
+| `reports.tabs` | `Hooks::REPORTS_TABS` | Extra tabs on the Admin Reports page. Each tab is `{id, label, contentHtml}`; `context` has `view` (`day`, `month` or `year`), `from`, `to` (`YYYY-MM-DD`, Asia/Manila) and `totals` of the chosen period. Only people who may view Reports see the tabs |
 
 A hook callback has the signature `fn (mixed $value, array $context): mixed` and returns the modified `$value`. Lower priority numbers (`0` to `100`, default `10`) run first across all loaded extensions.
 

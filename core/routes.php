@@ -12,6 +12,7 @@ use Gfh\Core\Controller\Admin\OrdersController;
 use Gfh\Core\Controller\Admin\PosSalesController;
 use Gfh\Core\Controller\Admin\ProductsController;
 use Gfh\Core\Controller\Admin\PurchaseOrdersController;
+use Gfh\Core\Controller\Admin\ReportsController;
 use Gfh\Core\Controller\Admin\SuppliersController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
@@ -61,6 +62,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminOrders = new OrdersController($services);
     $adminCustomers = new CustomersController($services);
     $adminPosSales = new PosSalesController($services);
+    $adminReports = new ReportsController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -88,7 +90,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
-        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $branding,
+        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -249,6 +251,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/admin/pos-sales', static fn (Request $q) => $adminPosSales->index($q), [$tenant, $staffSession, $requireStaff]);
         $r->get('/admin/pos-sales/{id}', static fn (Request $q) => $adminPosSales->show($q), [$tenant, $staffSession, $requireStaff]);
         $r->post('/admin/pos-sales/{id}/resolve', static fn (Request $q) => $adminPosSales->resolve($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/reports', static fn (Request $q) => $adminReports->index($q), [$tenant, $staffSession, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

@@ -136,7 +136,7 @@ Conversions (`convert_out` and `convert_in`) are done through `InventoryService:
 | `POST /admin/purchase-orders` | edit | `{supplier_id, branch_id, expected_on?, notes?, lines: [{variant_id, quantity, unit_cost}]}`. Numbered `PO-2026-0001` |
 | `GET /admin/purchase-orders/{id}` | view | With lines. `sent_at` is the date and time it was sent (null for a draft) |
 | `POST /admin/purchase-orders/{id}/send`, `.../cancel` | edit | A draft is sent; a draft or sent order that received nothing is cancelled |
-| `POST /admin/purchase-orders/{id}/receive` | edit | `{lines: [{line_id, qty_received, qty_rejected, batch_code, expires_on, bin}]}`. Accepted stock comes in at the line cost and updates the average cost; rejected quantities are recorded without stock. Variants that track batches need `batch_code` (errors are `lines.N.batch_code`); `expires_on` for such a variant cannot be earlier than today in Asia/Manila (error `lines.N.expires_on`). Variants that do not track batches ignore `batch_code`, `expires_on` and `bin`. The whole receipt is refused if any line is |
+| `POST /admin/purchase-orders/{id}/receive` | edit | `{lines: [{line_id, qty_received, qty_rejected, batch_code, expires_on, bin}]}`. Accepted stock comes in at the line cost and updates the average cost; rejected quantities are recorded without stock. Variants that track batches need `batch_code` (errors are `lines.N.batch_code`); `expires_on` for such a variant cannot be earlier than today in Asia/Manila (error `lines.N.expires_on`). Variants that do not track batches ignore `batch_code`, `expires_on` and `bin`. The whole receipt is refused if any line is invalid, and nothing is saved. |
 
 ## POS (module `pos`; the review queue is module `sales`)
 

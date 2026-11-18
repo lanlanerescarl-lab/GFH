@@ -272,7 +272,7 @@ final class OrderRepository
         $total = (int) $this->scalar('SELECT COUNT(*) FROM customers c ' . $where->sql(), $where->params());
         $rows = $this->rows(
             'SELECT c.id, c.core_customer_id, c.full_name, c.email, c.phone, c.customer_type, c.tier, c.status, c.created_at, '
-            . '(SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id) AS order_count, '
+            . '(SELECT COUNT(*) FROM orders o WHERE o.customer_id = c.id AND o.cancelled_at IS NULL) AS order_count, '
             . '(SELECT COALESCE(SUM(o.total), 0) FROM orders o WHERE o.customer_id = c.id AND o.cancelled_at IS NULL) AS lifetime_total '
             . 'FROM customers c ' . $where->sql() . ' ORDER BY ' . $query->orderBy . ', c.id'
             . ' LIMIT ' . $query->perPage . ' OFFSET ' . $query->offset(),
