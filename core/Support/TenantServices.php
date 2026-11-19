@@ -7,6 +7,7 @@ namespace Gfh\Core\Support;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Payments\ManualPaymentProvider;
 use Gfh\Core\Payments\PaymentProvider;
+use Gfh\Core\Repository\BranchRepository;
 use Gfh\Core\Repository\CatalogRepository;
 use Gfh\Core\Repository\InventoryRepository;
 use Gfh\Core\Repository\MediaRepository;
@@ -15,16 +16,20 @@ use Gfh\Core\Repository\PosRepository;
 use Gfh\Core\Repository\ProcurementRepository;
 use Gfh\Core\Repository\ReportRepository;
 use Gfh\Core\Repository\SettingsRepository;
+use Gfh\Core\Repository\TerminalRepository;
 use Gfh\Core\Service\AuditService;
+use Gfh\Core\Service\BranchService;
 use Gfh\Core\Service\CatalogService;
 use Gfh\Core\Service\InventoryService;
 use Gfh\Core\Service\MediaService;
 use Gfh\Core\Service\OrderService;
+use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Service\PosService;
 use Gfh\Core\Service\PricingService;
 use Gfh\Core\Service\ProcurementService;
 use Gfh\Core\Service\ReportService;
 use Gfh\Core\Service\SettingsService;
+use Gfh\Core\Service\TerminalService;
 
 /**
  * The business services of ONE organization, all built on that organization's database connection.
@@ -43,6 +48,7 @@ final class TenantServices
         private readonly string $uploadRoot,
         private readonly string $organizationSlug,
         private readonly ?PaymentProvider $paymentProvider = null,
+        private readonly ?PermissionService $permissions = null,
     ) {
     }
 
@@ -110,6 +116,30 @@ final class TenantServices
     public function reports(): ReportService
     {
         return $this->once('reports', fn (): ReportService => new ReportService(new ReportRepository($this->organization), $this->hooks));
+    }
+
+    /**
+     * Branches and terminals are the only services that check the actor's permission themselves, so they need the
+     * PermissionService. Services::forTenant() supplies it; code that builds TenantServices without it (the seed, the
+     * business-service tests) simply cannot reach these two.
+     */
+    public function branches(): BranchService
+    {
+        return $this->once('branches', fn (): BranchService => new BranchService(
+            $this->organization, new BranchRepository($this->organization), $this->audit, $this->requirePermissions(),
+        ));
+    }
+
+    public function terminals(): TerminalService
+    {
+        return $this->once('terminals', fn (): TerminalService => new TerminalService(
+            $this->organization, new TerminalRepository($this->organization), new BranchRepository($this->organization), $this->audit, $this->requirePermissions(),
+        ));
+    }
+
+    private function requirePermissions(): PermissionService
+    {
+        return $this->permissions ?? throw new \LogicException('The branch and terminal services need the PermissionService; build TenantServices through Services::forTenant().');
     }
 
     /**

@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Gfh\Core\App;
+use Gfh\Core\Controller\Admin\BranchesController;
 use Gfh\Core\Controller\Admin\BrandsController;
 use Gfh\Core\Controller\Admin\CategoriesController;
 use Gfh\Core\Controller\Admin\CustomersController;
@@ -13,8 +14,10 @@ use Gfh\Core\Controller\Admin\PosSalesController;
 use Gfh\Core\Controller\Admin\ProductsController;
 use Gfh\Core\Controller\Admin\PurchaseOrdersController;
 use Gfh\Core\Controller\Admin\ReportsController;
+use Gfh\Core\Controller\Admin\SettingsController;
 use Gfh\Core\Controller\Admin\SuppliersController;
 use Gfh\Core\Controller\Admin\TeamController;
+use Gfh\Core\Controller\Admin\TerminalsController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -65,6 +68,9 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminPosSales = new PosSalesController($services);
     $adminReports = new ReportsController($services);
     $adminTeam = new TeamController($services);
+    $adminSettings = new SettingsController($services);
+    $adminBranches = new BranchesController($services);
+    $adminTerminals = new TerminalsController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -92,7 +98,8 @@ return static function (Router $router, App $app, ?Services $services = null): v
 
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
-        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam, $branding,
+        $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
+        $adminSettings, $adminBranches, $adminTerminals, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -262,6 +269,21 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->post('/admin/team/{id}/deactivate', static fn (Request $q) => $adminTeam->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/team/{id}/reactivate', static fn (Request $q) => $adminTeam->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/team/{id}/reset-link', static fn (Request $q) => $adminTeam->issueResetLink($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings', static fn (Request $q) => $adminSettings->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/settings/branches', static fn (Request $q) => $adminBranches->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/settings/branches/new', static fn (Request $q) => $adminBranches->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/branches', static fn (Request $q) => $adminBranches->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/branches/{id}', static fn (Request $q) => $adminBranches->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/branches/{id}', static fn (Request $q) => $adminBranches->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/branches/{id}/deactivate', static fn (Request $q) => $adminBranches->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/branches/{id}/reactivate', static fn (Request $q) => $adminBranches->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/terminals', static fn (Request $q) => $adminTerminals->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/settings/terminals/new', static fn (Request $q) => $adminTerminals->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/terminals', static fn (Request $q) => $adminTerminals->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/terminals/{id}', static fn (Request $q) => $adminTerminals->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/terminals/{id}', static fn (Request $q) => $adminTerminals->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/terminals/{id}/deactivate', static fn (Request $q) => $adminTerminals->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/terminals/{id}/reactivate', static fn (Request $q) => $adminTerminals->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);

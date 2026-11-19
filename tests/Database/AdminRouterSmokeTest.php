@@ -43,6 +43,8 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
             $deliveryOrderId = (string) $this->org->query("SELECT id FROM orders WHERE fulfillment_method = 'delivery' ORDER BY placed_at ASC LIMIT 1")->fetchColumn();
             $completedPosSaleId = (string) $this->org->query("SELECT id FROM pos_sales WHERE status = 'completed' ORDER BY sold_at ASC LIMIT 1")->fetchColumn();
             $reviewPosSaleId = (string) $this->org->query("SELECT id FROM pos_sales WHERE status = 'needs_review' ORDER BY sold_at ASC LIMIT 1")->fetchColumn();
+            $branchId = (string) $this->org->query('SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1')->fetchColumn();
+            $terminalId = (string) $this->org->query('SELECT id FROM terminals ORDER BY created_at ASC, id ASC LIMIT 1')->fetchColumn();
 
             $paths = [
                 "/$slug/admin",
@@ -68,6 +70,13 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
                 "/$slug/admin/team",
                 "/$slug/admin/team/new",
                 "/$slug/admin/team/{$crew->id}",
+                "/$slug/admin/settings",
+                "/$slug/admin/settings/branches",
+                "/$slug/admin/settings/branches/new",
+                "/$slug/admin/settings/branches/$branchId",
+                "/$slug/admin/settings/terminals",
+                "/$slug/admin/settings/terminals/new",
+                "/$slug/admin/settings/terminals/$terminalId",
                 "/$slug/admin/pos-sales",
                 "/$slug/admin/pos-sales/$completedPosSaleId",
                 "/$slug/admin/pos-sales/$reviewPosSaleId",

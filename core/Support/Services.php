@@ -182,6 +182,7 @@ final class Services
                 $hooks,
                 $this->app->path('storage/uploads'),
                 $slug,
+                permissions: $this->permissions(),
             );
 
             $logger = $this->app->logger();
