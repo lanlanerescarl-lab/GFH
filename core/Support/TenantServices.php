@@ -17,6 +17,8 @@ use Gfh\Core\Repository\ProcurementRepository;
 use Gfh\Core\Repository\ReportRepository;
 use Gfh\Core\Repository\SettingsRepository;
 use Gfh\Core\Repository\TerminalRepository;
+use Gfh\Core\Repository\DiscountRuleRepository;
+use Gfh\Core\Repository\OrderStepRepository;
 use Gfh\Core\Service\AuditService;
 use Gfh\Core\Service\BranchService;
 use Gfh\Core\Service\CatalogService;
@@ -30,6 +32,9 @@ use Gfh\Core\Service\ProcurementService;
 use Gfh\Core\Service\ReportService;
 use Gfh\Core\Service\SettingsService;
 use Gfh\Core\Service\TerminalService;
+use Gfh\Core\Service\DiscountRuleService;
+use Gfh\Core\Service\OrderStepService;
+use Gfh\Core\Service\OrganizationSettingsService;
 
 /**
  * The business services of ONE organization, all built on that organization's database connection.
@@ -119,8 +124,8 @@ final class TenantServices
     }
 
     /**
-     * Branches and terminals are the only services that check the actor's permission themselves, so they need the
-     * PermissionService. Services::forTenant() supplies it; code that builds TenantServices without it (the seed, the
+     * Branches, terminals, discount rules, order steps and organization settings are the only services that check the
+     * actor's permission themselves, so they need the PermissionService. Services::forTenant() supplies it; code that builds TenantServices without it (the seed, the
      * business-service tests) simply cannot reach these two.
      */
     public function branches(): BranchService
@@ -137,9 +142,30 @@ final class TenantServices
         ));
     }
 
+    public function discountRules(): DiscountRuleService
+    {
+        return $this->once('discountRules', fn (): DiscountRuleService => new DiscountRuleService(
+            $this->organization, new DiscountRuleRepository($this->organization), $this->audit, $this->requirePermissions(),
+        ));
+    }
+
+    public function orderSteps(): OrderStepService
+    {
+        return $this->once('orderSteps', fn (): OrderStepService => new OrderStepService(
+            $this->organization, new OrderStepRepository($this->organization), $this->audit, $this->requirePermissions(),
+        ));
+    }
+
+    public function organizationSettings(): OrganizationSettingsService
+    {
+        return $this->once('organizationSettings', fn (): OrganizationSettingsService => new OrganizationSettingsService(
+            $this->organization, $this->settings(), $this->requirePermissions(),
+        ));
+    }
+
     private function requirePermissions(): PermissionService
     {
-        return $this->permissions ?? throw new \LogicException('The branch and terminal services need the PermissionService; build TenantServices through Services::forTenant().');
+        return $this->permissions ?? throw new \LogicException('The branch, terminal, discount rule, order step and organization settings services need the PermissionService; build TenantServices through Services::forTenant().');
     }
 
     /**

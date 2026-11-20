@@ -116,6 +116,14 @@ final class ExtensionLoader
                 $settingKey,
                 $setting['default'],
                 static fn (mixed $value): ?string => $manifest->settingError($settingKey, $value),
+                [
+                    'label' => $setting['label'],
+                    'type' => $setting['type'],
+                    'min' => $setting['min'],
+                    'max' => $setting['max'],
+                    'extension' => $manifest->name,
+                    'extension_key' => $manifest->key,
+                ],
             );
         }
         foreach ($context->registrations() as $registration) {

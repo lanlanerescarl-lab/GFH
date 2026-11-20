@@ -34,5 +34,23 @@ final class SettingsSections
             'description' => 'The POS terminals at each branch. A terminal code starts every receipt number printed at that counter.',
             'path' => '/settings/terminals',
         ],
+        [
+            'key' => 'discounts',
+            'label' => 'Discount rules',
+            'description' => 'Percent discounts the POS can apply, such as senior citizen or promo rules. Deactivate a rule instead of deleting it.',
+            'path' => '/settings/discounts',
+        ],
+        [
+            'key' => 'order-steps',
+            'label' => 'Order steps',
+            'description' => 'The stages an order moves through, from placed to complete, and which orders pass through each one.',
+            'path' => '/settings/order-steps',
+        ],
+        [
+            'key' => 'general',
+            'label' => 'Organization settings',
+            'description' => 'Deposit percentage, reservation time, near-expiry warning and any settings added by extensions.',
+            'path' => '/settings/general',
+        ],
     ];
 }

@@ -166,7 +166,7 @@ final class OrderService
         $all = $this->repository->steps();
         $path = [];
         foreach ($all as $step) {
-            if ($this->stepApplies((string) $step['applies_when'], $context)) {
+            if (self::stepApplies((string) $step['applies_when'], $context)) {
                 $path[] = $step;
             }
         }
@@ -186,8 +186,19 @@ final class OrderService
         return $this->repository->steps();
     }
 
-    /** @param array<string, mixed> $context */
-    private function stepApplies(string $condition, array $context): bool
+    /**
+     * Every condition stepApplies() recognises. The Settings page for order steps offers exactly these and refuses
+     * any other value, because an unrecognised one never matches and its step would never be reached.
+     */
+    public const APPLIES_WHEN = ['always', 'has_made_to_order', 'is_delivery', 'is_pickup', 'has_assembly', 'has_installation'];
+
+    /**
+     * Whether a step with this applies_when condition belongs to the path of an order with this context. Static and
+     * public so the step rules (OrderStepService) ask the same question the order path asks, instead of copying it.
+     *
+     * @param array<string, mixed> $context
+     */
+    public static function stepApplies(string $condition, array $context): bool
     {
         return match ($condition) {
             'always' => true,

@@ -335,7 +335,7 @@ final class AdminBatch54c1Test extends DatabaseTestCase
         $this->assertSame(200, $response->status());
         $body = $response->body();
 
-        $this->assertCount(2, SettingsSections::ALL, 'Branches and Terminals are the only sections in 5.4c-1');
+        $this->assertCount(5, SettingsSections::ALL, 'Branches, Terminals, Discount rules, Order steps and Organization settings are the five sections after 5.4c-2');
         foreach (SettingsSections::ALL as $section) {
             $this->assertStringContainsString('>' . $section['label'] . '<', $body);
             $this->assertStringContainsString(htmlspecialchars($section['description'], ENT_QUOTES), $body);

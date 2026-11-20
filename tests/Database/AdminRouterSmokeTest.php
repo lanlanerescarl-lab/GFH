@@ -45,6 +45,10 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
             $reviewPosSaleId = (string) $this->org->query("SELECT id FROM pos_sales WHERE status = 'needs_review' ORDER BY sold_at ASC LIMIT 1")->fetchColumn();
             $branchId = (string) $this->org->query('SELECT id FROM branches ORDER BY created_at ASC, id ASC LIMIT 1')->fetchColumn();
             $terminalId = (string) $this->org->query('SELECT id FROM terminals ORDER BY created_at ASC, id ASC LIMIT 1')->fetchColumn();
+            $discountRuleId = (string) $this->org->query('SELECT id FROM discount_rules ORDER BY created_at ASC, id ASC LIMIT 1')->fetchColumn();
+            $orderStepKey = (string) $this->org->query('SELECT key FROM order_progress_steps ORDER BY sort_order ASC, key ASC LIMIT 1')->fetchColumn();
+            $this->assertNotSame('', $discountRuleId, 'The seed has no discount rule, so the edit page would not be covered.');
+            $this->assertNotSame('', $orderStepKey, 'The seed has no order step, so the edit page would not be covered.');
 
             $paths = [
                 "/$slug/admin",
@@ -77,6 +81,13 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
                 "/$slug/admin/settings/terminals",
                 "/$slug/admin/settings/terminals/new",
                 "/$slug/admin/settings/terminals/$terminalId",
+                "/$slug/admin/settings/discounts",
+                "/$slug/admin/settings/discounts/new",
+                "/$slug/admin/settings/discounts/$discountRuleId",
+                "/$slug/admin/settings/order-steps",
+                "/$slug/admin/settings/order-steps/new",
+                "/$slug/admin/settings/order-steps/$orderStepKey",
+                "/$slug/admin/settings/general",
                 "/$slug/admin/pos-sales",
                 "/$slug/admin/pos-sales/$completedPosSaleId",
                 "/$slug/admin/pos-sales/$reviewPosSaleId",

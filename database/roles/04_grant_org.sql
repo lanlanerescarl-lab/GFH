@@ -21,8 +21,9 @@ REVOKE ALL ON ALL TABLES IN SCHEMA public FROM gfh_app;
 GRANT SELECT, INSERT, UPDATE ON ALL TABLES IN SCHEMA public TO gfh_app;
 REVOKE UPDATE ON stock_movements, audit_log FROM gfh_app;    -- append-only: SELECT and INSERT only
 REVOKE INSERT, UPDATE ON schema_migrations FROM gfh_app;
--- Business records are never deleted. The only deletable rows are product photo links and price tiers.
-GRANT DELETE ON product_images, price_tiers TO gfh_app;
+-- Business records are never deleted. The only deletable rows are product photo links, price tiers, and order steps
+-- that no order or history entry points at (the Settings page checks that before it deletes; the foreign keys back it up).
+GRANT DELETE ON product_images, price_tiers, order_progress_steps TO gfh_app;
 
 -- The Admin dashboard reads the same contract views, through the web-request role.
 GRANT USAGE ON SCHEMA org_contract TO gfh_app;

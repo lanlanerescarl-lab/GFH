@@ -18,6 +18,9 @@ use Gfh\Core\Controller\Admin\SettingsController;
 use Gfh\Core\Controller\Admin\SuppliersController;
 use Gfh\Core\Controller\Admin\TeamController;
 use Gfh\Core\Controller\Admin\TerminalsController;
+use Gfh\Core\Controller\Admin\DiscountRulesController;
+use Gfh\Core\Controller\Admin\OrderStepsController;
+use Gfh\Core\Controller\Admin\OrganizationSettingsController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -71,6 +74,9 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminSettings = new SettingsController($services);
     $adminBranches = new BranchesController($services);
     $adminTerminals = new TerminalsController($services);
+    $adminDiscounts = new DiscountRulesController($services);
+    $adminOrderSteps = new OrderStepsController($services);
+    $adminGeneralSettings = new OrganizationSettingsController($services);
     $branding = new BrandingController();
 
     $tenant = new TenantMiddleware($services);
@@ -99,7 +105,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
-        $adminSettings, $adminBranches, $adminTerminals, $branding,
+        $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -284,6 +290,21 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->post('/admin/settings/terminals/{id}', static fn (Request $q) => $adminTerminals->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/settings/terminals/{id}/deactivate', static fn (Request $q) => $adminTerminals->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->post('/admin/settings/terminals/{id}/reactivate', static fn (Request $q) => $adminTerminals->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/discounts', static fn (Request $q) => $adminDiscounts->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/settings/discounts/new', static fn (Request $q) => $adminDiscounts->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/discounts', static fn (Request $q) => $adminDiscounts->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/discounts/{id}', static fn (Request $q) => $adminDiscounts->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/discounts/{id}', static fn (Request $q) => $adminDiscounts->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/discounts/{id}/deactivate', static fn (Request $q) => $adminDiscounts->deactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/discounts/{id}/reactivate', static fn (Request $q) => $adminDiscounts->reactivate($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/order-steps', static fn (Request $q) => $adminOrderSteps->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->get('/admin/settings/order-steps/new', static fn (Request $q) => $adminOrderSteps->createForm($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/order-steps', static fn (Request $q) => $adminOrderSteps->store($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/order-steps/{key:[a-z][a-z0-9_]*}', static fn (Request $q) => $adminOrderSteps->show($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/order-steps/{key:[a-z][a-z0-9_]*}', static fn (Request $q) => $adminOrderSteps->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->post('/admin/settings/order-steps/{key:[a-z][a-z0-9_]*}/delete', static fn (Request $q) => $adminOrderSteps->delete($q), [$tenant, $staffSession, $csrf, $requireStaff]);
+        $r->get('/admin/settings/general', static fn (Request $q) => $adminGeneralSettings->index($q), [$tenant, $staffSession, $requireStaff]);
+        $r->post('/admin/settings/general', static fn (Request $q) => $adminGeneralSettings->update($q), [$tenant, $staffSession, $csrf, $requireStaff]);
         $r->get('/admin/login', static fn (Request $q) => $pages->loginForm($q), [$tenant, $staffSession]);
         $r->post('/admin/login', static fn (Request $q) => $pages->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/admin/logout', static fn (Request $q) => $pages->logout($q), [$tenant, $staffSession, $csrf]);
