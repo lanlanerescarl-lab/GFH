@@ -33,6 +33,9 @@ use Gfh\Core\Controller\Api\ProcurementAdminController;
 use Gfh\Core\Controller\Api\ReportController;
 use Gfh\Core\Controller\AuthController;
 use Gfh\Core\Controller\BrandingController;
+use Gfh\Core\Controller\Shop\HomeController as ShopHomeController;
+use Gfh\Core\Controller\Shop\ProductController as ShopProductController;
+use Gfh\Core\Controller\Shop\ProductListController as ShopListingController;
 use Gfh\Core\Controller\StaffPagesController;
 use Gfh\Core\Controller\SystemController;
 use Gfh\Core\Http\Middleware\CsrfMiddleware;
@@ -79,6 +82,9 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminOrderSteps = new OrderStepsController($services);
     $adminGeneralSettings = new OrganizationSettingsController($services);
     $branding = new BrandingController();
+    $shopHome = new ShopHomeController($services);
+    $shopListing = new ShopListingController($services);
+    $shopProduct = new ShopProductController($services);
 
     $tenant = new TenantMiddleware($services);
     $staffSession = new SessionMiddleware($services, 'staff');
@@ -108,6 +114,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
         $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $branding,
+        $shopHome, $shopListing, $shopProduct,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -222,6 +229,12 @@ return static function (Router $router, App $app, ?Services $services = null): v
 
         // --- Organization branding (a stylesheet of CSS variables)
         $r->get('/branding.css', static fn (Request $q) => $branding->css($q), [$tenant]);
+
+        // --- Shop pages (public: the organization, plus the customer session only when the visitor already has one,
+        // so guests browse and signed-in customers see their tier prices)
+        $r->get('/shop', static fn (Request $q) => $shopHome->index($q), [$tenant, $customerOptional]);
+        $r->get('/shop/products', static fn (Request $q) => $shopListing->index($q), [$tenant, $customerOptional]);
+        $r->get('/shop/products/{slug}', static fn (Request $q) => $shopProduct->show($q), [$tenant, $customerOptional]);
 
         // --- Pages
         $r->get('/admin', static fn (Request $q) => $adminDashboard->index($q), [$tenant, $staffSession, $requireStaff]);

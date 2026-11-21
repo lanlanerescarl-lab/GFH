@@ -120,6 +120,30 @@ final class Format
         return $dt === null ? '—' : $dt->format('d M Y, H:i');
     }
 
+    /** A readable label for an attribute key: "screen_size" becomes "Screen size". */
+    public static function attributeLabel(string $key): string
+    {
+        $text = trim(str_replace('_', ' ', $key));
+
+        return $text === '' ? '' : mb_strtoupper(mb_substr($text, 0, 1)) . mb_substr($text, 1);
+    }
+
+    /** An attribute value for display: yes/no for booleans, plain digits for numbers (never scientific notation). */
+    public static function attributeValue(mixed $value): string
+    {
+        if (is_bool($value)) {
+            return $value ? 'Yes' : 'No';
+        }
+        if (is_int($value)) {
+            return (string) $value;
+        }
+        if (is_float($value)) {
+            return is_finite($value) ? rtrim(rtrim(number_format($value, 6, '.', ''), '0'), '.') : '';
+        }
+
+        return is_string($value) ? $value : '';
+    }
+
     private static function toManila(string|\DateTimeInterface|null $value): ?\DateTimeImmutable
     {
         if ($value === null || $value === '') {

@@ -72,6 +72,45 @@ Base colors (`--status-*`) are used for status dots, borders and icons. Text ins
 
 In the Admin app, `--gfh-800` (`#08519c`) is reserved for headings (`h1`–`h3`) and key KPI numbers (`.kpi-card__value`), while body copy uses `--color-ink` (`#1a2a3a`).
 
+## Online Shop tokens and components (Batch 6.1)
+
+The Shop has its own look: warm, spacious and image-led. Every color, font and radius is a CSS variable, so `/{org}/branding.css` re-themes all of it. Raw values (`#hex`, `rgba()`) exist only in `templates/shop/assets/css/tokens.css`; `app.css` uses variables only (a test enforces both).
+
+New tokens, all in `templates/shop/assets/css/tokens.css`:
+
+| Variable | Value | Used for |
+| --- | --- | --- |
+| `--shop-sand-100`, `--shop-sand-200`, `--shop-stone-600` | `#f3efe6`, `#e6e0d2`, `#6b6558` | Palette steps behind the hero, tiles and placeholder |
+| `--color-hero-bg`, `--color-tile-bg` | `var(--shop-sand-100)` | Hero block, category tiles, the cart note |
+| `--color-placeholder-bg`, `--color-placeholder-mark` | `var(--shop-sand-200)`, `var(--shop-stone-600)` | The inline "no photo" picture |
+| `--color-chip-bg` | `var(--shop-teal-50)` | Filter chips, price tiers, selected variant |
+| `--color-flag` | `var(--shop-coral-600)` | The "Out of stock" flag on cards |
+| `--radius-tile`, `--radius-chip` | `var(--radius-card)`, `var(--radius-control)` | Tiles and cards follow the organization's card radius; chips and pagination its control radius |
+| `--shadow-card`, `--shadow-card-hover` | two-layer soft shadows | Product card picture, category tile hover |
+| `--text-3xl`, `--text-display` | `clamp(2rem, 1.5rem + 2vw, 2.75rem)`, `clamp(2.25rem, 1.5rem + 3.5vw, 3.75rem)` | Page titles, the home hero title (Source Serif 4) |
+| `--leading-tight`, `--leading-body`, `--tracking-eyebrow` | `1.15`, `1.65`, `0.08em` | Headings, running text, small capitals labels |
+| `--aspect-card` | `4 / 5` | The picture area of every card, gallery photo and thumbnail |
+| `--card-gap`, `--filter-width`, `--touch-target` | `var(--space-5)`, `280px`, `48px` | Grid gap, filter column, minimum height of every control |
+
+Components in `templates/shop/assets/css/app.css` (one template per screen or partial, each overridable from `orgs/{slug}/shop/`):
+
+| Component | Template | Notes |
+| --- | --- | --- |
+| Header (`.shop-header`) | `partials/header.php` | Brand, search box, two empty slots `data-slot="cart"` and `data-slot="account"` for Batch 6.2, menu button below 720 px, navigation |
+| Search box (`.shop-search`) | `partials/search-form.php` | GET form, 48 px high |
+| Hero (`.shop-hero`), category tiles (`.category-tile`) | `home.php` | Organization name, its own line, top-level categories |
+| Product card (`.product-card`) | `partials/product-card.php` | 4:5 picture (`.media-frame`), brand, name, price, out-of-stock flag; the whole card is one link |
+| Placeholder (`.shop-placeholder`) | `partials/placeholder.php` | Inline SVG, no file; also copied by the script when a photo fails to load |
+| Filters (`.shop-filters`, `.filter-group`, `.choice`) | `partials/filter-form.php` | A GET form; a drawer below 840 px when JavaScript is on |
+| Chips (`.chip`) | `partials/chips.php` | One removable link per active filter |
+| Pagination (`.pagination`) | `partials/pagination.php` | Keeps the whole state in every link |
+| Gallery (`.gallery`) | `partials/gallery.php` | All photos visible without JavaScript; one at a time with it |
+| Variant options (`.variant-option`) | `partials/variant-selector.php` | Radio buttons in a GET form; the script updates the page in place |
+| Tier prices (`.tier-prices`) | `partials/tier-prices.php` | Only for a signed-in customer |
+| Add to cart (`.add-to-cart`) | `partials/add-to-cart.php` | Built, disabled in 6.1, with a visible note |
+
+Breakpoints: 560 px (3 and then 4 category tiles, auto-fill product grid), 720 px (menu button gone, header on one row), 840 px (listing and product pages in two columns, no filter drawer), 1000 px (4 tiles). Pictures carry `width` and `height` and load lazily (the first photo on a product page loads at high priority instead). Focus rings come from `base.css`. Contrast of the default palette, computed with the WCAG formula (every text pair is above 4.5 to 1): `--color-ink` on `--color-bg` 15.1, on the hero 13.8, on the chip background 14.5; `--color-muted` on `--color-bg` 7.1, on white 7.4, on the hero and footer 6.5, on the chip background 6.8; white on `--color-primary` 6.1 and on `--color-primary-strong` 9.8; `--color-primary` links on white 6.1; the "Out of stock" flag (`--color-flag`) on white 5.4 (it only appears on white cards); the disabled cart button 5.8. Non-text parts: control borders on white 3.2 and the placeholder mark 4.4 (both above 3). An organization's own branding colors are its responsibility; these figures describe the shipped palette only.
+
 ## Shared chart theme
 
 Admin charts and KPI sparklines read their palette from CSS variables so they always match the active theme:

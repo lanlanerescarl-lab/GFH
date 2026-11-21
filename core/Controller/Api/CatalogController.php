@@ -14,8 +14,8 @@ use Gfh\Core\Support\ListQuery;
 /** Public catalog reads for the Shop: anyone can browse. Only active products appear, and never costs. */
 final class CatalogController extends ApiController
 {
-    private const SORTS = ['name' => 'p.name', 'price' => 'price_from', 'newest' => 'p.created_at'];
-    private const FILTERS = ['brand_id', 'category_id', 'min_price', 'max_price', 'attr'];
+    private const SORTS = CatalogService::PUBLIC_SORTS;
+    private const FILTERS = CatalogService::PUBLIC_FILTER_KEYS;
 
     /** GET /{org}/api/v1/catalog/products */
     public function products(Request $request): Response
@@ -45,20 +45,10 @@ final class CatalogController extends ApiController
         $customer = $request->attribute('customer');
         $record = $customer instanceof CustomerAccount ? $services->orders()->customerForAccount($customer->id) : null;
 
-        $product = $services->catalog()->getProduct((string) $request->param('slug', ''), ['public' => true, 'tiers' => $record !== null]);
+        $product = $services->catalog()->getPublicProduct((string) $request->param('slug', ''), $record);
         if ($product === null) {
             throw HttpException::notFound('That product could not be found.');
         }
-
-        foreach ($product['variants'] as &$variant) {
-            $variant['tiers'] = array_values(array_filter($variant['tiers'], static fn (array $tier): bool => match ($tier['basis']) {
-                'quantity' => true,
-                'customer_tier' => $record !== null && strcasecmp((string) $tier['tier_key'], (string) ($record['tier'] ?? '')) === 0,
-                'customer_type' => $record !== null && strcasecmp((string) $tier['tier_key'], (string) ($record['customer_type'] ?? '')) === 0,
-                default => false,
-            }));
-        }
-        unset($variant);
 
         return Response::ok($product);
     }

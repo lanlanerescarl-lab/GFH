@@ -27,6 +27,12 @@ final class CatalogService
     public const PRODUCT_STATUSES = ['draft', 'active', 'discontinued'];
     public const VARIANT_STATUSES = ['active', 'inactive', 'discontinued'];
 
+    /** Sort names of the public listing (name => SQL expression). The JSON API and the Shop use this one list. */
+    public const PUBLIC_SORTS = ['name' => 'p.name', 'price' => 'price_from', 'newest' => 'p.created_at'];
+
+    /** Query parameters the public listing accepts as filters. */
+    public const PUBLIC_FILTER_KEYS = ['brand_id', 'category_id', 'min_price', 'max_price', 'attr'];
+
     public function __construct(
         private readonly \PDO $pdo,
         private readonly CatalogRepository $repository,
@@ -369,6 +375,34 @@ final class CatalogService
         }
 
         return $product + ['variants' => $variants, 'images' => $this->repository->imagesForProduct((string) $product['id'])];
+    }
+
+    /**
+     * One product as the public Shop shows it: an active product with at least one active variant, no costs or trade
+     * prices, and price tiers only for a signed-in customer, limited to the tiers that customer qualifies for.
+     * The JSON API and the Shop pages both call this, so these visibility and tier rules exist in one place.
+     *
+     * @param array<string, mixed>|null $customer the organization's customer record (its tier and customer_type), or null for a guest
+     * @return array<string, mixed>|null
+     */
+    public function getPublicProduct(string $slug, ?array $customer): ?array
+    {
+        $product = $this->getProduct($slug, ['public' => true, 'tiers' => $customer !== null]);
+        if ($product === null) {
+            return null;
+        }
+
+        foreach ($product['variants'] as &$variant) {
+            $variant['tiers'] = array_values(array_filter($variant['tiers'], static fn (array $tier): bool => match ($tier['basis']) {
+                'quantity' => true,
+                'customer_tier' => $customer !== null && strcasecmp((string) $tier['tier_key'], (string) ($customer['tier'] ?? '')) === 0,
+                'customer_type' => $customer !== null && strcasecmp((string) $tier['tier_key'], (string) ($customer['customer_type'] ?? '')) === 0,
+                default => false,
+            }));
+        }
+        unset($variant);
+
+        return $product;
     }
 
     /**

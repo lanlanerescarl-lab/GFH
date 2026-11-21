@@ -79,10 +79,10 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | Hook name | Constant | What it filters / does |
 | --- | --- | --- |
 | `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app. An item with a `module` is shown only to people who pass `can()` for it; add `action` (`view`, `edit` or `delete`, default `view`) when the page needs more than view |
-| `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items in the Shop app |
+| `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Shop app, after the built-in Shop link. See "Shop hooks" below |
 | `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form |
 | `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects |
-| `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections on the Shop product detail page |
+| `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections (`list<array{id: string, title: string, bodyHtml: string}>`) on the Shop product detail page, after the attribute table. See "Shop hooks" below |
 | `checkout.fields` | `Hooks::CHECKOUT_FIELDS` | Extra checkout fields returned by `GET /{org}/api/v1/checkout/options` |
 | `checkout.adjustments` | `Hooks::CHECKOUT_ADJUSTMENTS` | Online cart fees (`delivery_fee`, `assembly_fee`, `installation_fee`), `deposit_due`, `promised_date` and `made_to_order_variants` in `PricingService` |
 | `order.progress.steps` | `Hooks::ORDER_PROGRESS_STEPS` | The steps in an order's progress path (`context`: `order`, `all_steps`) in `OrderService` |
@@ -91,6 +91,16 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | `validation.attributes` | `Hooks::VALIDATION_ATTRIBUTES` | Product attribute field errors (`attributes.{key}` => message) in `CatalogService` |
 | `dashboard.widgets` | `Hooks::DASHBOARD_WIDGETS` | Extra dashboard widgets returned by `ReportService::dashboard()` |
 | `reports.tabs` | `Hooks::REPORTS_TABS` | Extra tabs on the Admin Reports page. Each tab is `{id, label, contentHtml}`; `context` has `view` (`day`, `month` or `year`), `from`, `to` (`YYYY-MM-DD`, Asia/Manila) and `totals` of the chosen period. Only people who may view Reports see the tabs |
+
+## Shop hooks (Batch 6.1)
+
+**`navigation.shop`.** The value starts as `[['label' => 'Shop', 'url' => '/{org}/shop/products']]`; add items after it. The context has two text values only: `organization` (the slug) and `base_url` (where the Shop lives, for example `/demo/shop`; build your links from it). Each item needs a `label` and a `url` that starts with a single `/` (a path inside this site); an item with an empty label, an absolute address, a `//` address or a `javascript:` address is dropped, both by `ShopNavigationService` and again by `partials/nav.php`. `current` is set for you when the item's `url` equals the page's path; set it yourself to mark an item current in other cases.
+
+**`product.detail.sections`.** The value starts as `[]`; return it with your sections added. Each section is `['id' => ..., 'title' => ..., 'bodyHtml' => ...]`.
+
+- The context has `product` (the public product the page shows), `selected_variant_id` and `signed_in` (a boolean; the customer's identity and tier are not passed). The product has `id`, `name`, `slug`, `description`, `brand_id`, `brand_name`, `category_id`, `category_name`, `attributes`, `images` and `variants`. Each variant has only `id`, `sku`, `name`, `unit`, `unit_size`, `allow_decimal_qty`, `qty_step`, `min_qty`, `retail_price`, `in_stock` (a boolean) and `tiers` (empty for a guest). **No cost, trade price, reorder level, barcode or stock count is ever passed.**
+- `title` is plain text and the page escapes it. A section without a title is dropped. `id` is reduced to letters, digits and hyphens (it becomes the section's `id` attribute and its anchor); an empty one becomes `section-N`. At most 10 sections are shown.
+- `bodyHtml` (also accepted as `contentHtml`) is **printed as you wrote it, without escaping**, the same trust the Admin gives order panels. The extension must escape anything it prints that a product record, a customer or a request supplied (use `htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`). Do not print costs; you were not given any, and must not look them up.
 
 A hook callback has the signature `fn (mixed $value, array $context): mixed` and returns the modified `$value`. Lower priority numbers (`0` to `100`, default `10`) run first across all loaded extensions.
 

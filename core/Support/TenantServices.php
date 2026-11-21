@@ -29,6 +29,7 @@ use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Service\PosService;
 use Gfh\Core\Service\PricingService;
 use Gfh\Core\Service\ProcurementService;
+use Gfh\Core\Service\ShopBrowseService;
 use Gfh\Core\Service\ReportService;
 use Gfh\Core\Service\SettingsService;
 use Gfh\Core\Service\TerminalService;
@@ -75,6 +76,12 @@ final class TenantServices
     public function catalog(): CatalogService
     {
         return $this->once('catalog', fn (): CatalogService => new CatalogService($this->organization, new CatalogRepository($this->organization), $this->audit, $this->hooks));
+    }
+
+    /** What the public Shop pages show; it only combines CatalogService calls and runs the Shop's hook. */
+    public function shop(): ShopBrowseService
+    {
+        return $this->once('shop', fn (): ShopBrowseService => new ShopBrowseService($this->catalog(), $this->hooks));
     }
 
     public function media(): MediaService

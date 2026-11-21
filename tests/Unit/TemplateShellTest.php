@@ -25,6 +25,10 @@ final class TemplateShellTest extends TestCase
             foreach (['layout', 'partials/nav'] as $file) {
                 $this->tree->put('templates/' . $app . '/' . $file . '.php', (string) file_get_contents($this->project . '/templates/' . $app . '/' . $file . '.php'));
             }
+            // The Shop layout is built from several partials (header, search box, footer, placeholder); copy them all.
+            foreach ($app === 'shop' ? (glob($this->project . '/templates/shop/partials/*.php') ?: []) : [] as $partial) {
+                $this->tree->put('templates/shop/partials/' . basename($partial), (string) file_get_contents($partial));
+            }
             $this->tree->put('templates/' . $app . '/home.php', '<?php $this->layout("layout"); $this->start("title"); echo $this->e("Home & more"); $this->end(); ?><p>Welcome <?= $this->e($who) ?></p>');
         }
     }

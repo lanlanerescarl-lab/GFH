@@ -10,6 +10,9 @@
   --shop-teal-800: #084c48;
   --shop-sand-50: #fbfaf7;
   --shop-coral-600: #b4462f;
+  --shop-sand-100: #f3efe6;
+  --shop-sand-200: #e6e0d2;
+  --shop-stone-600: #6b6558;
 
   --color-bg: var(--shop-sand-50);
   --color-surface: #ffffff;
@@ -26,15 +29,35 @@
   --color-border-soft: #e6e3dc;
   --color-price: var(--color-ink);
   --color-sale: var(--shop-coral-600);
+  --color-hero-bg: var(--shop-sand-100);
+  --color-tile-bg: var(--shop-sand-100);
+  --color-placeholder-bg: var(--shop-sand-200);
+  --color-placeholder-mark: var(--shop-stone-600);
+  --color-chip-bg: var(--shop-teal-50);
+  --color-flag: var(--shop-coral-600);
 
   --radius-card: 14px;
   --radius-control: 999px;
   --radius-media: 12px;
+  --radius-tile: var(--radius-card);
+  --radius-chip: var(--radius-control);
 
   --shadow-rest: 0 1px 3px rgba(31, 35, 40, 0.08);
   --shadow-overlay: 0 16px 40px rgba(31, 35, 40, 0.18);
+  --shadow-card: 0 1px 2px rgba(31, 35, 40, 0.06), 0 6px 18px rgba(31, 35, 40, 0.06);
+  --shadow-card-hover: 0 2px 4px rgba(31, 35, 40, 0.08), 0 12px 28px rgba(31, 35, 40, 0.12);
+
+  --text-3xl: clamp(2rem, 1.5rem + 2vw, 2.75rem);
+  --text-display: clamp(2.25rem, 1.5rem + 3.5vw, 3.75rem);
+  --leading-tight: 1.15;
+  --leading-body: 1.65;
+  --tracking-eyebrow: 0.08em;
+  --aspect-card: 4 / 5;
+  --card-gap: var(--space-5);
+  --filter-width: 280px;
 
   --control-height: 48px;
   --page-width: 1240px;
   --product-grid-min: 220px;
+  --touch-target: 48px;
 }

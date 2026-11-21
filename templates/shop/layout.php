@@ -1,7 +1,8 @@
 <?php
 /**
- * Page shell of the Shop app: document head, skip link, header with brand and navigation, main area, footer.
- * An organization can replace this whole file from orgs/{slug}/shop/layout.php, or just partials/nav.php.
+ * Page shell of the Shop app: document head, skip link, header, main area, footer.
+ * An organization can replace this whole file from orgs/{slug}/shop/layout.php, or any partial it uses
+ * (partials/header.php, partials/nav.php, partials/search-form.php, partials/footer.php, partials/placeholder.php).
  * A view fills it with $this->layout('layout'), a "title" section (escaped text only) and its own output.
  *
  * @var \Gfh\Core\View\AppView $this
@@ -9,8 +10,12 @@
  * @var string $organizationName
  * @var string $homeUrl
  * @var list<array{label: string, url: string, current?: bool}> $navigation optional; items for the header navigation
+ * @var string $productsUrl optional; the product listing address, which the header search box submits to
+ * @var string $searchText optional; the current search text, shown again in the header box
  */
 $navigation ??= [];
+$productsUrl ??= '';
+$searchText ??= '';
 // The navigation partial decides which items may be shown; the menu button only makes sense if it printed something.
 $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigation]));
 ?>
@@ -28,21 +33,22 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
     <link rel="stylesheet" href="<?= $this->e($assets->branding()) ?>">
     <?= $this->section('head') ?>
     <script type="module" src="<?= $this->e($assets->shared('js/shell.js')) ?>"></script>
+    <script type="module" src="<?= $this->e($assets->url('js/shop.js')) ?>"></script>
 </head>
 <body class="app-shop">
     <a class="skip-link" href="#main">Skip to the main content</a>
-    <header class="shell-header">
-        <a class="shell-brand" href="<?= $this->e($homeUrl) ?>"><?= $this->e($organizationName) ?></a>
-<?php if ($navigationHtml !== ''): ?>
-        <button class="shell-menu-button" type="button" aria-expanded="false" aria-controls="shell-nav" data-nav-toggle>Menu</button>
-<?php endif; ?>
-        <?= $navigationHtml ?>
-    </header>
+<?= $this->partial('partials/header', [
+    'navigationHtml' => $navigationHtml,
+    'productsUrl' => $productsUrl,
+    'searchText' => $searchText,
+]) ?>
     <main class="shell-main" id="main" tabindex="-1">
         <?= $this->section('content') ?>
     </main>
-    <footer class="shell-footer">
-        <?= $this->section('footer') ?>
+    <footer class="shell-footer shop-footer">
+        <?= $this->section('footer', $this->partial('partials/footer', ['productsUrl' => $productsUrl])) ?>
     </footer>
+    <?php // Copied by the script when a photo fails to load, so a broken image falls back to the same placeholder. ?>
+    <template id="shop-placeholder-template"><?= $this->partial('partials/placeholder') ?></template>
 </body>
 </html>

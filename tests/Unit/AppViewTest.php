@@ -153,6 +153,10 @@ final class AppViewTest extends TestCase
         foreach (TemplateLocator::APPS as $app) {
             $this->tree->put('templates/' . $app . '/layout.php', (string) file_get_contents($projectRoot . '/templates/' . $app . '/layout.php'));
             $this->tree->put('templates/' . $app . '/partials/nav.php', (string) file_get_contents($projectRoot . '/templates/' . $app . '/partials/nav.php'));
+            // The Shop layout is built from more partials (header, search box, footer, placeholder); copy them all.
+            foreach ($app === 'shop' ? (glob($projectRoot . '/templates/shop/partials/*.php') ?: []) : [] as $partial) {
+                $this->tree->put('templates/shop/partials/' . basename($partial), (string) file_get_contents($partial));
+            }
             $this->tree->put('templates/' . $app . '/sample.php', '<?php $this->layout("layout"); $this->start("title"); echo "Sample"; $this->end(); ?><p>Shell body</p>');
 
             $view = new AppView($locator, 'demo', $app, [

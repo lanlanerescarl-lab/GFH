@@ -185,6 +185,35 @@ To run the PHPUnit 9 setup used in the sandbox (PHP 8.3, PostgreSQL 16): use a c
 
 To reset the demo organization's data, follow `docs/reset-demo.md`.
 
+## Stage 6 acceptance rules and the tests that check them
+
+**Batch 6.1, Online Shop shell and browsing** (`tests/Database/ShopRouterSmokeTest.php`, `tests/Database/ShopBrowseTest.php`, base class `tests/Support/ShopTestCase.php`). The Database tests need the two `_test` databases, as before.
+
+| Rule | Test |
+| --- | --- |
+| Every Shop GET page (home, listing with each filter, sort and a battery of bad values, product detail with and without `?variant=`, the 404) answers 200 (or the intended 404) as a guest and as a signed-in customer, with no PHP warning and no error text. The demo organization has no product photos, so these pages all render the inline placeholder. | `ShopRouterSmokeTest::testEveryShopGetPageLoadsForAGuestAndForASignedInCustomer` |
+| Pages work with an empty catalog; an unknown organization or Shop path is a 404, not a 500. | `ShopRouterSmokeTest` (other two tests) |
+| Listing: brand, category (a top-level category includes its children), price range, text, number and yes/no attributes, combined filters; drafts never show. | `ShopBrowseTest::testListingFiltersByBrandCategoryPriceAndAttributes` |
+| Sorting by name, price and newest, both directions, with the chosen sort selected in the box. | `testSortOrders` |
+| Search by name or SKU, the result count, the removable search chip, the text kept in the header box. | `testSearchFindsProductsShowsTheCountAndKeepsTheTextInTheBox` |
+| Result count, one removable chip per filter (the link drops only that filter), clear all, the empty state. | `testResultCountChipsAndTheEmptyState` |
+| Pagination keeps the whole state in every link; a page past the end shows the last page; a bad page number is ignored with a notice. | `testPaginationUsesTheSharedQueryParameters` |
+| Unknown or malformed filter values (wrong shape, nested arrays, huge numbers, bad keys) are ignored with a notice or shown as a field error, never a 500. | `testUnknownAndMalformedFilterValuesAreIgnoredOrShownAsFieldErrorsNeverAServerError` |
+| Filter options show counts, and choosing a brand or category does not shrink its own list. | `testFilterOptionsShowCountsAndStayWideWhenOneIsChosen` |
+| Detail: the default variant is rendered by the server, every variant's data is in data attributes, `?variant=` renders another variant, the quantity box follows the variant's step and minimum, the VAT note appears once, Add to cart is disabled with its note, description, attribute table, breadcrumb. | `testDetailRendersTheDefaultVariantAndTheDataOfEveryVariant` |
+| An unknown, draft, discontinued or no-active-variant product is the Shop's 404 page. | `testAnUnknownOrInactiveSlugIsA404Page` |
+| A product with no photo shows the inline placeholder; photos are linked with size, lazy loading and the primary first; thumbnails link to every photo. | `testProductsWithoutPhotosShowThePlaceholderAndPhotosAreLinkedSafely` |
+| Tier prices appear only for a signed-in customer who qualifies (quantity tiers for any signed-in customer, tier and type tiers only on a match), never for a guest. | `testTierPricesAppearOnlyForASignedInCustomerWhoQualifies` |
+| No cost, trade price, reorder level or exact stock figure appears in any page. | `testNoCostTradePriceOrExactStockFigureAppearsInAnyPage` |
+| HTML in a product, brand, category, variant, attribute or search text is escaped on every page. | `testHtmlInProductDataIsEscapedOnEveryPage` |
+| No page contains a URL to another host. | `testNoPageContainsAUrlToAnotherHost` (and the existing `NoExternalHostsTest` for the templates and assets) |
+| Alt text and image sizes, a label for every field, the skip link, one h1 and no skipped heading level, on six kinds of page. | `testAltTextLabelsSkipLinkAndHeadingOrder` |
+| Home: neutral line or the organization's own `shop_tagline` (plain text), top-level category tiles, newest first. | `testHomeShowsCategoriesNewestProductsAndTheOrganizationsOwnLine` |
+| `orgs/{slug}/shop/home.php` replaces the built-in home page (a temporary organization folder, removed afterwards). | `testAnOrganizationCanReplaceTheShopHomePage` |
+| `navigation.shop` and `product.detail.sections` items are cleaned, extensions receive only public fields, section titles are escaped and bodies printed as written. | `testNavigationHookItemsAreCleanedAndTheShopLinkIsFirst`, `testProductSectionsHookIsCleanedGetsOnlyPublicFieldsAndIsPrintedByTheTemplate` |
+
+`TemplateShellTest` and `AppViewTest` now copy the Shop partials into their temporary template trees, because the Shop layout is built from several partials.
+
 ## Manual checks in the browser (Stage 2)
 
 With the database set up as in `database/roles/README.md` and the demo organization migrated:
@@ -284,3 +313,22 @@ $base = "http://localhost:8000/demo/api/v1"; function Call($sess, $hdr, $m, $p, 
 11. **Old and new password.** Sign in on a new session with the old password (`POST /auth/customer/login`): it prints `401`. The new password signs in. Your first session is still signed in (`Call $s $h GET /account/profile`), and so would a session on another device be: that is expected.
 12. **Lockout.** Send wrong current passwords until the limit (`LOGIN_MAX_ATTEMPTS`, 5 by default): the next request, even with the right password, prints `429` ("Too many sign-in attempts") and sign-in is locked too. Wait `LOGIN_LOCKOUT_MINUTES` before testing again.
 13. **Audit.** In the core database, `customer.profile_updated`, `customer.address_*`, `customer.password_changed` and `customer.password_change_failed` rows exist in `audit_log`, and none of their `detail` values contains a password, a hash, a token or an address.
+
+## Browser hand-check, Batch 6.1 Online Shop shell and browsing
+
+No browser was used to build Batch 6.1: the PHP was tested through the router, and the JavaScript modules were exercised in a simulated DOM (jsdom), which is not a browser. Layout, spacing and every visual rule below are unchecked until you do this. Run `php bin/publish-assets.php` if you changed an asset, start the site, and open `/demo/shop`. Do every step at **360 px** and at **1280 px** wide (browser developer tools, device toolbar), then repeat the keyboard steps with the mouse set aside.
+
+1. **No sideways scroll.** At 360 px, scroll the home page, the listing, a product page and the 404 page (`/demo/shop/products/nope`): the page never scrolls sideways, no text runs off the edge, and long product names wrap.
+2. **Header.** At 1280 px: brand, Shop link, search box on one row, no menu button. Below 720 px: brand and a **Menu** button; the button opens the Shop link, and Escape or a click outside closes it. No empty gap where Cart and Sign in will go (they are empty slots in this batch).
+3. **Home.** The hero shows the organization name and a line (neutral text unless the organization has a `shop_tagline` setting); category tiles are two across at 360 px and four across at 1280 px; New arrivals shows the newest products; with no photos every card shows the soft placeholder box with a small outline mark, not a broken image.
+4. **Listing at 1280 px.** Filters on the left (Category tree with counts, Brand, Price, attributes), results on the right, sort box above. Choose a category, a brand and a sort: the page reloads each time (the address changes and carries the state). Type a price range and press Enter or **Apply filters**: it does not reload while you tab between the two boxes. Chips appear for each filter; clicking one removes only that filter; **Clear all filters** removes them all. Copy the address into a new tab: the same list appears.
+5. **Listing at 360 px.** Filters are behind a **Filters** button. It opens a panel from the left with a dark backdrop; Tab stays inside it; Escape, **Close** and the backdrop close it and put the focus back on the Filters button. The page behind does not scroll while it is open.
+6. **Without JavaScript** (developer tools, disable JavaScript, reload): the filters sit above the results, **Apply** appears next to the sort box, the product page shows every photo stacked, **Show this option** appears under the variants, and the menu links are visible without the button.
+7. **Bad addresses.** Try `/demo/shop/products?category_id=abc`, `?min_price=abc`, `?sort=bogus`, `?page=0`, `?page=9999`, `?brand_id[]=x`: each gives a normal page (a notice or a red message under the price box), never an error page.
+8. **Search.** Search for part of a product name in the header: the result page says Search results, shows a chip, and keeps your text in the box. Search for text that matches nothing: the empty state offers **Show all products**.
+9. **Product page.** Price, "Prices include VAT." (once), SKU, availability (a word only: In stock or Out of stock, never a number), the Details table and the description. Pick another variant: the price, SKU, availability and quantity step change at once without a reload, and the address gains `?variant=`; reload keeps the choice. The quantity box accepts steps of 0.5 for a weight variant. **Add to cart** is greyed out and the note says the cart opens soon.
+10. **Photos** (upload two or three in Admin first): the primary photo is first; thumbnails below; clicking or pressing Enter on one shows that photo; with a thumbnail focused the Left, Right, Home and End keys move between them. With JavaScript off, all photos are visible one under the other.
+11. **Signed-in prices.** The customer sign-in page arrives in Batch 6.2, so the signed-in view cannot be reached in a browser yet; it is covered only by the automated test (`testTierPricesAppearOnlyForASignedInCustomerWhoQualifies`). As a guest, check that no **Your prices** table ever appears on a product page.
+12. **Keyboard only.** From the top of any page, Tab reaches **Skip to the main content** first and it works; then the header, search, filters, cards and pagination in a sensible order; every link, button, checkbox, radio and select shows a clear focus ring; nothing needs a mouse; no focus trap except the open filter drawer.
+13. **Look.** Headings are in Source Serif 4, everything else in Inter; no font or script is fetched from another host (developer tools, Network tab: only your own host). If the organization has a `primary` branding color set, buttons, links, chips and the selected variant use it; nothing stays the default teal.
+14. **Touch targets.** At 360 px every link and button you would press with a thumb is at least 48 px high (nav links, chips, pagination, filter choices, breadcrumb links, the Filters button).

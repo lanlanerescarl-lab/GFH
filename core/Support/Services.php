@@ -25,6 +25,7 @@ use Gfh\Core\Service\AuthService;
 use Gfh\Core\Service\CustomerAccountService;
 use Gfh\Core\Service\PasswordResetService;
 use Gfh\Core\Service\PermissionService;
+use Gfh\Core\Service\ShopNavigationService;
 use Gfh\Core\Extension\ExtensionLoader;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Tenancy\Tenant;
@@ -259,6 +260,14 @@ final class Services
             $this->permissions(),
             $this->forTenant($tenant)->hooks(),
             !$this->app->config()->isProduction(),
+        ));
+    }
+
+    /** The Shop header navigation for one organization: the Shop link plus that organization's own navigation.shop hook callbacks. */
+    public function shopNavigation(Tenant $tenant): ShopNavigationService
+    {
+        return $this->once('shop-navigation:' . $tenant->organization->slug, fn (): ShopNavigationService => new ShopNavigationService(
+            $this->forTenant($tenant)->hooks(),
         ));
     }
 
