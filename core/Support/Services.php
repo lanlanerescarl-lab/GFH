@@ -11,6 +11,7 @@ use Gfh\Core\Auth\Session;
 use Gfh\Core\Database\Database;
 use Gfh\Core\Http\Request;
 use Gfh\Core\Repository\CustomerAccountRepository;
+use Gfh\Core\Repository\CustomerAddressRepository;
 use Gfh\Core\Repository\LoginAttemptRepository;
 use Gfh\Core\Repository\MembershipRepository;
 use Gfh\Core\Repository\OrganizationRepository;
@@ -21,6 +22,7 @@ use Gfh\Core\Service\AccountService;
 use Gfh\Core\Service\AdminNavigationService;
 use Gfh\Core\Service\AuditService;
 use Gfh\Core\Service\AuthService;
+use Gfh\Core\Service\CustomerAccountService;
 use Gfh\Core\Service\PasswordResetService;
 use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Extension\ExtensionLoader;
@@ -117,6 +119,19 @@ final class Services
             $this->audit(),
             $this->passwords(),
             $this->app->config(),
+        ));
+    }
+
+    /** A signed-in customer's own profile, addresses and password. Core data, so it is not per organization. */
+    public function customerAccounts(): CustomerAccountService
+    {
+        return $this->once('customer-accounts', fn (): CustomerAccountService => new CustomerAccountService(
+            $this->core(),
+            $this->customers(),
+            new CustomerAddressRepository($this->core()),
+            $this->auth(),
+            $this->audit(),
+            $this->passwords(),
         ));
     }
 

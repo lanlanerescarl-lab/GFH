@@ -103,6 +103,19 @@ final class Session
         $_SESSION['_seen'] = $now;
     }
 
+    /**
+     * The current session id. Only used to check that it changes after a password change; never send it to the browser
+     * (the cookie carries it) and never log it.
+     */
+    public function id(): string
+    {
+        if ($this->inMemory) {
+            return (string) ($this->memory['_id'] ??= bin2hex(random_bytes(16)));
+        }
+
+        return session_id() ?: '';
+    }
+
     public function get(string $key, mixed $default = null): mixed
     {
         return $this->inMemory ? ($this->memory[$key] ?? $default) : ($_SESSION[$key] ?? $default);
@@ -136,6 +149,8 @@ final class Session
         if ($this->inMemory) {
             $this->memory['_created'] = time();
             $this->memory['_seen'] = time();
+            // A real session gets a new id here; the in-memory one mimics that so tests can observe it.
+            $this->memory['_id'] = bin2hex(random_bytes(16));
 
             return;
         }

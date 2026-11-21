@@ -18,6 +18,8 @@ final class ApiAuthorizationTest extends TestCase
     private const OPEN_METHODS = [
         'CatalogController' => ['products', 'filters', 'product', 'categories', 'brands'],
         'CartController' => ['options', 'price', 'checkout', 'myOrders', 'myOrder'],
+        // The signed-in customer's own profile, addresses and password. Each takes the customer from customerContext().
+        'AccountController' => ['profile', 'updateProfile', 'changePassword', 'addresses', 'createAddress', 'updateAddress', 'setDefaultAddress', 'deleteAddress'],
         'MediaController' => ['serve'],
     ];
 
@@ -84,6 +86,40 @@ final class ApiAuthorizationTest extends TestCase
             }
             $this->assertStringNotContainsString('forTenant(', (string) file_get_contents($file), basename($file) . ' must get services through ApiController');
         }
+    }
+
+    public function testEveryAccountEndpointTakesTheCustomerFromTheSessionAndNeverFromTheRequest(): void
+    {
+        $body = $this->endpoints()['AccountController'] ?? [];
+
+        $this->assertCount(8, $body, 'The scanner must find all eight account endpoints.');
+        foreach ($body as $method => $code) {
+            $this->assertStringContainsString('$this->customerContext($request)', $code, "AccountController::$method must take the customer from the session");
+            $this->assertStringNotContainsString('authorize(', $code, "AccountController::$method is a customer endpoint, not a staff one");
+            // A customer id in the body, the query or the URL must never choose whose account is touched.
+            $this->assertDoesNotMatchRegularExpression('/customer_id|param\(.customer/', $code, "AccountController::$method must not read a customer id from the request");
+        }
+    }
+
+    public function testEveryAccountRouteRunsBehindTheCustomerMiddleware(): void
+    {
+        $routes = (string) file_get_contents(dirname(__DIR__, 2) . '/core/routes.php');
+        $checked = 0;
+
+        foreach (explode("\n", $routes) as $line) {
+            if (!str_contains($line, '/api/v1/account/')) {
+                continue;
+            }
+            $checked++;
+            $this->assertStringContainsString('$tenant, $customerSession,', $line, 'Account route without the tenant and customer session: ' . trim($line));
+            $this->assertStringContainsString('$requireCustomer]', $line, 'Account route without requireCustomer: ' . trim($line));
+            $this->assertStringNotContainsString('$staffSession', $line, 'Account route on the staff session: ' . trim($line));
+            if (!str_starts_with(trim($line), '$r->get(')) {
+                $this->assertStringContainsString('$csrf,', $line, 'Account write route without CSRF: ' . trim($line));
+            }
+        }
+
+        $this->assertSame(8, $checked, 'The route scan must find all eight account routes.');
     }
 
     public function testAdminAndPosRoutesAllRunBehindTheStaffMiddleware(): void

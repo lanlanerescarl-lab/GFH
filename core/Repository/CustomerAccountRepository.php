@@ -53,4 +53,30 @@ final class CustomerAccountRepository
         $statement = $this->core->prepare('UPDATE customers SET password_hash = :hash WHERE id = :id');
         $statement->execute(['hash' => $passwordHash, 'id' => $id]);
     }
+
+    /**
+     * Changes the two profile fields a customer may edit. The email, status and password hash are deliberately not
+     * in this statement, so no caller can change them through it.
+     */
+    public function updateProfile(string $id, string $fullName, ?string $phone): void
+    {
+        $statement = $this->core->prepare('UPDATE customers SET full_name = :full_name, phone = :phone WHERE id = :id');
+        $statement->execute([
+            'full_name' => $fullName,
+            'phone' => ($phone === null || $phone === '') ? null : $phone,
+            'id' => $id,
+        ]);
+    }
+
+    /**
+     * Locks the customer row until the surrounding transaction ends. Address changes take this lock first, so two
+     * requests from the same customer cannot both pass the 10-address limit or both create a "first" address.
+     */
+    public function lock(string $id): bool
+    {
+        $statement = $this->core->prepare('SELECT 1 FROM customers WHERE id = :id FOR UPDATE');
+        $statement->execute(['id' => $id]);
+
+        return $statement->fetchColumn() !== false;
+    }
 }

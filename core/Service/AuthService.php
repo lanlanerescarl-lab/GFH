@@ -144,6 +144,23 @@ final class AuthService
         return $account;
     }
 
+    /**
+     * Refuses a customer who is locked out, with the same 429 and message as sign-in. Used by actions that ask for the
+     * current password (changing it), so they cannot be used to guess it without limit.
+     *
+     * @throws HttpException 429 too_many_requests
+     */
+    public function assertCustomerNotLocked(string $email, string $ip): void
+    {
+        $this->assertNotLocked('customer', $this->identifierHash(strtolower(trim($email))), $ip);
+    }
+
+    /** Records a password check by a signed-in customer in the same log, scope and identifier that sign-in uses. */
+    public function recordCustomerPasswordCheck(string $email, string $ip, bool $succeeded): void
+    {
+        $this->attempts->record('customer', $this->identifierHash(strtolower(trim($email))), $ip, $succeeded);
+    }
+
     private function invalidCredentials(): HttpException
     {
         return new HttpException(401, 'invalid_credentials', self::INVALID_MESSAGE);

@@ -6,14 +6,19 @@ namespace Gfh\Tests\Unit;
 
 use Gfh\Core\App;
 use Gfh\Core\Http\Middleware\CsrfMiddleware;
+use Gfh\Core\Http\Middleware\RequireCustomerMiddleware;
 use Gfh\Core\Http\Middleware\RequireStaffMiddleware;
+use Gfh\Core\Http\Middleware\SessionMiddleware;
+use Gfh\Core\Http\Middleware\TenantMiddleware;
 use Gfh\Core\Routing\Route;
 use Gfh\Core\Routing\Router;
 use PHPUnit\Framework\TestCase;
 
 /**
  * Reads the routes that core/routes.php really registers (no source-text matching) and checks that every Admin
- * route that changes state carries the CSRF middleware, and every Admin route needs a signed-in staff member.
+ * route that changes state carries the CSRF middleware, and every Admin route needs a signed-in staff member. The
+ * same is checked for the customer account routes (/api/v1/account/...): customer session, signed-in customer, and
+ * CSRF on every write.
  * Nothing here touches a database: building the routes opens no connection.
  */
 final class AdminRouteSecurityTest extends TestCase
@@ -89,5 +94,67 @@ final class AdminRouteSecurityTest extends TestCase
         }
 
         $this->assertSame([], $missing, 'These Admin routes can be reached without a signed-in staff member.');
+    }
+
+    /** @return list<Route> */
+    private function accountRoutes(): array
+    {
+        return array_values(array_filter(
+            $this->routes(),
+            static fn (Route $route): bool => str_contains($route->pattern, '/api/v1/account/'),
+        ));
+    }
+
+    /** The scope ('staff' or 'customer') of the SessionMiddleware on a route, or null when it has none. */
+    private function sessionScope(Route $route): ?string
+    {
+        foreach ($route->middleware as $middleware) {
+            $owner = (new \ReflectionFunction($middleware))->getClosureThis();
+            if ($owner instanceof SessionMiddleware) {
+                return (string) (new \ReflectionProperty(SessionMiddleware::class, 'scope'))->getValue($owner);
+            }
+        }
+
+        return null;
+    }
+
+    public function testTheAccountRoutesAreExactlyTheEightThatAreDocumented(): void
+    {
+        $found = array_map(
+            static fn (Route $route): string => $route->method . ' ' . (string) preg_replace('#^/\{org:[^}]*\}/api/v1/account#', '', $route->pattern),
+            $this->accountRoutes(),
+        );
+        sort($found);
+
+        $expected = [
+            'DELETE /addresses/{id}', 'GET /addresses', 'GET /profile', 'POST /addresses', 'POST /addresses/{id}/default',
+            'POST /password', 'PUT /addresses/{id}', 'PUT /profile',
+        ];
+        $this->assertSame($expected, $found);
+    }
+
+    public function testEveryAccountRouteNeedsTheTenantTheCustomerSessionAndASignedInCustomer(): void
+    {
+        foreach ($this->accountRoutes() as $route) {
+            $label = $route->method . ' ' . $route->pattern;
+            $this->assertTrue($this->carries($route, TenantMiddleware::class), "$label needs the tenant");
+            $this->assertSame('customer', $this->sessionScope($route), "$label must use the customer session, not the staff one");
+            $this->assertTrue($this->carries($route, RequireCustomerMiddleware::class), "$label needs a signed-in customer");
+            $this->assertFalse($this->carries($route, RequireStaffMiddleware::class), "$label must not accept a staff member");
+        }
+    }
+
+    public function testEveryStateChangingAccountRouteRequiresTheCsrfToken(): void
+    {
+        $writes = 0;
+        foreach ($this->accountRoutes() as $route) {
+            if (in_array($route->method, ['GET', 'HEAD', 'OPTIONS'], true)) {
+                continue;
+            }
+            $writes++;
+            $this->assertTrue($this->carries($route, CsrfMiddleware::class), $route->method . ' ' . $route->pattern . ' has no CsrfMiddleware');
+        }
+
+        $this->assertSame(6, $writes);
     }
 }

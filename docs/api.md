@@ -12,8 +12,8 @@ is an object of field name to message (empty when the error is not about a field
 | 400 | `bad_request` | Unreadable request or invalid JSON |
 | 401 | `unauthorized` / `invalid_credentials` | Not signed in |
 | 403 | `forbidden` / `csrf_mismatch` | `can()` said no, or the CSRF token is missing or wrong |
-| 404 | `not_found` | Unknown id, or someone else's order |
-| 409 | `conflict` | The change clashes with the current state (a brand in use, an open shift, a reused receipt number) |
+| 404 | `not_found` | Unknown id, or someone else's order or address |
+| 409 | `conflict` | The change clashes with the current state (a brand in use, an open shift, a reused receipt number, a customer who already has 10 addresses) |
 | 422 | `validation_failed` | Field errors in `fields`. Nested names use dots: `lines.1.batch_code`, `attributes.wattage` |
 | 429 | `too_many_requests` | Sign-in lockout (`Retry-After` header) |
 
@@ -71,6 +71,51 @@ Photos: `GET /media/{org}/{mediaId}` (add `?thumb=1` for the 400 px thumbnail). 
 | `GET /orders/{id}` | customer | One of their own orders with its path, payments and history. Another customer's order is 404 |
 
 Stock short at checkout is a 422 on `items` ("Not enough stock for: SKU (only 3 available)"), and nothing is created.
+
+## Account (customer)
+
+The signed-in customer's own profile, saved addresses and password. Every endpoint needs a customer session (a staff session does not
+count) and answers 401 without one. Every write (PUT, POST, DELETE) carries the `X-CSRF-Token` header. The customer is always the one
+in the session: a customer id in the URL, query or body is never read, so nobody can reach another customer's data.
+
+| Method and path | Notes |
+| --- | --- |
+| `GET /account/profile` | `{customer: {id, full_name, email, phone}}`. No password or hash is ever returned |
+| `PUT /account/profile` | Body `{full_name, phone?}`, with the same rules as registration (name 2 to 120 characters, phone 7 to 20 of digits, spaces and `+ - ( )`). A `phone` that is left out or empty is cleared. The email and status cannot be changed here, and any other field sent is ignored. Never touches the password. Returns `{customer}` |
+| `POST /account/password` | Body `{current_password, new_password, new_password_confirmation}`. Returns `{password_changed: true}` |
+| `GET /account/addresses` | `{items, max_addresses}`: the default address first, then the newest. At most 10, so the list is not paginated and takes none of the list parameters |
+| `POST /account/addresses` | Body `{label?, line1, barangay?, city, province, postal_code?}`. 201 with `{address}`. A 409 when the customer already has 10 |
+| `PUT /account/addresses/{id}` | Same body. It replaces the six fields, so an optional field that is left out is cleared. Never changes which address is the default. Returns `{address}` |
+| `POST /account/addresses/{id}/default` | Makes this address the only default (the old one is cleared in the same transaction). Returns `{address}` |
+| `DELETE /account/addresses/{id}` | Returns `{id, deleted: true}`. Deleting the default promotes the most recently created address that is left |
+
+An address is `{id, label, line1, barangay, city, province, postal_code, is_default, created_at, updated_at}` (ISO 8601 times, UTC).
+
+Address fields: `label` optional, up to 40 characters; `line1` required, up to 200; `barangay` optional, up to 100; `city` and `province` required, up to
+100 each; `postal_code` optional, exactly 4 digits, sent as a string (`"6100"`). Text is trimmed and runs of spaces are collapsed. Each bad field is a 422
+with its own message in `fields`. `is_default` in a create or update body is ignored: the first address a customer saves becomes the default, and only
+`POST .../default` (or deleting the default) moves it. A customer always has exactly one default while they have any address.
+
+An address that is not the customer's, an unknown id and a malformed id all give the same plain 404 (also for a body that would fail validation), so the
+answer never shows that an address exists. Deleting or editing a saved address never changes an order: an order keeps its own copy of the delivery address.
+
+Changing the password:
+
+- A wrong or missing `current_password` is a 422 on `current_password`. A wrong one is recorded in the same sign-in log, scope and lockout as a wrong password at
+  sign-in (`LOGIN_MAX_ATTEMPTS` failures in `LOGIN_LOCKOUT_MINUTES`), and failed sign-ins count here too. A locked-out customer gets the sign-in 429 with `Retry-After`,
+  even with the right password. A correct password clears the earlier failures, as at sign-in. A blank field is a form error and is not counted.
+- `new_password` follows the registration password rules (10 to 72 bytes, not only spaces, not the customer's email address): a 422 on `new_password`.
+  `new_password_confirmation` must match: a 422 on `new_password_confirmation`. Both can be reported together.
+- On success the new hash is stored and the session id is regenerated; the CSRF token and the sign-in stay. **Other devices are not signed out**: sessions are
+  PHP sessions kept per browser, so a session on another device stays valid until it ends by itself (`SESSION_IDLE_MINUTES` of inactivity or
+  `SESSION_ABSOLUTE_HOURS` in total) or the account is deactivated. Server-side revocation of other sessions does not exist yet.
+
+Order of checks: a write is checked for CSRF before sign-in, like every customer route, so a signed-out write without a token is a 403 `csrf_mismatch`, and one with
+the token from `GET .../auth/customer/csrf` is a 401.
+
+Audit (core log, entity `customer` or `customer_address`, no actor user): `customer.profile_updated` (names the fields that changed, not their values),
+`customer.address_created`, `customer.address_updated`, `customer.address_default_changed`, `customer.address_deleted` (records the promoted address id),
+`customer.password_changed` and `customer.password_change_failed` (the request's IP only). No entry holds a password, a hash, a token or address text.
 
 ## Orders (Admin, module `sales`)
 
@@ -176,5 +221,5 @@ are left out of profit and lower `cost_complete_pct`. Calendar reports by day, m
 
 ## Not in this stage
 
-Customer profile, addresses and password change (Stage 7), settings, branches, terminals, discount rule and order step management
-(Stage 6), and the reserved `/{org}/api/v1/olap/` prefix (Stage 6).
+Discount rule, order step and organization settings management (Batch 5.4c-2, Stage 5), JSON endpoints for branches and terminals (their Admin pages
+exist since Batch 5.4c-1), and the reserved `/{org}/api/v1/olap/` prefix (Stage 6).

@@ -21,6 +21,7 @@ use Gfh\Core\Controller\Admin\TerminalsController;
 use Gfh\Core\Controller\Admin\DiscountRulesController;
 use Gfh\Core\Controller\Admin\OrderStepsController;
 use Gfh\Core\Controller\Admin\OrganizationSettingsController;
+use Gfh\Core\Controller\Api\AccountController;
 use Gfh\Core\Controller\Api\CartController;
 use Gfh\Core\Controller\Api\CatalogAdminController;
 use Gfh\Core\Controller\Api\CatalogController;
@@ -93,6 +94,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $catalogAdmin = new CatalogAdminController($services);
     $media = new MediaController($services);
     $cart = new CartController($services);
+    $account = new AccountController($services);
     $ordersAdmin = new OrderAdminController($services);
     $inventoryAdmin = new InventoryAdminController($services);
     $procurementAdmin = new ProcurementAdminController($services);
@@ -107,7 +109,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
         $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $branding,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
-        $customerOptional, $catalog, $catalogAdmin, $media, $cart, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
+        $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
         // Every Admin and POS API call: organization, staff session, CSRF for changes, signed-in member. Each
         // controller method then checks can() for its own module and action.
@@ -142,6 +144,16 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->post('/api/v1/checkout', static fn (Request $q) => $cart->checkout($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
         $r->get('/api/v1/orders', static fn (Request $q) => $cart->myOrders($q), [$tenant, $customerSession, $requireCustomer]);
         $r->get('/api/v1/orders/{id}', static fn (Request $q) => $cart->myOrder($q), [$tenant, $customerSession, $requireCustomer]);
+
+        // --- JSON: the signed-in customer's own profile, addresses and password
+        $r->get('/api/v1/account/profile', static fn (Request $q) => $account->profile($q), [$tenant, $customerSession, $requireCustomer]);
+        $r->put('/api/v1/account/profile', static fn (Request $q) => $account->updateProfile($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
+        $r->post('/api/v1/account/password', static fn (Request $q) => $account->changePassword($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
+        $r->get('/api/v1/account/addresses', static fn (Request $q) => $account->addresses($q), [$tenant, $customerSession, $requireCustomer]);
+        $r->post('/api/v1/account/addresses', static fn (Request $q) => $account->createAddress($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
+        $r->put('/api/v1/account/addresses/{id}', static fn (Request $q) => $account->updateAddress($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
+        $r->post('/api/v1/account/addresses/{id}/default', static fn (Request $q) => $account->setDefaultAddress($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
+        $r->delete('/api/v1/account/addresses/{id}', static fn (Request $q) => $account->deleteAddress($q), [$tenant, $customerSession, $csrf, $requireCustomer]);
 
         // --- JSON: Admin catalog
         $r->get('/api/v1/admin/products', static fn (Request $q) => $catalogAdmin->products($q), $staff);
