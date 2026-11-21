@@ -71,7 +71,11 @@ final class PosService
         }
 
         $data = [
-            'terminal' => ['id' => $terminal['id'], 'code' => $terminal['code'], 'name' => $terminal['name'], 'branch_id' => $terminal['branch_id'], 'branch_name' => $terminal['branch_name']],
+            'terminal' => [
+                'id' => $terminal['id'], 'code' => $terminal['code'], 'name' => $terminal['name'], 'branch_id' => $terminal['branch_id'], 'branch_name' => $terminal['branch_name'],
+                // One printable line, so a receipt shows where the sale was made without the app knowing how an address is written.
+                'branch_address' => implode(', ', array_filter([$terminal['branch_address'], $terminal['branch_city'], $terminal['branch_province']], static fn (mixed $part): bool => is_string($part) && trim($part) !== '')),
+            ],
             'vat_rate_percent' => PricingService::VAT_RATE_PERCENT,
             'payment_methods' => $this->payments->methods(),
             'discount_rules' => $this->repository->activeDiscountRules(),
@@ -110,7 +114,7 @@ final class PosService
 
             return [
                 'shift' => $this->repository->shift($id),
-                'next_receipt_number' => sprintf('%s-%06d', $terminal['code'], $this->repository->nextReceiptSequence((string) $terminal['id'])),
+                'next_receipt_number' => $this->nextReceiptNumber($terminal),
             ];
         });
     }
@@ -129,6 +133,17 @@ final class PosService
         $this->terminal($terminalId);
 
         return $this->repository->openShift($terminalId);
+    }
+
+    /**
+     * The receipt number a terminal should use next, or null when no shift is open there. The POS app asks for it
+     * when it resumes an open shift (after a reload or on another screen), because only opening a shift returns it.
+     */
+    public function nextReceiptNumberIfShiftOpen(string $terminalId): ?string
+    {
+        $terminal = $this->terminal($terminalId);
+
+        return $this->repository->openShift($terminalId) === null ? null : $this->nextReceiptNumber($terminal);
     }
 
     /**
@@ -300,6 +315,22 @@ final class PosService
         return $this->repository->terminals();
     }
 
+    /**
+     * The terminals the POS app offers at start-up: active ones with their branch name and whether a shift is open.
+     *
+     * @return list<array{id: string, code: string, name: string, branch_name: string, has_open_shift: bool}>
+     */
+    public function activeTerminals(): array
+    {
+        return array_map(static fn (array $row): array => [
+            'id' => (string) $row['id'],
+            'code' => (string) $row['code'],
+            'name' => (string) $row['name'],
+            'branch_name' => (string) $row['branch_name'],
+            'has_open_shift' => (bool) $row['has_open_shift'],
+        ], $this->repository->activeTerminals());
+    }
+
     /** How many sales wait in the needs-review queue. */
     public function needsReviewCount(): int
     {
@@ -307,6 +338,12 @@ final class PosService
     }
 
     // ------------------------------------------------------------------ internals
+
+    /** @param array<string, mixed> $terminal a terminal row */
+    private function nextReceiptNumber(array $terminal): string
+    {
+        return sprintf('%s-%06d', $terminal['code'], $this->repository->nextReceiptSequence((string) $terminal['id']));
+    }
 
     /** @return array<string, mixed> */
     private function terminal(string $terminalId): array

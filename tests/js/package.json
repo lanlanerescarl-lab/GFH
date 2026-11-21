@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks the JavaScript tests as ES modules. Run them with: node --test tests/js"
+}

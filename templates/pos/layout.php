@@ -9,10 +9,12 @@
  * @var string $organizationName
  * @var string $homeUrl
  * @var list<array{label: string, url: string, current?: bool}> $navigation optional; items for the header navigation
+ * @var bool $bare optional; true leaves out the brand header and footer (the POS screens draw their own status bar)
  */
 $navigation ??= [];
+$bare ??= false;
 // The navigation partial decides which items may be shown; the menu button only makes sense if it printed something.
-$navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigation]));
+$navigationHtml = $bare ? '' : trim($this->partial('partials/nav', ['navigation' => $navigation]));
 ?>
 <!doctype html>
 <html lang="en">
@@ -30,8 +32,9 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
     <?= $this->section('head') ?>
     <script type="module" src="<?= $this->e($assets->shared('js/shell.js')) ?>"></script>
 </head>
-<body class="app-pos">
+<body class="app-pos<?= $bare ? ' app-pos--bare' : '' ?>">
     <a class="skip-link" href="#main">Skip to the main content</a>
+<?php if (!$bare): ?>
     <header class="shell-header">
         <a class="shell-brand" href="<?= $this->e($homeUrl) ?>"><?= $this->e($organizationName) ?></a>
 <?php if ($navigationHtml !== ''): ?>
@@ -39,11 +42,14 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
 <?php endif; ?>
         <?= $navigationHtml ?>
     </header>
+<?php endif; ?>
     <main class="shell-main" id="main" tabindex="-1">
         <?= $this->section('content') ?>
     </main>
+<?php if (!$bare): ?>
     <footer class="shell-footer">
         <?= $this->section('footer') ?>
     </footer>
+<?php endif; ?>
 </body>
 </html>

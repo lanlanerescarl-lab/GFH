@@ -15,6 +15,14 @@ use Gfh\Core\Support\ListQuery;
  */
 final class PosApiController extends ApiController
 {
+    /** GET .../pos/terminals: the active terminals with their branch and whether a shift is open (the app's first screen). */
+    public function terminals(Request $request): Response
+    {
+        $services = $this->authorize($request, 'pos', 'view');
+
+        return Response::ok(['items' => $services->pos()->activeTerminals()]);
+    }
+
     /** GET .../pos/terminals/{id}/snapshot: everything the terminal needs to sell offline. */
     public function snapshot(Request $request): Response
     {
@@ -27,7 +35,12 @@ final class PosApiController extends ApiController
     {
         $services = $this->authorize($request, 'pos', 'view');
 
-        return Response::ok(['shift' => $services->pos()->currentShift($this->id($request))]);
+        $terminalId = $this->id($request);
+
+        return Response::ok([
+            'shift' => $services->pos()->currentShift($terminalId),
+            'next_receipt_number' => $services->pos()->nextReceiptNumberIfShiftOpen($terminalId),
+        ]);
     }
 
     /** POST .../pos/shifts with {terminal_id, opening_cash}. */

@@ -189,8 +189,9 @@ A cashier works only on their own shift unless they also have edit permission on
 
 | Method and path | Permission | Notes |
 | --- | --- | --- |
-| `GET /pos/terminals/{id}/snapshot` | pos view | Everything the terminal needs offline: terminal, VAT rate, payment methods, active discount rules, products (price, barcode, decimals rules, `on_hand` at the branch, quantity tiers, `media_id`), and an `etag` |
-| `GET /pos/terminals/{id}/shift` | pos view | `{shift}` or `{shift: null}` |
+| `GET /pos/terminals` | pos view | The terminals the POS app offers at start-up: `{items: [{id, code, name, branch_name, has_open_shift}]}`, active terminals only, ordered by branch name and code. Needs only pos view (the Settings terminal list needs Admin) |
+| `GET /pos/terminals/{id}/snapshot` | pos view | Everything the terminal needs offline: terminal (`id`, `code`, `name`, `branch_id`, `branch_name`, and `branch_address`, one printable line of address, city and province, empty when the branch has none), VAT rate, payment methods, active discount rules, products (price, barcode, decimals rules, `on_hand` at the branch, quantity tiers, `media_id`), and an `etag` |
+| `GET /pos/terminals/{id}/shift` | pos view | `{shift, next_receipt_number}`: the open shift and the receipt number to use next, or both `null` when no shift is open. The app needs the number when it resumes an open shift, because only opening a shift used to return it |
 | `POST /pos/shifts` | pos edit | `{terminal_id, opening_cash}`. 409 if the terminal already has an open shift. Returns `next_receipt_number` |
 | `POST /pos/shifts/{id}/close` | pos edit | `{counted_cash}`. Expected cash is the opening cash plus cash payments; the response has `expected_cash` and `variance` |
 | `POST /pos/sales` | pos edit | Uploads one sale: `{id, receipt_number, terminal_id, shift_id, sold_at, lines: [{variant_id, quantity, unit_price, discount?}], payments: [{method, amount, reference?}], discount?: {key, id_ref_last4?}, customer_id?}`. 201 for a new sale, 200 with `duplicate: true` when it was already uploaded |

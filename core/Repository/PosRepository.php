@@ -39,7 +39,8 @@ final class PosRepository
     public function terminal(string $id): ?array
     {
         return $this->rows(
-            'SELECT t.id, t.branch_id, t.code, t.name, t.status, b.name AS branch_name FROM terminals t JOIN branches b ON b.id = t.branch_id WHERE t.id = ?',
+            'SELECT t.id, t.branch_id, t.code, t.name, t.status, b.name AS branch_name, b.address AS branch_address, b.city AS branch_city, b.province AS branch_province '
+            . 'FROM terminals t JOIN branches b ON b.id = t.branch_id WHERE t.id = ?',
             [$id],
         )[0] ?? null;
     }
@@ -271,6 +272,20 @@ final class PosRepository
     public function terminals(): array
     {
         return $this->rows('SELECT t.id, t.code, t.name, t.status, b.name AS branch_name FROM terminals t JOIN branches b ON b.id = t.branch_id ORDER BY b.name, t.code');
+    }
+
+    /**
+     * The terminals a cashier can pick: active ones only, with their branch name and whether a shift is open on each.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function activeTerminals(): array
+    {
+        return $this->rows(
+            'SELECT t.id, t.code, t.name, b.name AS branch_name, '
+            . "EXISTS (SELECT 1 FROM pos_shifts sh WHERE sh.terminal_id = t.id AND sh.status = 'open') AS has_open_shift "
+            . "FROM terminals t JOIN branches b ON b.id = t.branch_id WHERE t.status = 'active' ORDER BY b.name, t.code",
+        );
     }
 
     public function needsReviewCount(): int

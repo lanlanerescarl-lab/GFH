@@ -46,6 +46,15 @@ php phpunit.phar --filter testCashierCannotEditProductsOrPrices
 
 Every database test runs inside a transaction that is rolled back, so tests do not affect each other or leave data behind.
 
+### JavaScript tests (the POS app)
+
+The POS app's pure modules are tested with Node's built-in runner (no package to install; Node 18 or newer). The test files are in `tests/js` and import the modules in `templates/pos/assets/js`.
+
+```powershell
+node --test tests/js/*.test.js    # works on every Node version; Node 22 treats a bare folder name as a file, so give the files
+node --test                       # also finds every *.test.js from the project root
+```
+
 ## Stage 2 acceptance rules and the tests that check them
 
 | Rule | Test |
@@ -332,3 +341,46 @@ No browser was used to build Batch 6.1: the PHP was tested through the router, a
 12. **Keyboard only.** From the top of any page, Tab reaches **Skip to the main content** first and it works; then the header, search, filters, cards and pagination in a sensible order; every link, button, checkbox, radio and select shows a clear focus ring; nothing needs a mouse; no focus trap except the open filter drawer.
 13. **Look.** Headings are in Source Serif 4, everything else in Inter; no font or script is fetched from another host (developer tools, Network tab: only your own host). If the organization has a `primary` branding color set, buttons, links, chips and the selected variant use it; nothing stays the default teal.
 14. **Touch targets.** At 360 px every link and button you would press with a thumb is at least 48 px high (nav links, chips, pagination, filter choices, breadcrumb links, the Filters button).
+
+## Batch 7.1 POS app (online): the tests that check it
+
+PHPUnit (database tests):
+
+| Rule | Test |
+| --- | --- |
+| Cashier, Manager and Admin load `/pos`; Staff gets the 403 page; a signed-out visitor is sent to `/pos/login` | `PosAppTest::testCashierManagerAndAdminLoadThePos`, `testStaffWithoutPosAccessGetsTheForbiddenPage`, `testASignedOutVisitorIsSentToThePosSignIn` |
+| The config block holds the CSRF token and no secret; a name with `</script>` cannot end it | `testTheConfigBlockHoldsTheCsrfTokenAndNoSecret`, `testAMarkupInAPersonsNameCannotEndTheConfigBlock` |
+| No POS page, script or stylesheet names another host | `testNoPosPageContainsAUrlToAnotherHost`, `testNoPosScriptOrStylesheetMentionsAnotherHost` |
+| POS sign-in: same message for a wrong email and a wrong password, lockout at `LOGIN_MAX_ATTEMPTS`, CSRF on sign-in and sign-out, return to `/pos` | `testAWrongEmailAndAWrongPasswordGetTheSameMessage`, `testRepeatedFailuresLockThePosSignInAndEvenTheRightPasswordIsRefused`, `testSigningInAndOutNeedsACsrfToken`, `testSigningInReturnsToThePos` |
+| `GET /api/v1/pos/terminals`: pos view only, active terminals only, open-shift flag | `testTheTerminalListHoldsOnlyActiveTerminalsWithTheirBranchAndShiftState`, `testTheTerminalListIsRefusedWithoutPosViewAndWithoutASession` |
+| The snapshot carries the branch address; the shift answer carries the next receipt number | `testTheSnapshotCarriesTheBranchAddressForTheReceipt`, `testTheCurrentShiftAnswerCarriesTheNextReceiptNumberWhenAShiftIsOpen` |
+| An `orgs/{slug}/pos/partials/receipt.php` file replaces the built-in receipt | `testAnOverrideOfTheReceiptPartialReplacesTheBuiltInOne` |
+| The new GET pages load through the real router | `AdminRouterSmokeTest` (`/pos` and `/pos/login`) |
+| The server's pricing and sale recomputation match 37 independently worked cases (`tests/fixtures/pos-pricing.json`) | `PosPricingContractTest` |
+
+Node (`node --test tests/js/*.test.js`): `pricing.test.js` (the same fixture through `pricing.js`, rounding, VAT, tiers, discount order), `ticket.test.js` (merging lines, decimal step and minimum, tiers, search, stock badges, the ID last four), `tender.test.js` (change, split payments, exact, shortfall, references, quick amounts), `receiptno.test.js`, `barcode.test.js` (leading zeros, UPC and EAN), `outbox.test.js` (the two-function contract), `api.test.js` (CSRF header, envelope, error mapping, a 401 and a `csrf_mismatch` re-signing in and retrying with a fake fetch), `receiptdata.test.js`, `format.test.js` (money, quantities, keypad, dates in Asia/Manila, the sale JSON).
+
+Not covered by any automated test: layout, touch, scanning, printing and the look of every screen. Those are the hand-check below.
+
+## Browser hand-check, Batch 7.1 POS app (online)
+
+Use a Chrome or Edge window and a Cashier account for the demo organization (the seed's `casey` cashier or one you add under Team). Have at least one terminal, a branch with an address, products with stock, a product that allows decimal quantities (for example sold by the kilo), one product with a quantity tier, one product with 0 on hand, a barcode on at least two products, and the senior and PWD discount rules switched on. Open the browser's developer tools Network tab and check that every request goes to your own site.
+
+1. Open `/demo/pos` signed out: you land on the POS sign-in. Sign in with a wrong password and with an unknown email: the same message shows both times and the email you typed stays. Sign in as the Cashier: you return to the POS. Sign in as a Staff account: the 403 page.
+2. Choose a terminal. Reload the page: the terminal is remembered and you go straight to the shift screen or the selling screen. Open the **Terminal** tab to choose again.
+3. On a terminal with no open shift, **Open shift** with `2000`: the keypad and the keyboard both work, and the status bar shows the terminal code, your name, "Open since" time, a clock in Philippine time, **Online** and **0 waiting**. Open the same terminal as another cashier (second browser): you see the plain "another cashier has a shift open" message and cannot sell.
+4. Selling with the keyboard only: press Tab to reach a product, press Enter to add it, use the plus and minus buttons and the quantity box with the keyboard, press Tab to **Discount** and **Pay**. The focus ring is visible at every step and never gets trapped.
+5. With the pointer or a hand held scanner (or by typing digits on the keyboard): type a product's barcode digits and press Enter: one unit is added and the box is empty. Type a barcode that does not exist: a clear red message. Type a barcode that starts with zeros: it finds the right product and not another. Type a product name: the grid narrows.
+6. Add the product sold by the kilo: it starts at its minimum. Type `1.5` in its quantity box; type `1.33` (not a multiple of the step): a message and the quantity is unchanged. Add the tiered product up to its tier: the line shows the tier price and its name.
+7. Add the product with 0 on hand, and ask for more than is in stock: an **Out of stock** or **Low stock** badge on the tile and a note on the line, but nothing blocks the sale. After paying, the receipt dialog says the sale was flagged for review, and the sale shows as **Needs review** in Admin, POS sales.
+8. **Discount**, choose Senior citizen: it asks for the last 4 characters only. Leave it empty (refused), type a whole ID number (refused), type `ab12` (accepted, shown in capitals on the receipt). The ticket shows the discount and a smaller total. Choose **No discount** to remove it. With no active rule the dialog says so.
+9. **Pay**: a split payment with GCash for part (it asks for a reference) and Cash for the rest. Cash shows the exact amount and round-up buttons; type more cash than is due: **Change due** appears in large type and **Complete sale** is on only when the payments cover the total. Complete the sale: the receipt shows organization, branch and address, terminal, receipt number, date and time in Philippine time, cashier, each line as quantity times price, the discount, VAT, total, payments, cash given and change.
+10. **Print**: choose Save as PDF, paper width 80 mm (or the Epson roll), margins none: only the receipt prints, 80 mm wide, in black on white, and nothing of the POS screen. Then **New sale**: the ticket is empty and the search box has the focus.
+11. Open the **Receipts** tab: the sale is listed with its receipt number, time and total. **Reprint** opens the same receipt from the server; it still shows the cash given and the change, because this tab remembers them. Reloading the page keeps the list; closing the tab starts a new list.
+12. Unplug the network (or tick Offline in the developer tools) and press **Complete sale**: the sale is not sent, the payment dialog says so, the ticket is untouched and the button reads **Retry**; the status bar says **Offline**. Reconnect and press Retry: the sale is saved once only (check POS sales in Admin).
+13. Session timeout during a sale: ring up a ticket, open Pay, then in another tab sign out of the same account (or wait out the session). Press **Complete sale**: a sign-in box opens over the payment. Try a wrong password (the message shows), then the right one: the sale is saved, its receipt shows, and the ticket was never lost. Press **Not now** instead: the payment dialog stays and the ticket is kept.
+14. Open the **Close shift** tab: type the counted cash, press **Close shift**, and confirm. The screen shows expected cash, counted cash and the variance in words, then **Back to the shift screen** offers Open shift again. Check the numbers against Admin, POS sales.
+15. **Sign out** with a ticket on screen: you are asked first. Signing out returns to the POS sign-in.
+16. Layout. At **1024 by 768** the products and the ticket sit side by side, nothing scrolls sideways and every button is easy to hit. At **768 by 1024** the ticket is a bar at the bottom showing the item count and total: tap it, the ticket slides up (quickly, and with no movement if the system asks for reduced motion), review, and Pay. At **390 pixels** wide the same bottom bar works, the status bar wraps without hiding anything, and the payment dialog, keypad and receipt are usable.
+17. Zoom the page to 200 percent and use a screen reader for one sale: totals and messages are announced, buttons have names such as "One more Coffee 250 g", and the dialogs keep the focus inside.
+18. On a tablet with no hardware keyboard note whether the on-screen keyboard opens after every tap on a product (the search box keeps the focus for scanners). Report this if it gets in the way.

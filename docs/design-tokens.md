@@ -111,6 +111,46 @@ Components in `templates/shop/assets/css/app.css` (one template per screen or pa
 
 Breakpoints: 560 px (3 and then 4 category tiles, auto-fill product grid), 720 px (menu button gone, header on one row), 840 px (listing and product pages in two columns, no filter drawer), 1000 px (4 tiles). Pictures carry `width` and `height` and load lazily (the first photo on a product page loads at high priority instead). Focus rings come from `base.css`. Contrast of the default palette, computed with the WCAG formula (every text pair is above 4.5 to 1): `--color-ink` on `--color-bg` 15.1, on the hero 13.8, on the chip background 14.5; `--color-muted` on `--color-bg` 7.1, on white 7.4, on the hero and footer 6.5, on the chip background 6.8; white on `--color-primary` 6.1 and on `--color-primary-strong` 9.8; `--color-primary` links on white 6.1; the "Out of stock" flag (`--color-flag`) on white 5.4 (it only appears on white cards); the disabled cart button 5.8. Non-text parts: control borders on white 3.2 and the placeholder mark 4.4 (both above 3). An organization's own branding colors are its responsibility; these figures describe the shipped palette only.
 
+## POS tokens and components (Batch 7.1)
+
+The POS set in `templates/pos/assets/css/tokens.css` is variables only. `templates/pos/assets/css/app.css` holds no hex or `rgb()` colour and no font name: every colour, font, radius and the main sizes come from a variable, so `/{org}/branding.css` (loaded last) re-themes the whole app.
+
+### POS-only variables
+
+| Variable | Value | Used for |
+| --- | --- | --- |
+| `--control-min` | `48px` | Smallest height or width of any control (a quiet button, a chip, a tab) |
+| `--control-height` | `56px` | Text boxes and the search box |
+| `--control-large` | `68px` | The Pay button, Complete sale, Open shift, terminal choices |
+| `--key-size` | `72px` | Keypad keys |
+| `--pos-status-height` | `52px` | Status bar minimum height |
+| `--pos-tile-min` / `--pos-tile-media` | `156px` / `96px` | Product tile width and photo height |
+| `--pos-ticket-width` | `410px` | Ticket column at 1024 px and wider |
+| `--pos-drawer-peek` | `68px` | The ticket drawer's handle height below 1024 px |
+| `--pos-dialog-width` / `--pos-dialog-wide-width` | `560px` / `720px` | Dialogs |
+| `--pos-keypad-width` | `320px` | Cash keypad |
+| `--text-total` / `--text-due` / `--text-change` / `--text-amount` | `2.25rem` / `2.5rem` / `3.25rem` / `1.75rem` | The ticket total, total due and still due, change due, and typed amounts |
+| `--color-status-bg`, `--color-status-ink`, `--color-status-muted`, `--color-status-ok`, `--color-status-warn` | dark slate and light tints | The status bar (dark, so it frames the work) |
+| `--color-on-primary`, `--color-on-pay`, `--color-pay` | white, white, `var(--status-ok-ink)` | Text on blue and green buttons; the Pay button colour |
+| `--receipt-bg`, `--receipt-ink`, `--receipt-rule`, `--receipt-font`, `--receipt-font-size`, `--receipt-width` | white, black, black, monospace stack, `12px`, `80mm` | The receipt, on screen and on paper. It stays black on white whatever the theme |
+
+### POS components (all in `app.css`)
+
+| Class | What it is |
+| --- | --- |
+| `.pos-status`, `.pos-pill` (`--ok`, `--warn`, `--danger`, `--quiet`) | The status bar on every screen and its pills (online state, waiting sales, stock, shift). A pill always carries a word as well as a colour |
+| `.pos-tabs`, `.pos-tab` | Screen tabs under the status bar; the current one has `aria-current="page"` |
+| `.pos-button` (`--primary`, `--pay`, `--danger`, `--quiet`, `--chip`, `--icon`, `--large`, `--block`) | Buttons, all at least `--control-min` high |
+| `.pos-input`, `.pos-amount`, `.pos-field`, `.pos-hint`, `.pos-field-error` | Fields and their messages |
+| `.pos-keypad`, `.pos-key` | The on-screen number keypad with a real input as its display |
+| `.pos-sell`, `.pos-catalog`, `.pos-grid`, `.pos-tile` | The sell screen: grid and ticket side by side from 1024 px up |
+| `.pos-ticket` (`.is-open`), `.pos-ticket__handle`, `.pos-line`, `.pos-qty`, `.pos-totals` | The ticket. Below 1024 px it is a bottom drawer that slides over `--motion-base`; at 1024 px and wider it is a column |
+| `.pos-dialog` (`--wide`, `--receipt`) | Modal dialogs on the native `<dialog>` element |
+| `.pos-due`, `.pos-payment`, `.pos-quick`, `.pos-settle` | Payment: total due, a payment, quick cash amounts, and paid, still due and change due in large type |
+| `.receipt` and `.receipt__*`, `.print-sheet` | The 80 mm receipt and the hidden sheet that is printed (`@page { size: 80mm 297mm }`) |
+
+Rules the POS keeps: focus is a 3 px outline (`--color-focus`) on every control; no control depends on hover; totals and status messages sit in `aria-live` regions; motion is `--motion-base` or shorter and the shared tokens set it to `0ms` under `prefers-reduced-motion`; icons are inline SVG drawn in `icons.js`, with no icon font; fonts are the self-hosted Inter and Source Serif 4.
+
 ## Shared chart theme
 
 Admin charts and KPI sparklines read their palette from CSS variables so they always match the active theme:

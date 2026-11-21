@@ -36,6 +36,7 @@ use Gfh\Core\Controller\BrandingController;
 use Gfh\Core\Controller\Shop\HomeController as ShopHomeController;
 use Gfh\Core\Controller\Shop\ProductController as ShopProductController;
 use Gfh\Core\Controller\Shop\ProductListController as ShopListingController;
+use Gfh\Core\Controller\Pos\PosShellController;
 use Gfh\Core\Controller\StaffPagesController;
 use Gfh\Core\Controller\SystemController;
 use Gfh\Core\Http\Middleware\CsrfMiddleware;
@@ -81,6 +82,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminDiscounts = new DiscountRulesController($services);
     $adminOrderSteps = new OrderStepsController($services);
     $adminGeneralSettings = new OrganizationSettingsController($services);
+    $posShell = new PosShellController($services);
     $branding = new BrandingController();
     $shopHome = new ShopHomeController($services);
     $shopListing = new ShopListingController($services);
@@ -113,7 +115,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
-        $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $branding,
+        $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $branding,
         $shopHome, $shopListing, $shopProduct,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
@@ -218,6 +220,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/api/v1/admin/reports/dashboard', static fn (Request $q) => $reports->dashboard($q), $staff);
 
         // --- JSON: POS
+        $r->get('/api/v1/pos/terminals', static fn (Request $q) => $posApi->terminals($q), $staff);
         $r->get('/api/v1/pos/terminals/{id}/snapshot', static fn (Request $q) => $posApi->snapshot($q), $staff);
         $r->get('/api/v1/pos/terminals/{id}/shift', static fn (Request $q) => $posApi->currentShift($q), $staff);
         $r->post('/api/v1/pos/shifts', static fn (Request $q) => $posApi->openShift($q), $staff);
@@ -235,6 +238,12 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/shop', static fn (Request $q) => $shopHome->index($q), [$tenant, $customerOptional]);
         $r->get('/shop/products', static fn (Request $q) => $shopListing->index($q), [$tenant, $customerOptional]);
         $r->get('/shop/products/{slug}', static fn (Request $q) => $shopProduct->show($q), [$tenant, $customerOptional]);
+        // --- POS pages. The shell sends a signed-out visitor to the POS sign-in itself (RequireStaffMiddleware would
+        // send them to the Admin sign-in), so these routes carry only the tenant and the staff session.
+        $r->get('/pos', static fn (Request $q) => $posShell->shell($q), [$tenant, $staffSession]);
+        $r->get('/pos/login', static fn (Request $q) => $posShell->loginForm($q), [$tenant, $staffSession]);
+        $r->post('/pos/login', static fn (Request $q) => $posShell->loginSubmit($q), [$tenant, $staffSession, $csrf]);
+        $r->post('/pos/logout', static fn (Request $q) => $posShell->logout($q), [$tenant, $staffSession, $csrf]);
 
         // --- Pages
         $r->get('/admin', static fn (Request $q) => $adminDashboard->index($q), [$tenant, $staffSession, $requireStaff]);

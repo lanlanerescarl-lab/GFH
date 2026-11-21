@@ -114,6 +114,17 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
 
             $this->assertSame([], $failures, implode("\n", $failures));
 
+            // Batch 7.1: the POS app's pages. The shell as the signed-in Admin (who holds pos view), and the POS sign-in
+            // as a signed-out visitor (a signed-in one is sent on to the app, which is its own check in PosAppTest).
+            $signedOut = new Services($app, false, $this->core, $this->org, testSessions: ['staff' => Session::inMemory('staff', $app->config(), [])]);
+            foreach ([["/$slug/pos", $services, 'id="pos-app"'], ["/$slug/pos/login", $signedOut, 'name="password"']] as [$path, $desk, $marker]) {
+                $response = $app->handle(new Request('GET', $path), $desk);
+                $this->assertSame(200, $response->status(), "GET $path");
+                $this->assertStringContainsString('<!doctype html>', strtolower($response->body()), "GET $path did not render the HTML shell.");
+                $this->assertStringContainsString('Skip to the main content', $response->body(), "GET $path missed the POS layout.");
+                $this->assertStringContainsString($marker, $response->body(), "GET $path did not render its page.");
+            }
+
             // Batch 5.4a: the Reports page in each view, through the real router, with the current Manila date.
             $manilaToday = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
             foreach ([

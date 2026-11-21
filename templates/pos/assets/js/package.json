@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks the POS modules as ES modules for Node, so tests/js can import them. Not published and not used by the browser."
+}

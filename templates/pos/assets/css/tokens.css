@@ -1,6 +1,7 @@
 /*
  * POS token set: high contrast and large touch targets for a counter screen used all day. Defined only as CSS
  * variables so an organization's branding (/{org}/branding.css, loaded after this file) can re-theme it.
+ * Every color, font, radius and size the POS uses is a variable from here or from the shared token set.
  * See docs/design-tokens.md.
  */
 :root {
@@ -8,6 +9,7 @@
   --pos-blue-600: #1d4ed8;
   --pos-blue-900: #1e3a8a;
   --pos-slate-50: #f4f6f8;
+  --pos-slate-900: #111827;
 
   --color-bg: var(--pos-slate-50);
   --color-surface: #ffffff;
@@ -16,6 +18,7 @@
   --color-muted: #374151;
   --color-primary: var(--pos-blue-600);
   --color-primary-strong: var(--pos-blue-900);
+  --color-on-primary: #ffffff;
   --color-heading: var(--color-ink);
   --color-accent: var(--pos-blue-600);
   --color-accent-soft: var(--pos-blue-50);
@@ -24,13 +27,44 @@
   --color-border: #6b7280;
   --color-border-soft: #d1d5db;
   --color-pay: var(--status-ok-ink);
+  --color-on-pay: #ffffff;
   --color-offline: var(--status-warn-ink);
+
+  /* Status bar: dark, so it reads as the frame around the work. */
+  --color-status-bg: var(--pos-slate-900);
+  --color-status-ink: #ffffff;
+  --color-status-muted: #d1d5db;
+  --color-status-ok: #86efac;
+  --color-status-warn: #fcd34d;
+
+  /* Receipt: always black on white, whatever the theme, because it is printed. */
+  --receipt-bg: #ffffff;
+  --receipt-ink: #000000;
+  --receipt-rule: #000000;
+  --receipt-font: ui-monospace, "Cascadia Mono", Consolas, "Courier New", monospace;
+  --receipt-font-size: 12px;
+  --receipt-width: 80mm;
 
   --radius-card: 12px;
   --radius-control: 10px;
 
   --text-md: 1.0625rem;
+  --text-total: 2.25rem;
+  --text-due: 2.5rem;
+  --text-change: 3.25rem;
+  --text-amount: 1.75rem;
+
   --control-height: 56px;
+  --control-min: 48px;
+  --control-large: 68px;
   --key-size: 72px;
+  --pos-status-height: 52px;
+  --pos-tile-min: 156px;
+  --pos-tile-media: 96px;
+  --pos-ticket-width: 410px;
+  --pos-drawer-peek: 68px;
+  --pos-dialog-width: 560px;
+  --pos-dialog-wide-width: 720px;
+  --pos-keypad-width: 320px;
   --page-width: none;
 }

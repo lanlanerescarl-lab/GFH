@@ -1,0 +1,1599 @@
+{
+  "description": "POS pricing contract. Prices are VAT-inclusive (12% VAT extracted), amounts are strings in pesos, quantities are strings. Expected values were worked out with exact fractions (round half away from zero), independently of the PHP and JavaScript code. PHP: tests/Database/PosPricingContractTest.php. JavaScript: tests/js/pricing.test.js.",
+  "vat_rate_percent": 12,
+  "cases": [
+    {
+      "name": "one whole item, no tier, no discount",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "112.00"
+          }
+        ],
+        "subtotal": "112.00",
+        "discount_total": "0.00",
+        "total": "112.00",
+        "vat_amount": "12.00"
+      }
+    },
+    {
+      "name": "three of the same item below any tier",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "3"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "3.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "336.00"
+          }
+        ],
+        "subtotal": "336.00",
+        "discount_total": "0.00",
+        "total": "336.00",
+        "vat_amount": "36.00"
+      }
+    },
+    {
+      "name": "an awkward price: 99.99 (VAT does not divide evenly)",
+      "products": {
+        "a": {
+          "price": "99.99",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "99.99",
+            "tier_label": null,
+            "line_total": "99.99"
+          }
+        ],
+        "subtotal": "99.99",
+        "discount_total": "0.00",
+        "total": "99.99",
+        "vat_amount": "10.71"
+      }
+    },
+    {
+      "name": "rounding edge: 0.14 puts VAT exactly on a half centavo",
+      "products": {
+        "a": {
+          "price": "0.14",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "0.14",
+            "tier_label": null,
+            "line_total": "0.14"
+          }
+        ],
+        "subtotal": "0.14",
+        "discount_total": "0.00",
+        "total": "0.14",
+        "vat_amount": "0.01"
+      }
+    },
+    {
+      "name": "rounding edge: 0.42 puts VAT exactly on a half centavo",
+      "products": {
+        "a": {
+          "price": "0.42",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "0.42",
+            "tier_label": null,
+            "line_total": "0.42"
+          }
+        ],
+        "subtotal": "0.42",
+        "discount_total": "0.00",
+        "total": "0.42",
+        "vat_amount": "0.04"
+      }
+    },
+    {
+      "name": "smallest price: one centavo",
+      "products": {
+        "a": {
+          "price": "0.01",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "0.01",
+            "tier_label": null,
+            "line_total": "0.01"
+          }
+        ],
+        "subtotal": "0.01",
+        "discount_total": "0.00",
+        "total": "0.01",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "quantity tier applies exactly at its minimum",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "3",
+              "price": "100.00",
+              "label": "3 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "3"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "3.000",
+            "unit_price": "100.00",
+            "tier_label": "3 or more",
+            "line_total": "300.00"
+          }
+        ],
+        "subtotal": "300.00",
+        "discount_total": "0.00",
+        "total": "300.00",
+        "vat_amount": "32.14"
+      }
+    },
+    {
+      "name": "quantity just below a tier keeps the retail price",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "3",
+              "price": "100.00",
+              "label": "3 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "2"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "2.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "224.00"
+          }
+        ],
+        "subtotal": "224.00",
+        "discount_total": "0.00",
+        "total": "224.00",
+        "vat_amount": "24.00"
+      }
+    },
+    {
+      "name": "several tiers: the lowest matching price wins",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "3",
+              "price": "100.00",
+              "label": "3 or more"
+            },
+            {
+              "min_qty": "10",
+              "price": "90.00",
+              "label": "10 or more"
+            },
+            {
+              "min_qty": "24",
+              "price": "80.00",
+              "label": "24 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "12"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "12.000",
+            "unit_price": "90.00",
+            "tier_label": "10 or more",
+            "line_total": "1080.00"
+          }
+        ],
+        "subtotal": "1080.00",
+        "discount_total": "0.00",
+        "total": "1080.00",
+        "vat_amount": "115.71"
+      }
+    },
+    {
+      "name": "several tiers: the largest tier is reached",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "3",
+              "price": "100.00",
+              "label": "3 or more"
+            },
+            {
+              "min_qty": "10",
+              "price": "90.00",
+              "label": "10 or more"
+            },
+            {
+              "min_qty": "24",
+              "price": "80.00",
+              "label": "24 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "30"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "30.000",
+            "unit_price": "80.00",
+            "tier_label": "24 or more",
+            "line_total": "2400.00"
+          }
+        ],
+        "subtotal": "2400.00",
+        "discount_total": "0.00",
+        "total": "2400.00",
+        "vat_amount": "257.14"
+      }
+    },
+    {
+      "name": "decimal quantity: 0.250 kg at 99.99",
+      "products": {
+        "a": {
+          "price": "99.99",
+          "decimals": true,
+          "step": "0.001",
+          "min": "0.001",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "0.250"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "0.250",
+            "unit_price": "99.99",
+            "tier_label": null,
+            "line_total": "25.00"
+          }
+        ],
+        "subtotal": "25.00",
+        "discount_total": "0.00",
+        "total": "25.00",
+        "vat_amount": "2.68"
+      }
+    },
+    {
+      "name": "decimal quantity: line total on a half centavo (0.5 at 0.03)",
+      "products": {
+        "a": {
+          "price": "0.03",
+          "decimals": true,
+          "step": "0.5",
+          "min": "0.5",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "0.5"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "0.500",
+            "unit_price": "0.03",
+            "tier_label": null,
+            "line_total": "0.02"
+          }
+        ],
+        "subtotal": "0.02",
+        "discount_total": "0.00",
+        "total": "0.02",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "decimal quantity with step 0.25 and minimum 0.5",
+      "products": {
+        "a": {
+          "price": "85.40",
+          "decimals": true,
+          "step": "0.25",
+          "min": "0.5",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1.75"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.750",
+            "unit_price": "85.40",
+            "tier_label": null,
+            "line_total": "149.45"
+          }
+        ],
+        "subtotal": "149.45",
+        "discount_total": "0.00",
+        "total": "149.45",
+        "vat_amount": "16.01"
+      }
+    },
+    {
+      "name": "decimal quantity with three decimals: 12.345 kg at 187.65",
+      "products": {
+        "a": {
+          "price": "187.65",
+          "decimals": true,
+          "step": "0.001",
+          "min": "0.001",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "12.345"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "12.345",
+            "unit_price": "187.65",
+            "tier_label": null,
+            "line_total": "2316.54"
+          }
+        ],
+        "subtotal": "2316.54",
+        "discount_total": "0.00",
+        "total": "2316.54",
+        "vat_amount": "248.20"
+      }
+    },
+    {
+      "name": "decimal quantity can reach a tier",
+      "products": {
+        "a": {
+          "price": "120.00",
+          "decimals": true,
+          "step": "0.5",
+          "min": "0.5",
+          "tiers": [
+            {
+              "min_qty": "5",
+              "price": "110.00",
+              "label": "5 kg or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "5.5"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "5.500",
+            "unit_price": "110.00",
+            "tier_label": "5 kg or more",
+            "line_total": "605.00"
+          }
+        ],
+        "subtotal": "605.00",
+        "discount_total": "0.00",
+        "total": "605.00",
+        "vat_amount": "64.82"
+      }
+    },
+    {
+      "name": "several lines, no discount",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        },
+        "b": {
+          "price": "45.50",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        },
+        "c": {
+          "price": "1299.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "2"
+        },
+        {
+          "product": "b",
+          "quantity": "3"
+        },
+        {
+          "product": "c",
+          "quantity": "1"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "2.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "224.00"
+          },
+          {
+            "product": "b",
+            "quantity": "3.000",
+            "unit_price": "45.50",
+            "tier_label": null,
+            "line_total": "136.50"
+          },
+          {
+            "product": "c",
+            "quantity": "1.000",
+            "unit_price": "1299.00",
+            "tier_label": null,
+            "line_total": "1299.00"
+          }
+        ],
+        "subtotal": "1659.50",
+        "discount_total": "0.00",
+        "total": "1659.50",
+        "vat_amount": "177.80"
+      }
+    },
+    {
+      "name": "three decimal lines on different products: rounded per line, then added (3 x 3.35, not 10.04)",
+      "products": {
+        "a": {
+          "price": "10.05",
+          "decimals": true,
+          "step": "0.001",
+          "min": "0.001",
+          "tiers": []
+        },
+        "b": {
+          "price": "10.05",
+          "decimals": true,
+          "step": "0.001",
+          "min": "0.001",
+          "tiers": []
+        },
+        "c": {
+          "price": "10.05",
+          "decimals": true,
+          "step": "0.001",
+          "min": "0.001",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "0.333"
+        },
+        {
+          "product": "b",
+          "quantity": "0.333"
+        },
+        {
+          "product": "c",
+          "quantity": "0.333"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "0.333",
+            "unit_price": "10.05",
+            "tier_label": null,
+            "line_total": "3.35"
+          },
+          {
+            "product": "b",
+            "quantity": "0.333",
+            "unit_price": "10.05",
+            "tier_label": null,
+            "line_total": "3.35"
+          },
+          {
+            "product": "c",
+            "quantity": "0.333",
+            "unit_price": "10.05",
+            "tier_label": null,
+            "line_total": "3.35"
+          }
+        ],
+        "subtotal": "10.05",
+        "discount_total": "0.00",
+        "total": "10.05",
+        "vat_amount": "1.08"
+      }
+    },
+    {
+      "name": "mixed cart: whole, decimal and tiered lines",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "6",
+              "price": "99.00",
+              "label": "6 or more"
+            }
+          ]
+        },
+        "k": {
+          "price": "250.00",
+          "decimals": true,
+          "step": "0.05",
+          "min": "0.1",
+          "tiers": []
+        },
+        "w": {
+          "price": "18.75",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "6"
+        },
+        {
+          "product": "k",
+          "quantity": "1.35"
+        },
+        {
+          "product": "w",
+          "quantity": "4"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "6.000",
+            "unit_price": "99.00",
+            "tier_label": "6 or more",
+            "line_total": "594.00"
+          },
+          {
+            "product": "k",
+            "quantity": "1.350",
+            "unit_price": "250.00",
+            "tier_label": null,
+            "line_total": "337.50"
+          },
+          {
+            "product": "w",
+            "quantity": "4.000",
+            "unit_price": "18.75",
+            "tier_label": null,
+            "line_total": "75.00"
+          }
+        ],
+        "subtotal": "1006.50",
+        "discount_total": "0.00",
+        "total": "1006.50",
+        "vat_amount": "107.84"
+      }
+    },
+    {
+      "name": "senior (VAT-exempt 20%) on one item",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "112.00"
+          }
+        ],
+        "subtotal": "112.00",
+        "discount_total": "32.00",
+        "total": "80.00",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "senior on an awkward amount: 99.99",
+      "products": {
+        "a": {
+          "price": "99.99",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "99.99",
+            "tier_label": null,
+            "line_total": "99.99"
+          }
+        ],
+        "subtotal": "99.99",
+        "discount_total": "28.57",
+        "total": "71.42",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "PWD (VAT-exempt 20%) on a larger cart",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        },
+        "b": {
+          "price": "45.50",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "2"
+        },
+        {
+          "product": "b",
+          "quantity": "3"
+        }
+      ],
+      "discount": {
+        "key": "pwd",
+        "label": "PWD",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "2.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "224.00"
+          },
+          {
+            "product": "b",
+            "quantity": "3.000",
+            "unit_price": "45.50",
+            "tier_label": null,
+            "line_total": "136.50"
+          }
+        ],
+        "subtotal": "360.50",
+        "discount_total": "103.00",
+        "total": "257.50",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "senior on a tiered line",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "5",
+              "price": "100.00",
+              "label": "5 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "5"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "5.000",
+            "unit_price": "100.00",
+            "tier_label": "5 or more",
+            "line_total": "500.00"
+          }
+        ],
+        "subtotal": "500.00",
+        "discount_total": "142.86",
+        "total": "357.14",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "senior on a decimal quantity",
+      "products": {
+        "k": {
+          "price": "250.00",
+          "decimals": true,
+          "step": "0.05",
+          "min": "0.1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "k",
+          "quantity": "1.5"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "k",
+            "quantity": "1.500",
+            "unit_price": "250.00",
+            "tier_label": null,
+            "line_total": "375.00"
+          }
+        ],
+        "subtotal": "375.00",
+        "discount_total": "107.14",
+        "total": "267.86",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "senior on a mixed cart",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "6",
+              "price": "99.00",
+              "label": "6 or more"
+            }
+          ]
+        },
+        "k": {
+          "price": "250.00",
+          "decimals": true,
+          "step": "0.05",
+          "min": "0.1",
+          "tiers": []
+        },
+        "w": {
+          "price": "18.75",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "6"
+        },
+        {
+          "product": "k",
+          "quantity": "1.35"
+        },
+        {
+          "product": "w",
+          "quantity": "4"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "6.000",
+            "unit_price": "99.00",
+            "tier_label": "6 or more",
+            "line_total": "594.00"
+          },
+          {
+            "product": "k",
+            "quantity": "1.350",
+            "unit_price": "250.00",
+            "tier_label": null,
+            "line_total": "337.50"
+          },
+          {
+            "product": "w",
+            "quantity": "4.000",
+            "unit_price": "18.75",
+            "tier_label": null,
+            "line_total": "75.00"
+          }
+        ],
+        "subtotal": "1006.50",
+        "discount_total": "287.57",
+        "total": "718.93",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "order matters at the centavo: senior on 0.05 (VAT first gives 0.03, percent first would give 0.04)",
+      "products": {
+        "a": {
+          "price": "0.05",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "0.05",
+            "tier_label": null,
+            "line_total": "0.05"
+          }
+        ],
+        "subtotal": "0.05",
+        "discount_total": "0.02",
+        "total": "0.03",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "order matters at the centavo: senior on 0.13",
+      "products": {
+        "a": {
+          "price": "0.13",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "0.13",
+            "tier_label": null,
+            "line_total": "0.13"
+          }
+        ],
+        "subtotal": "0.13",
+        "discount_total": "0.03",
+        "total": "0.10",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "order matters at the centavo: senior on 50.10",
+      "products": {
+        "a": {
+          "price": "50.10",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "50.10",
+            "tier_label": null,
+            "line_total": "50.10"
+          }
+        ],
+        "subtotal": "50.10",
+        "discount_total": "14.32",
+        "total": "35.78",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "order matters at the centavo: senior on 50.25",
+      "products": {
+        "a": {
+          "price": "50.25",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "pwd",
+        "label": "PWD",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "50.25",
+            "tier_label": null,
+            "line_total": "50.25"
+          }
+        ],
+        "subtotal": "50.25",
+        "discount_total": "14.35",
+        "total": "35.90",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "senior with half the price off (50%) on 1234.56",
+      "products": {
+        "a": {
+          "price": "1234.56",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "half",
+        "label": "Half off",
+        "percent": "50.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "1234.56",
+            "tier_label": null,
+            "line_total": "1234.56"
+          }
+        ],
+        "subtotal": "1234.56",
+        "discount_total": "683.42",
+        "total": "551.14",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "VAT-exempt rule at 0% only removes the VAT",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "2"
+        }
+      ],
+      "discount": {
+        "key": "exempt",
+        "label": "VAT exempt",
+        "percent": "0.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "2.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "224.00"
+          }
+        ],
+        "subtotal": "224.00",
+        "discount_total": "24.00",
+        "total": "200.00",
+        "vat_amount": "0.00"
+      }
+    },
+    {
+      "name": "plain 10% promotion keeps VAT inside the discounted total",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "promo10",
+        "label": "Promo 10%",
+        "percent": "10.00",
+        "vat_exempt": false
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "112.00"
+          }
+        ],
+        "subtotal": "112.00",
+        "discount_total": "11.20",
+        "total": "100.80",
+        "vat_amount": "10.80"
+      }
+    },
+    {
+      "name": "plain 5% promotion on a half-centavo discount (1.10)",
+      "products": {
+        "a": {
+          "price": "1.10",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "promo5",
+        "label": "Promo 5%",
+        "percent": "5.00",
+        "vat_exempt": false
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "1.10",
+            "tier_label": null,
+            "line_total": "1.10"
+          }
+        ],
+        "subtotal": "1.10",
+        "discount_total": "0.06",
+        "total": "1.04",
+        "vat_amount": "0.11"
+      }
+    },
+    {
+      "name": "plain 12.5% promotion (two decimals of percent)",
+      "products": {
+        "a": {
+          "price": "333.33",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "promo125",
+        "label": "Promo 12.5%",
+        "percent": "12.50",
+        "vat_exempt": false
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "333.33",
+            "tier_label": null,
+            "line_total": "333.33"
+          }
+        ],
+        "subtotal": "333.33",
+        "discount_total": "41.67",
+        "total": "291.66",
+        "vat_amount": "31.25"
+      }
+    },
+    {
+      "name": "plain 0% promotion changes nothing",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "1"
+        }
+      ],
+      "discount": {
+        "key": "promo0",
+        "label": "No discount",
+        "percent": "0.00",
+        "vat_exempt": false
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "1.000",
+            "unit_price": "112.00",
+            "tier_label": null,
+            "line_total": "112.00"
+          }
+        ],
+        "subtotal": "112.00",
+        "discount_total": "0.00",
+        "total": "112.00",
+        "vat_amount": "12.00"
+      }
+    },
+    {
+      "name": "large quantity and price",
+      "products": {
+        "a": {
+          "price": "1499.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": []
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "999"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "999.000",
+            "unit_price": "1499.00",
+            "tier_label": null,
+            "line_total": "1497501.00"
+          }
+        ],
+        "subtotal": "1497501.00",
+        "discount_total": "0.00",
+        "total": "1497501.00",
+        "vat_amount": "160446.54"
+      }
+    },
+    {
+      "name": "the same product entered twice is one line, and its tier sees the total quantity (2 + 2)",
+      "products": {
+        "a": {
+          "price": "112.00",
+          "decimals": false,
+          "step": "1",
+          "min": "1",
+          "tiers": [
+            {
+              "min_qty": "3",
+              "price": "100.00",
+              "label": "3 or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "a",
+          "quantity": "2"
+        },
+        {
+          "product": "a",
+          "quantity": "2"
+        }
+      ],
+      "discount": null,
+      "expected": {
+        "lines": [
+          {
+            "product": "a",
+            "quantity": "4.000",
+            "unit_price": "100.00",
+            "tier_label": "3 or more",
+            "line_total": "400.00"
+          }
+        ],
+        "subtotal": "400.00",
+        "discount_total": "0.00",
+        "total": "400.00",
+        "vat_amount": "42.86"
+      }
+    },
+    {
+      "name": "the same product twice with a decimal step (0.25 + 1.5) and a senior discount",
+      "products": {
+        "k": {
+          "price": "250.00",
+          "decimals": true,
+          "step": "0.25",
+          "min": "0.25",
+          "tiers": [
+            {
+              "min_qty": "1.5",
+              "price": "240.00",
+              "label": "1.5 kg or more"
+            }
+          ]
+        }
+      },
+      "lines": [
+        {
+          "product": "k",
+          "quantity": "0.25"
+        },
+        {
+          "product": "k",
+          "quantity": "1.5"
+        }
+      ],
+      "discount": {
+        "key": "senior",
+        "label": "Senior citizen",
+        "percent": "20.00",
+        "vat_exempt": true
+      },
+      "expected": {
+        "lines": [
+          {
+            "product": "k",
+            "quantity": "1.750",
+            "unit_price": "240.00",
+            "tier_label": "1.5 kg or more",
+            "line_total": "420.00"
+          }
+        ],
+        "subtotal": "420.00",
+        "discount_total": "120.00",
+        "total": "300.00",
+        "vat_amount": "0.00"
+      }
+    }
+  ]
+}
