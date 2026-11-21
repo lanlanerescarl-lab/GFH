@@ -26,6 +26,17 @@ abstract class ShopTestCase extends DatabaseTestCase
     /** @var array<string, mixed> the organization customer row of the signed-in customer, once signedInCustomer() ran */
     protected array $customer = [];
 
+    /**
+     * App::boot() installs PHP's error and exception handlers. Remove them again after every test, as the other
+     * test classes that boot the App do, or PHPUnit 11 marks the test risky.
+     */
+    protected function tearDown(): void
+    {
+        restore_error_handler();
+        restore_exception_handler();
+        parent::tearDown();
+    }
+
     protected function bootShop(): void
     {
         $this->slug = 'shop-' . bin2hex(random_bytes(3));
