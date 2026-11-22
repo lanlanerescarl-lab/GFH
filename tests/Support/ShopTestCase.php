@@ -25,15 +25,19 @@ abstract class ShopTestCase extends DatabaseTestCase
     protected Services $customerServices;
     /** @var array<string, mixed> the organization customer row of the signed-in customer, once signedInCustomer() ran */
     protected array $customer = [];
+    private bool $booted = false;
 
     /**
-     * App::boot() installs PHP's error and exception handlers. Remove them again after every test, as the other
-     * test classes that boot the App do, or PHPUnit 11 marks the test risky.
+     * App::boot() installs PHP's error and exception handlers. Remove them again after a test that booted the App, as
+     * the other test classes do. A test that never booted it (for example one that only uses Hooks) installed no
+     * handlers, and removing PHPUnit's own would make PHPUnit 11 mark the test risky.
      */
     protected function tearDown(): void
     {
-        restore_error_handler();
-        restore_exception_handler();
+        if ($this->booted) {
+            restore_error_handler();
+            restore_exception_handler();
+        }
         parent::tearDown();
     }
 
@@ -42,6 +46,7 @@ abstract class ShopTestCase extends DatabaseTestCase
         $this->slug = 'shop-' . bin2hex(random_bytes(3));
         $this->kit->organization($this->slug);
         $this->app = App::boot(dirname(__DIR__, 2));
+        $this->booted = true;
         $this->guestServices = new Services($this->app, false, $this->core, $this->org);
         $this->customerServices = $this->guestServices;
     }

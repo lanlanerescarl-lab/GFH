@@ -51,9 +51,10 @@ Every database test runs inside a transaction that is rolled back, so tests do n
 The POS app's pure modules are tested with Node's built-in runner (no package to install; Node 18 or newer). The test files are in `tests/js` and import the modules in `templates/pos/assets/js`.
 
 ```powershell
-node --test tests/js/*.test.js    # works on every Node version; Node 22 treats a bare folder name as a file, so give the files
-node --test                       # also finds every *.test.js from the project root
+node --test    # from the project root: finds every *.test.js on every Node version (18 and newer)
 ```
+
+Do not pass `tests/js/*.test.js`. PowerShell does not expand the `*`, and Node 18 and 20 do not expand it either (`Could not find ...\*.test.js`). Node 22 also treats a bare folder name as a file. The plain command works everywhere.
 
 ## Stage 2 acceptance rules and the tests that check them
 
@@ -358,7 +359,7 @@ PHPUnit (database tests):
 | The new GET pages load through the real router | `AdminRouterSmokeTest` (`/pos` and `/pos/login`) |
 | The server's pricing and sale recomputation match 37 independently worked cases (`tests/fixtures/pos-pricing.json`) | `PosPricingContractTest` |
 
-Node (`node --test tests/js/*.test.js`): `pricing.test.js` (the same fixture through `pricing.js`, rounding, VAT, tiers, discount order), `ticket.test.js` (merging lines, decimal step and minimum, tiers, search, stock badges, the ID last four), `tender.test.js` (change, split payments, exact, shortfall, references, quick amounts), `receiptno.test.js`, `barcode.test.js` (leading zeros, UPC and EAN), `outbox.test.js` (the two-function contract), `api.test.js` (CSRF header, envelope, error mapping, a 401 and a `csrf_mismatch` re-signing in and retrying with a fake fetch), `receiptdata.test.js`, `format.test.js` (money, quantities, keypad, dates in Asia/Manila, the sale JSON).
+Node (`node --test`): `pricing.test.js` (the same fixture through `pricing.js`, rounding, VAT, tiers, discount order), `ticket.test.js` (merging lines, decimal step and minimum, tiers, search, stock badges, the ID last four), `tender.test.js` (change, split payments, exact, shortfall, references, quick amounts), `receiptno.test.js`, `barcode.test.js` (leading zeros, UPC and EAN), `outbox.test.js` (the two-function contract), `api.test.js` (CSRF header, envelope, error mapping, a 401 and a `csrf_mismatch` re-signing in and retrying with a fake fetch), `receiptdata.test.js`, `format.test.js` (money, quantities, keypad, dates in Asia/Manila, the sale JSON).
 
 Not covered by any automated test: layout, touch, scanning, printing and the look of every screen. Those are the hand-check below.
 

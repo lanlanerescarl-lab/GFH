@@ -8,6 +8,7 @@ use Gfh\Core\Service\PricingService;
 use Gfh\Core\Support\Decimal;
 use Gfh\Core\Support\Uuid;
 use Gfh\Tests\Support\DatabaseTestCase;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * The POS pricing contract (tests/fixtures/pos-pricing.json). The same cases are run here through the real server
@@ -33,10 +34,8 @@ final class PosPricingContractTest extends DatabaseTestCase
         $this->assertGreaterThanOrEqual(25, count(self::cases()));
     }
 
-    /**
-     * @dataProvider cases
-     * @param array<string, mixed> $case
-     */
+    /** @param array<string, mixed> $case */
+    #[DataProvider('cases')]
     public function testServerPricingAndSaleRecomputationMatchTheContract(array $case): void
     {
         $branch = $this->shop->branch('S1');

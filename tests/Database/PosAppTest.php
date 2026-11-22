@@ -14,6 +14,7 @@ use Gfh\Core\Support\Services;
 use Gfh\Core\Tenancy\Organization;
 use Gfh\Tests\Support\DatabaseTestCase;
 use Gfh\Tests\Support\TestKit;
+use PHPUnit\Framework\Attributes\DataProvider;
 
 /**
  * Batch 7.1: the POS app's pages (/{org}/pos, /{org}/pos/login) and the terminal list the app starts from.
@@ -127,7 +128,7 @@ final class PosAppTest extends DatabaseTestCase
         return ['cashier' => ['cashier'], 'manager' => ['manager'], 'admin' => ['admin']];
     }
 
-    /** @dataProvider allowedRoles */
+    #[DataProvider('allowedRoles')]
     public function testCashierManagerAndAdminLoadThePos(string $role): void
     {
         $response = $this->call($this->desk($this->{$role}), 'GET', $this->pos());
