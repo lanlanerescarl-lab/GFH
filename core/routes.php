@@ -33,7 +33,10 @@ use Gfh\Core\Controller\Api\ProcurementAdminController;
 use Gfh\Core\Controller\Api\ReportController;
 use Gfh\Core\Controller\AuthController;
 use Gfh\Core\Controller\BrandingController;
+use Gfh\Core\Controller\Shop\AuthPagesController as ShopAuthController;
+use Gfh\Core\Controller\Shop\CartPagesController as ShopCartController;
 use Gfh\Core\Controller\Shop\HomeController as ShopHomeController;
+use Gfh\Core\Controller\Shop\OrderPagesController as ShopOrdersController;
 use Gfh\Core\Controller\Shop\ProductController as ShopProductController;
 use Gfh\Core\Controller\Shop\ProductListController as ShopListingController;
 use Gfh\Core\Controller\Pos\PosShellController;
@@ -87,6 +90,9 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $shopHome = new ShopHomeController($services);
     $shopListing = new ShopListingController($services);
     $shopProduct = new ShopProductController($services);
+    $shopAuth = new ShopAuthController($services);
+    $shopCart = new ShopCartController($services);
+    $shopOrders = new ShopOrdersController($services);
 
     $tenant = new TenantMiddleware($services);
     $staffSession = new SessionMiddleware($services, 'staff');
@@ -116,7 +122,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
         $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $branding,
-        $shopHome, $shopListing, $shopProduct,
+        $shopHome, $shopListing, $shopProduct, $shopAuth, $shopCart, $shopOrders,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -244,6 +250,20 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/pos/login', static fn (Request $q) => $posShell->loginForm($q), [$tenant, $staffSession]);
         $r->post('/pos/login', static fn (Request $q) => $posShell->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/pos/logout', static fn (Request $q) => $posShell->logout($q), [$tenant, $staffSession, $csrf]);
+
+        // --- Shop customer pages (Batch 6.2). They open the customer session for real (not only when a cookie exists):
+        // a form or a page script needs the session's CSRF token. Pages that show a customer's own data send a guest
+        // to sign-in, and every state-changing request carries CSRF.
+        $r->get('/shop/sign-in', static fn (Request $q) => $shopAuth->signInForm($q), [$tenant, $customerSession]);
+        $r->post('/shop/sign-in', static fn (Request $q) => $shopAuth->signInSubmit($q), [$tenant, $customerSession, $csrf]);
+        $r->post('/shop/sign-out', static fn (Request $q) => $shopAuth->signOut($q), [$tenant, $customerSession, $csrf]);
+        $r->get('/shop/register', static fn (Request $q) => $shopAuth->registerForm($q), [$tenant, $customerSession]);
+        $r->post('/shop/register', static fn (Request $q) => $shopAuth->registerSubmit($q), [$tenant, $customerSession, $csrf]);
+        $r->get('/shop/cart', static fn (Request $q) => $shopCart->cart($q), [$tenant, $customerSession]);
+        $r->get('/shop/checkout', static fn (Request $q) => $shopCart->checkout($q), [$tenant, $customerSession]);
+        $r->get('/shop/orders', static fn (Request $q) => $shopOrders->index($q), [$tenant, $customerSession]);
+        $r->get('/shop/orders/{id}', static fn (Request $q) => $shopOrders->show($q), [$tenant, $customerSession]);
+        $r->get('/shop/orders/{id}/receipt', static fn (Request $q) => $shopOrders->receipt($q), [$tenant, $customerSession]);
 
         // --- Pages
         $r->get('/admin', static fn (Request $q) => $adminDashboard->index($q), [$tenant, $staffSession, $requireStaff]);

@@ -174,7 +174,8 @@ final class AppViewTest extends TestCase
                 ],
             ]);
 
-            $this->assertStringContainsString('<body class="app-' . $app . '">', $html);
+            // The Shop's body also carries the page settings (slug, API root, CSRF token) since Batch 6.2.
+            $this->assertStringContainsString('<body class="app-' . $app . '"', $html);
             $this->assertStringContainsString('Sample · Demo &lt;Store&gt;</title>', $html);
             $this->assertStringContainsString('href="/demo/branding.css"', $html);
             $this->assertStringContainsString('href="/assets/' . $app . '/css/app.css"', $html);

@@ -49,6 +49,10 @@ final class PricedCart
                 'tier_applied' => $line['tier_label'],
                 'line_total' => Decimal::format($line['line_total'], 2),
                 'is_made_to_order' => $line['is_made_to_order'],
+                // The variant's own quantity rule (Batch 6.2), so a client can offer the right control. The server still enforces it.
+                'allow_decimal_qty' => $line['allow_decimal_qty'] ?? false,
+                'qty_step' => Decimal::format(Decimal::parse($line['qty_step'] ?? '1', 3) ?? 1000, 3),
+                'min_qty' => Decimal::format(Decimal::parse($line['min_qty'] ?? '1', 3) ?? 1000, 3),
             ];
         }
 

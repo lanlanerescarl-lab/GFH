@@ -75,6 +75,20 @@ final class Format
         };
     }
 
+    /** A payment method key as people read it ("gcash" is "GCash"); an unknown key is made readable, never blank. */
+    public static function paymentMethod(string $method): string
+    {
+        return match ($method) {
+            'cash' => 'Cash',
+            'gcash' => 'GCash',
+            'maya' => 'Maya',
+            'card' => 'Card',
+            'bank_transfer' => 'Bank transfer',
+            'cod' => 'Cash on delivery',
+            default => ucfirst(str_replace('_', ' ', $method)),
+        };
+    }
+
     public static function qty(string|int|null $quantity): string
     {
         if ($quantity === null || $quantity === '') {

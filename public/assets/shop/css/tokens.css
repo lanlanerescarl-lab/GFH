@@ -60,4 +60,13 @@
   --page-width: 1240px;
   --product-grid-min: 220px;
   --touch-target: 48px;
+
+  /* Batch 6.2: cart, forms, orders and the receipt */
+  --color-on-accent: #ffffff;
+  --cart-badge-bg: var(--color-accent);
+  --cart-badge-ink: var(--color-on-accent);
+  --timeline-done: var(--color-primary);
+  --timeline-upcoming: var(--color-border);
+  --form-width: 30rem;
+  --receipt-width: 34rem;
 }

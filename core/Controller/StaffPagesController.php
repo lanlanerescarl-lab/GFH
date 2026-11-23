@@ -167,6 +167,7 @@ final class StaffPagesController
 
         return $this->page('reset_password_done', $request, [
             'loginUrl' => $this->url($request, $tenant, '/admin/login'),
+            'shopSignInUrl' => $this->url($request, $tenant, '/shop/sign-in'),
             'isStaff' => $result['subject_type'] === 'user',
         ]);
     }

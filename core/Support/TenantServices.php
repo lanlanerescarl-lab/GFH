@@ -12,6 +12,7 @@ use Gfh\Core\Repository\CatalogRepository;
 use Gfh\Core\Repository\InventoryRepository;
 use Gfh\Core\Repository\MediaRepository;
 use Gfh\Core\Repository\OrderRepository;
+use Gfh\Core\Repository\OrganizationCustomerRepository;
 use Gfh\Core\Repository\PosRepository;
 use Gfh\Core\Repository\ProcurementRepository;
 use Gfh\Core\Repository\ReportRepository;
@@ -29,7 +30,9 @@ use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Service\PosService;
 use Gfh\Core\Service\PricingService;
 use Gfh\Core\Service\ProcurementService;
+use Gfh\Core\Service\CustomerAccessService;
 use Gfh\Core\Service\ShopBrowseService;
+use Gfh\Core\Service\ShopOrderService;
 use Gfh\Core\Service\ReportService;
 use Gfh\Core\Service\SettingsService;
 use Gfh\Core\Service\TerminalService;
@@ -82,6 +85,16 @@ final class TenantServices
     public function shop(): ShopBrowseService
     {
         return $this->once('shop', fn (): ShopBrowseService => new ShopBrowseService($this->catalog(), $this->hooks));
+    }
+
+    /** What the Shop's order pages show a signed-in customer: their own orders only, with the fields a customer may see. */
+    public function shopOrders(): ShopOrderService
+    {
+        return $this->once('shop-orders', fn (): ShopOrderService => new ShopOrderService(
+            $this->orders(),
+            new CustomerAccessService(new OrganizationCustomerRepository($this->organization)),
+            new BranchRepository($this->organization),
+        ));
     }
 
     public function media(): MediaService

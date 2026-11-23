@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gfh\Core\Controller;
 
 use Gfh\Core\Auth\CustomerAccount;
+use Gfh\Core\Auth\CustomerSessionStarter;
 use Gfh\Core\Auth\Session;
 use Gfh\Core\Auth\StaffUser;
 use Gfh\Core\Http\HttpException;
@@ -152,10 +153,8 @@ final class AuthController
     private function startCustomerSession(Request $request, CustomerAccount $account): string
     {
         $session = $this->session($request);
-        $session->regenerate();
-        $session->put('user_id', $account->id);
 
-        return $this->services->csrf($session)->rotate();
+        return CustomerSessionStarter::start($session, $this->services->csrf($session), $account);
     }
 
     private function session(Request $request): Session

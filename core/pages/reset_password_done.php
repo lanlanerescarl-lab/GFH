@@ -4,7 +4,8 @@
  *
  * @var \Gfh\Core\View\View $this
  * @var string $cssUrl
- * @var string $loginUrl
+ * @var string $loginUrl the Admin sign-in page (staff)
+ * @var string $shopSignInUrl the Shop sign-in page (customers)
  * @var bool $isStaff
  */
 ?>
@@ -15,5 +16,6 @@
             <p><a class="button" href="<?= $this->e($loginUrl) ?>">Go to sign-in</a></p>
         <?php else: ?>
             <p>You can now sign in to the shop with your new password.</p>
+            <p><a class="button" href="<?= $this->e($shopSignInUrl) ?>">Go to the shop sign-in</a></p>
         <?php endif; ?>
 <?= $this->render('partials/end') ?>

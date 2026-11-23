@@ -12,10 +12,13 @@
  * @var list<array{label: string, url: string, current?: bool}> $navigation optional; items for the header navigation
  * @var string $productsUrl optional; the product listing address, which the header search box submits to
  * @var string $searchText optional; the current search text, shown again in the header box
+ * @var array{signedIn: bool, csrf: string, cartUrl: string, signInUrl: string, registerUrl: string, ordersUrl: string, signOutUrl: string, apiBase: string, slug: string} $shopAccount
+ *      optional; the header links and the settings the page scripts read from <body> (organization slug, API root, CSRF token)
  */
 $navigation ??= [];
 $productsUrl ??= '';
 $searchText ??= '';
+$shopAccount ??= ['signedIn' => false, 'csrf' => '', 'cartUrl' => '', 'signInUrl' => '', 'registerUrl' => '', 'ordersUrl' => '', 'signOutUrl' => '', 'apiBase' => '', 'slug' => ''];
 // The navigation partial decides which items may be shown; the menu button only makes sense if it printed something.
 $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigation]));
 ?>
@@ -35,7 +38,7 @@ $navigationHtml = trim($this->partial('partials/nav', ['navigation' => $navigati
     <script type="module" src="<?= $this->e($assets->shared('js/shell.js')) ?>"></script>
     <script type="module" src="<?= $this->e($assets->url('js/shop.js')) ?>"></script>
 </head>
-<body class="app-shop">
+<body class="app-shop" data-shop-slug="<?= $this->e($shopAccount['slug']) ?>" data-shop-api="<?= $this->e($shopAccount['apiBase']) ?>" data-shop-csrf="<?= $this->e($shopAccount['csrf']) ?>">
     <a class="skip-link" href="#main">Skip to the main content</a>
 <?= $this->partial('partials/header', [
     'navigationHtml' => $navigationHtml,

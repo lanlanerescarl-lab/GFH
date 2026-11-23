@@ -157,6 +157,8 @@ final class PricingService
                 $variant = $variants[$variantId] ?? null;
                 if ($variant === null || $variant['status'] !== 'active' || $variant['product_status'] !== 'active') {
                     $errors['items'] = 'Some products in the cart are no longer available.';
+                    // Added in Batch 6.2: the same problem under the variant's own id, so a cart page can say which line it is.
+                    $errors['items.' . $variantId] = 'This product is no longer available.';
                     continue;
                 }
 
@@ -164,6 +166,7 @@ final class PricingService
                     $milli = QuantityRules::forSale($variant, Decimal::format($milli, 3));
                 } catch (\InvalidArgumentException $exception) {
                     $errors['items.' . $variant['sku'] . '.quantity'] = $variant['sku'] . ': ' . $exception->getMessage();
+                    $errors['items.' . $variantId] = $variant['sku'] . ': ' . $exception->getMessage();
                     continue;
                 }
 
@@ -183,6 +186,10 @@ final class PricingService
                     'line_total' => $lineTotal,
                     'is_made_to_order' => false,
                     'track_batches' => (bool) $variant['track_batches'],
+                    // Added in Batch 6.2, only so the cart page can offer the right quantity control. QuantityRules still decides.
+                    'allow_decimal_qty' => (bool) $variant['allow_decimal_qty'],
+                    'qty_step' => (string) $variant['qty_step'],
+                    'min_qty' => (string) $variant['min_qty'],
                 ];
             }
         } catch (\RangeException $exception) {

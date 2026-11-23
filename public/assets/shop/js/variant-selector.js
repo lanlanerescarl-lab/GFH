@@ -34,6 +34,7 @@ export function initVariantSelector(form) {
 
     if (cart) {
       cart.dataset.variantId = radio.value;
+      cart.dataset.decimal = data.decimal === '1' ? '1' : '0';
     }
     if (quantity) {
       // Each variant has its own step and minimum; start again from its minimum.

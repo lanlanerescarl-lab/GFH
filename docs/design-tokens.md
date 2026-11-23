@@ -96,7 +96,7 @@ Components in `templates/shop/assets/css/app.css` (one template per screen or pa
 
 | Component | Template | Notes |
 | --- | --- | --- |
-| Header (`.shop-header`) | `partials/header.php` | Brand, search box, two empty slots `data-slot="cart"` and `data-slot="account"` for Batch 6.2, menu button below 720 px, navigation |
+| Header (`.shop-header`) | `partials/header.php` | Brand, search box, the Cart link with its count badge, Sign in and Register (guest) or My orders and Sign out (signed in), menu button below 720 px, navigation. The Account link arrives with Batch 6.3b. The two empty slots of 6.1 are gone |
 | Search box (`.shop-search`) | `partials/search-form.php` | GET form, 48 px high |
 | Hero (`.shop-hero`), category tiles (`.category-tile`) | `home.php` | Organization name, its own line, top-level categories |
 | Product card (`.product-card`) | `partials/product-card.php` | 4:5 picture (`.media-frame`), brand, name, price, out-of-stock flag; the whole card is one link |
@@ -107,9 +107,34 @@ Components in `templates/shop/assets/css/app.css` (one template per screen or pa
 | Gallery (`.gallery`) | `partials/gallery.php` | All photos visible without JavaScript; one at a time with it |
 | Variant options (`.variant-option`) | `partials/variant-selector.php` | Radio buttons in a GET form; the script updates the page in place |
 | Tier prices (`.tier-prices`) | `partials/tier-prices.php` | Only for a signed-in customer |
-| Add to cart (`.add-to-cart`) | `partials/add-to-cart.php` | Built, disabled in 6.1, with a visible note |
+| Add to cart (`.add-to-cart`) | `partials/add-to-cart.php` | Live since Batch 6.2: quantity follows the variant's step and minimum, a polite status line with a View cart link |
 
 Breakpoints: 560 px (3 and then 4 category tiles, auto-fill product grid), 720 px (menu button gone, header on one row), 840 px (listing and product pages in two columns, no filter drawer), 1000 px (4 tiles). Pictures carry `width` and `height` and load lazily (the first photo on a product page loads at high priority instead). Focus rings come from `base.css`. Contrast of the default palette, computed with the WCAG formula (every text pair is above 4.5 to 1): `--color-ink` on `--color-bg` 15.1, on the hero 13.8, on the chip background 14.5; `--color-muted` on `--color-bg` 7.1, on white 7.4, on the hero and footer 6.5, on the chip background 6.8; white on `--color-primary` 6.1 and on `--color-primary-strong` 9.8; `--color-primary` links on white 6.1; the "Out of stock" flag (`--color-flag`) on white 5.4 (it only appears on white cards); the disabled cart button 5.8. Non-text parts: control borders on white 3.2 and the placeholder mark 4.4 (both above 3). An organization's own branding colors are its responsibility; these figures describe the shipped palette only.
+
+## Online Shop additions (Batch 6.2)
+
+New tokens in `templates/shop/assets/css/tokens.css` (raw values stay in this file; `app.css` uses variables only):
+
+| Variable | Value | Used for |
+| --- | --- | --- |
+| `--color-on-accent` | `#ffffff` | Text on the cart badge |
+| `--cart-badge-bg`, `--cart-badge-ink` | `var(--color-accent)`, `var(--color-on-accent)` | The header cart count |
+| `--timeline-done`, `--timeline-upcoming` | `var(--color-primary)`, `var(--color-border)` | Order progress line and dots (state is also said in words) |
+| `--form-width`, `--receipt-width` | `30rem`, `34rem` | Width of sign-in and registration forms, and of the receipt |
+
+Components in `templates/shop/assets/css/app.css`. Every control is at least `--touch-target` (48 px) high, forms are one column, and an error is tied to its field with `aria-describedby`.
+
+| Component | Template | Notes |
+| --- | --- | --- |
+| Form field (`.field`, `.field-error`) | `partials/field.php` | Label, input, hint, inline error; `aria-invalid` when there is an error |
+| Error summary (`.form-errors`) | `partials/form-errors.php` | Links to each field; takes focus on load (`data-focus-on-load`) |
+| Cart count (`.cart-badge`) | `partials/header.php` | Filled by `cart-badge.js`; hidden at zero |
+| Cart lines (`.cart-lines`, `.cart-line`) | `cart.php`, `order.php` | One column at 360 px; a row with quantity, total and Remove from 48 em |
+| Totals (`.summary`) | `cart.php`, `checkout.php`, `order.php`, `order-receipt.php` | Label and amount rows; the total row is larger |
+| Checkout (`.checkout`, `.checkout-panel`, `.choice`) | `checkout.php` | Form built by `checkout.js`; summary beside it from 48 em |
+| Order cards (`.order-list`, `.order-card`, `.badge`) | `orders.php` | A card per order, not a table, so nothing scrolls sideways |
+| Progress (`.timeline`) | `partials/order-timeline.php` | Done, current and upcoming steps with dates in words |
+| Receipt (`.receipt`) | `order-receipt.php` | Print styles hide the header, footer and buttons; prints on the printer's own paper (A5 or letter) |
 
 ## POS tokens and components (Batch 7.1)
 

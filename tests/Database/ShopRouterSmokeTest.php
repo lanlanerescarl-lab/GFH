@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Gfh\Tests\Database;
 
+use Gfh\Core\Auth\Session;
+use Gfh\Core\Http\Request;
+use Gfh\Core\Support\Services;
 use Gfh\Tests\Support\ShopTestCase;
 
 /**
@@ -81,6 +84,78 @@ final class ShopRouterSmokeTest extends ShopTestCase
                 }
                 if (!str_contains(strtolower($body), '<!doctype html>') || !str_contains($body, 'Skip to the main content') || !str_contains($body, 'shop-placeholder')) {
                     $failures[] = $label . ' did not render the Shop shell with the placeholder picture.';
+                }
+            }
+        }
+
+        $this->assertSame([], $failures, implode("\n", $failures));
+    }
+
+    /**
+     * Batch 6.2: every new customer-facing GET page, as a guest (a redirect to sign-in, or the page itself where it is
+     * public) and as a signed-in customer. Both have a customer session (the pages need its CSRF token), so each gets one.
+     */
+    public function testEveryShopCustomerPageLoadsAsAGuestAndAsASignedInCustomer(): void
+    {
+        $this->bootShop();
+        $this->shop->steps();
+        $pickup = $this->shop->branch('B1', true, false);
+        $variant = $this->shop->variant(['price' => '112.00']);
+        $this->shop->stock($pickup, $variant, '10', '40.00');
+        $this->signedInCustomer();
+        $order = $this->shop->services->orders()->createOrder($this->customer, [['variant_id' => $variant, 'quantity' => '1']], ['method' => 'pickup', 'branch_id' => $pickup], []);
+        $slug = $this->slug;
+        $orderId = (string) $order['id'];
+        $unknown = '00000000-0000-4000-8000-0000000000cc';
+
+        $guest = Session::inMemory('customer', $this->app->config(), []);
+        $guestServices = new Services($this->app, false, $this->core, $this->org, testSessions: ['customer' => $guest]);
+
+        // path, query, expected status as a guest, expected status as a signed-in customer
+        $pages = [
+            ["/$slug/shop/sign-in", [], 200, 302],
+            ["/$slug/shop/sign-in", ['next' => "/$slug/shop/checkout"], 200, 302],
+            ["/$slug/shop/register", [], 200, 302],
+            ["/$slug/shop/cart", [], 200, 200],
+            ["/$slug/shop/checkout", [], 302, 200],
+            ["/$slug/shop/orders", [], 302, 200],
+            ["/$slug/shop/orders", ['progress_key' => 'placed', 'page' => '1'], 302, 200],
+            ["/$slug/shop/orders", ['progress_key' => 'nope', 'page' => 'x', 'per_page' => '0', 'sort' => 'nope'], 302, 200],
+            ["/$slug/shop/orders/$orderId", [], 302, 200],
+            ["/$slug/shop/orders/$orderId", ['placed' => '1'], 302, 200],
+            ["/$slug/shop/orders/$orderId/receipt", [], 302, 200],
+            ["/$slug/shop/orders/$unknown", [], 302, 404],
+            ["/$slug/shop/orders/$unknown/receipt", [], 302, 404],
+            ["/$slug/shop/orders/not-an-id", [], 302, 404],
+        ];
+
+        $failures = [];
+        foreach ([false, true] as $asCustomer) {
+            $who = $asCustomer ? 'customer' : 'guest';
+            foreach ($pages as [$path, $query, $asGuest, $asSignedIn]) {
+                $expected = $asCustomer ? $asSignedIn : $asGuest;
+                $label = sprintf('GET %s %s as %s', $path, $query === [] ? '' : json_encode($query), $who);
+                $services = $asCustomer ? $this->customerServices : $guestServices;
+                $response = $this->app->handle(new Request('GET', $path, query: $query, cookies: ['gfh_customer' => 'test-session']), $services);
+                $body = $response->body();
+
+                if ($response->status() !== $expected) {
+                    $failures[] = sprintf('%s returned HTTP %d, expected %d%s', $label, $response->status(), $expected, $this->debug($response));
+                    continue;
+                }
+                if (preg_match(self::ERROR_TEXT, $this->text($body), $found) === 1) {
+                    $failures[] = $label . ' shows error text: ' . $found[0];
+                    continue;
+                }
+                if ($expected === 302) {
+                    $location = (string) $response->header('Location');
+                    if ($asCustomer === false && !str_starts_with($location, "/$slug/shop/sign-in?next=")) {
+                        $failures[] = $label . ' did not redirect to sign-in with next: ' . $location;
+                    }
+                    continue;
+                }
+                if (!str_contains(strtolower($body), '<!doctype html>') || !str_contains($body, 'Skip to the main content') || !str_contains($body, 'data-shop-slug')) {
+                    $failures[] = $label . ' did not render the Shop shell.';
                 }
             }
         }

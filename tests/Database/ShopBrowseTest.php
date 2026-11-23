@@ -327,11 +327,14 @@ final class ShopBrowseTest extends ShopTestCase
         $this->assertStringContainsString('step="1" min="1" value="1"', $html, 'a whole-number variant takes whole numbers');
         $this->assertSame($html, $this->detail($product['slug'], ['variant' => 'not-a-variant']), 'an unknown variant falls back to the default');
 
-        // The disabled Add to cart form and its note.
-        $this->assertStringContainsString('<fieldset class="add-to-cart__fields" disabled>', $html);
-        $this->assertStringContainsString('<button class="button add-to-cart__button" type="submit" disabled>Add to cart</button>', $html);
+        // The Add to cart form is live since Batch 6.2: enabled, with the variant's own rule and a polite status region.
+        $this->assertStringNotContainsString('<fieldset class="add-to-cart__fields" disabled>', $html);
+        $this->assertStringNotContainsString('The cart opens soon.', $html);
+        $this->assertStringContainsString('<button class="button add-to-cart__button" type="submit">Add to cart</button>', $html);
         $this->assertStringContainsString('data-add-to-cart', $html);
-        $this->assertStringContainsString('The cart opens soon.', $html);
+        $this->assertStringContainsString('data-decimal="0"', $html);
+        $this->assertStringContainsString('role="status" aria-live="polite" data-cart-status', $html);
+        $this->assertStringContainsString('data-decimal="1"', $other, 'the decimal flag follows the chosen variant');
 
         // Description paragraphs, the attribute table and the breadcrumb.
         $this->assertSame(1, substr_count($html, '<div class="product-section__body product-description">'));
