@@ -45,6 +45,20 @@
   --receipt-font-size: 12px;
   --receipt-width: 80mm;
 
+  /* Offline layer (Batch 7.2): the snapshot banner, the "needs attention" badge, the sync screen. */
+  --color-status-attention: #fca5a5;
+  --pos-banner-bg: var(--color-surface-muted);
+  --pos-banner-ink: var(--color-ink);
+  --pos-banner-border: var(--color-border-soft);
+  --pos-banner-warn-bg: var(--status-warn-bg);
+  --pos-banner-warn-ink: var(--status-warn-ink);
+  --pos-banner-warn-border: var(--status-warn);
+  --pos-banner-size: 0.9375rem;
+  --pos-attention-bg: var(--status-danger-bg);
+  --pos-attention-ink: var(--status-danger-ink);
+  --pos-attention-border: var(--status-danger);
+  --pos-sync-gap: var(--space-3);
+
   --radius-card: 12px;
   --radius-control: 10px;
 

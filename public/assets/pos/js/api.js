@@ -119,6 +119,34 @@ export function createApi({ base, csrf, fetchImpl = (...args) => globalThis.fetc
     post: (path, body) => call('POST', path, body),
     csrfToken: () => token,
 
+    /**
+     * A page loaded from the service worker's saved copy has no CSRF token (the copy never keeps one). This fetches one
+     * when the token is empty, for the forms that need it; it is not called otherwise.
+     */
+    async ensureCsrf() {
+      if (token === '') await refreshCsrf();
+      return token;
+    },
+
+    /**
+     * A light check that the server can be reached: GET of the CSRF endpoint, with no sign-in dialog and no retry.
+     * Any answer below 500 means yes (a 401 still proves the server is there). Used by the heartbeat.
+     */
+    async ping(timeoutMs = 8000) {
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller === null ? null : setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetchImpl(`${base}/auth/staff/csrf`, {
+          method: 'GET', headers: { Accept: 'application/json' }, credentials: 'same-origin', cache: 'no-store', signal: controller?.signal,
+        });
+        return response.status < 500;
+      } catch {
+        return false;
+      } finally {
+        if (timer !== null) clearTimeout(timer);
+      }
+    },
+
     /** Signs in again (the sign-in dialog calls this). Throws an ApiError with the server's message on a wrong password or a lockout. */
     async login(email, password) {
       await refreshCsrf();

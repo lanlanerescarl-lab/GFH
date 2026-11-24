@@ -346,7 +346,10 @@ export function createSellScreen(ctx) {
       await ctx.snapshot.load(ctx.state.terminal.id);
       drawGrid();
       refreshTicket();
-      flash('Prices and stock are up to date.', 'ok');
+      ctx.banner.update();
+      // Offline, load() hands back the saved copy: say so instead of claiming it is fresh.
+      if (ctx.snapshot.info().source === 'network') flash('Prices and stock are up to date.', 'ok');
+      else flash('Could not reach the server. Still using the saved prices and stock.', 'error');
     } catch (error) {
       flash(`Could not refresh: ${ctx.errorMessage(error)}`, 'error');
     }

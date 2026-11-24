@@ -133,7 +133,7 @@ export function openPayment(ctx, priced) {
     ]);
 
     complete.disabled = sending || !result.complete;
-    complete.textContent = sending ? 'Sending\u2026' : failedToReach ? 'Retry' : 'Complete sale';
+    complete.textContent = sending ? 'Saving\u2026' : failedToReach ? 'Retry' : 'Complete sale';
   }
 
   complete.addEventListener('click', async () => {
@@ -147,12 +147,11 @@ export function openPayment(ctx, priced) {
       modal.close(done);
     } catch (error) {
       sending = false;
-      failedToReach = Boolean(error.network);
+      failedToReach = Boolean(error.network || error.storage);
       serverFields = error.fields ?? {};
       banner.hidden = false;
-      banner.textContent = error.network
-        ? 'The sale has not been sent: the server cannot be reached. Your ticket is safe. Check the connection and press Retry.'
-        : ctx.errorMessage(error);
+      // A failed save (storage full or blocked) says so plainly and offers Retry; the ticket is untouched.
+      banner.textContent = ctx.errorMessage(error);
       refresh();
       complete.focus();
     }

@@ -1,19 +1,40 @@
 // Screen: close the shift. A counted-cash keypad, a confirmation, then the result: expected cash, counted cash and the variance.
+// Closing needs the connection, and it is refused while any sale of this shift is still waiting to be sent (queued, being
+// sent, or needing attention): the message links to the sync screen. The check runs when the screen opens and again when
+// the button is pressed, because a sale can be made or fail in between.
 
 import { h, $, clear, append } from './dom.js';
 import { createKeypad } from './keypad.js';
 import { parseMoney, toApiMoney, formatPeso } from './money.js';
 import { confirmDialog } from './dialog.js';
+import { needsConnection } from './guards.js';
 
 export function createCloseScreen(ctx) {
   const root = $('#screen-close');
 
-  function show() {
+  async function show() {
     if (ctx.state.shift === null) {
       ctx.navigate('shift');
       return;
     }
-    drawCount();
+    const guard = await ctx.guards.closeShift();
+    if (!guard.allowed) drawRefused(guard);
+    else drawCount();
+  }
+
+  /** The refusal, with the way out: the sync screen. */
+  function refusal(guard) {
+    return h('div', { class: 'pos-notice pos-notice--warn', role: 'alert', 'data-refusal': 'close' },
+      `${guard.message} `, h('a', { href: '#sync' }, 'Open the sync screen'), '.');
+  }
+
+  function drawRefused(guard) {
+    append(clear(root), [
+      heading('Close shift'),
+      h('p', { class: 'pos-muted' }, `Terminal ${ctx.state.terminal.code}, ${ctx.state.terminal.branch_name}`),
+      refusal(guard),
+      h('div', { class: 'pos-actions' }, h('a', { class: 'pos-button pos-button--primary pos-button--large', href: '#sync' }, 'Go to the sync screen')),
+    ]);
   }
 
   function heading(text) {
@@ -25,6 +46,7 @@ export function createCloseScreen(ctx) {
     const status = h('div', { class: 'pos-notice pos-notice--error', role: 'alert', hidden: error === null }, error ?? '');
     const keypad = createKeypad({ label: 'Counted cash in pesos', id: 'counted-cash' });
     const button = h('button', { class: 'pos-button pos-button--primary pos-button--large', type: 'submit' }, 'Close shift');
+    const offline = ctx.state.online ? null : h('div', { class: 'pos-notice pos-notice--warn', role: 'status' }, needsConnection('Closing the shift'));
 
     const form = h('form', { class: 'pos-card pos-form', novalidate: true, onSubmit: async (event) => {
       event.preventDefault();
@@ -53,6 +75,10 @@ export function createCloseScreen(ctx) {
         drawResult(closed);
       } catch (failure) {
         button.disabled = false;
+        if (failure.guard) {
+          drawRefused(failure.guard);
+          return;
+        }
         status.hidden = false;
         status.textContent = failure.fields?.counted_cash ?? failure.fields?.shift ?? ctx.errorMessage(failure);
       }
@@ -65,6 +91,7 @@ export function createCloseScreen(ctx) {
     append(clear(root), [
       heading('Close shift'),
       h('p', { class: 'pos-muted' }, `Terminal ${state.terminal.code}, ${state.terminal.branch_name}`),
+      offline,
       h('p', {}, 'Count all the cash in the drawer, including the opening cash, and enter the total.'),
       form,
     ]);

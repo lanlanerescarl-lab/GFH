@@ -4,6 +4,7 @@ import { h, $, clear, append } from './dom.js';
 import { createKeypad } from './keypad.js';
 import { parseMoney, toApiMoney, formatPeso } from './money.js';
 import { formatDateTime } from './datetime.js';
+import { needsConnection } from './guards.js';
 
 export function createShiftScreen(ctx) {
   const root = $('#screen-shift');
@@ -58,7 +59,10 @@ export function createShiftScreen(ctx) {
     status,
     button);
 
-    append(clear(root), [heading('Open shift'), terminalLine(), h('p', {}, 'Count the cash in the drawer and enter it to start selling.'), form]);
+    append(clear(root), [
+      heading('Open shift'), terminalLine(),
+      ctx.state.online ? null : h('div', { class: 'pos-notice pos-notice--warn', role: 'status' }, needsConnection('Opening a shift')),
+      h('p', {}, 'Count the cash in the drawer and enter it to start selling.'), form]);
     keypad.input.focus();
   }
 
@@ -74,22 +78,28 @@ export function createShiftScreen(ctx) {
       heading('Shift'),
       terminalLine(),
       h('div', { class: 'pos-card' }, summary,
-        h('p', { class: 'pos-muted' }, 'Counts the sales rung up in this browser tab since the shift was opened.')),
+        h('p', { class: 'pos-muted' }, 'Counts the sales rung up on this terminal since the shift was opened, including any not sent to the server yet.')),
       h('div', { class: 'pos-actions' },
         h('a', { class: 'pos-button pos-button--primary pos-button--large', href: '#sell' }, 'Start selling'),
         h('a', { class: 'pos-button', href: '#close' }, 'Close shift')),
     ]);
 
     try {
-      const sales = await ctx.loadShiftSales();
-      const live = sales.filter((entry) => entry.sale.status !== 'voided');
-      const total = live.reduce((sum, entry) => sum + (parseMoney(entry.sale.total) ?? 0), 0);
-      const cash = live.reduce((sum, entry) => sum + entry.sale.payments.filter((p) => p.method === 'cash').reduce((s, p) => s + (parseMoney(p.amount) ?? 0), 0), 0);
-      $('[data-summary="sales"]', root).textContent = `${live.length} ${live.length === 1 ? 'sale' : 'sales'}, ${formatPeso(total)}`;
-      $('[data-summary="cash"]', root).textContent = formatPeso(cash);
+      // From this device: sales already sent and sales still waiting, so the figures are right offline too.
+      const sales = await ctx.outbox.shiftSales(state.shift.id);
+      const salesCell = $('[data-summary="sales"]', root);
+      const cashCell = $('[data-summary="cash"]', root);
+      if (salesCell === null || cashCell === null) return; // the person has already moved to another screen
+      const total = sales.reduce((sum, sale) => sum + (parseMoney(sale.total) ?? 0), 0);
+      const cash = sales.reduce((sum, sale) => sum + (sale.cash_total ?? 0), 0);
+      const waiting = sales.filter((sale) => sale.state !== 'synced').length;
+      salesCell.textContent = `${sales.length} ${sales.length === 1 ? 'sale' : 'sales'}, ${formatPeso(total)}${waiting > 0 ? ` (${waiting} not sent yet)` : ''}`;
+      cashCell.textContent = formatPeso(cash);
     } catch {
-      $('[data-summary="sales"]', root).textContent = 'Could not load';
-      $('[data-summary="cash"]', root).textContent = 'Could not load';
+      const salesCell = $('[data-summary="sales"]', root);
+      const cashCell = $('[data-summary="cash"]', root);
+      if (salesCell !== null) salesCell.textContent = 'Could not load';
+      if (cashCell !== null) cashCell.textContent = 'Could not load';
     }
   }
 

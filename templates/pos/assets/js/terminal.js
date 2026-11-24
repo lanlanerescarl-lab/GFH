@@ -1,6 +1,7 @@
 // Screen: choose a terminal. Lists the active terminals with their branch and whether a shift is open.
 
 import { h, $, clear, append } from './dom.js';
+import { needsConnection } from './guards.js';
 
 export function createTerminalScreen(ctx) {
   const root = $('#screen-terminal');
@@ -11,7 +12,8 @@ export function createTerminalScreen(ctx) {
     try {
       ctx.state.terminals = await ctx.api.terminals();
     } catch (error) {
-      draw({ error: ctx.errorMessage(error) });
+      // Offline: say what is needed. A shift that was open when the connection dropped starts without this screen.
+      draw({ error: error.network ? needsConnection('Choosing a terminal and opening a shift') : ctx.errorMessage(error) });
       return;
     }
     draw({});

@@ -206,6 +206,8 @@ the payments must add up to that total). Receipt numbers are the terminal code a
 a different sale is a 409. A sale dated after its shift was closed is a 409. Senior and PWD rules exist but are inactive until an
 Admin switches them on.
 
+**Offline use (Batch 7.2).** These endpoints are unchanged; the POS page now queues sales and sends them later, so what it relies on is worth stating. `POST /pos/sales` is idempotent by sale id (a repeat returns the earlier result with `duplicate: true`), which is what makes it safe to send a sale again after a crash or a lost answer. The snapshot carries an `etag` (a hash of its content) but the API does not answer conditional requests, so the POS downloads the whole snapshot each time and compares etags itself. A `409` (for example a receipt number already used) or a `422` for a queued sale is not retried: the POS moves that sale to "needs attention" with the message shown here and leaves it for a manager. A `401` pauses sending until the cashier signs in again; a network error, a `5xx`, `408` or `429` is retried with a backoff. The heartbeat is `GET /auth/staff/csrf`, used only to see whether the server answers. The service worker is not part of the API: it is served by the page's own route `GET /{org}/pos/sw.js` (no session, `Service-Worker-Allowed: /{org}/pos`) and never touches anything under `/api/`.
+
 ## Reports (Admin, module `dashboard`)
 
 | Method and path | Permission | Notes |

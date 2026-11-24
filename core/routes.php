@@ -39,6 +39,7 @@ use Gfh\Core\Controller\Shop\HomeController as ShopHomeController;
 use Gfh\Core\Controller\Shop\OrderPagesController as ShopOrdersController;
 use Gfh\Core\Controller\Shop\ProductController as ShopProductController;
 use Gfh\Core\Controller\Shop\ProductListController as ShopListingController;
+use Gfh\Core\Controller\Pos\PosServiceWorkerController;
 use Gfh\Core\Controller\Pos\PosShellController;
 use Gfh\Core\Controller\StaffPagesController;
 use Gfh\Core\Controller\SystemController;
@@ -86,6 +87,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $adminOrderSteps = new OrderStepsController($services);
     $adminGeneralSettings = new OrganizationSettingsController($services);
     $posShell = new PosShellController($services);
+    $posWorker = new PosServiceWorkerController($services);
     $branding = new BrandingController();
     $shopHome = new ShopHomeController($services);
     $shopListing = new ShopListingController($services);
@@ -121,7 +123,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
-        $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $branding,
+        $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $posWorker, $branding,
         $shopHome, $shopListing, $shopProduct, $shopAuth, $shopCart, $shopOrders,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
@@ -248,6 +250,8 @@ return static function (Router $router, App $app, ?Services $services = null): v
         // send them to the Admin sign-in), so these routes carry only the tenant and the staff session.
         $r->get('/pos', static fn (Request $q) => $posShell->shell($q), [$tenant, $staffSession]);
         $r->get('/pos/login', static fn (Request $q) => $posShell->loginForm($q), [$tenant, $staffSession]);
+        // The service worker holds no secret, so it needs the tenant only (no session, no CSRF).
+        $r->get('/pos/sw.js', static fn (Request $q) => $posWorker->script($q), [$tenant]);
         $r->post('/pos/login', static fn (Request $q) => $posShell->loginSubmit($q), [$tenant, $staffSession, $csrf]);
         $r->post('/pos/logout', static fn (Request $q) => $posShell->logout($q), [$tenant, $staffSession, $csrf]);
 

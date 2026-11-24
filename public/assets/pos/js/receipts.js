@@ -1,11 +1,13 @@
-// Screen: the shift's recent sales (receipt number, time, total) with reprint. The list is the sale ids kept in
-// sessionStorage for this shift; each row is read from the server with GET /pos/sales/{id}.
+// Screen: the shift's receipts, queued and sent together, newest first, with reprint. The list comes from this device
+// (outbox.shiftSales): sales still waiting to be sent, and the compact records kept for sales the server accepted.
+// A reprint is the receipt as it was printed the first time, so it works offline. Waiting sales are marked, and so are
+// sales the server flagged for a manager to review.
 
 import { h, $, clear, append } from './dom.js';
 import { formatPeso, parseMoney } from './money.js';
 import { formatTime } from './datetime.js';
 
-const SHOWN = 20;
+const SHOWN = 50;
 
 export function createReceiptsScreen(ctx) {
   const root = $('#screen-receipts');
@@ -13,36 +15,23 @@ export function createReceiptsScreen(ctx) {
   async function show() {
     const heading = h('h1', { id: 'title-receipts', tabindex: '-1' }, 'Receipts');
     const list = h('ul', { class: 'pos-receipts', 'aria-live': 'polite' });
-    append(clear(root), [heading, h('p', { class: 'pos-muted' }, 'The sales rung up in this browser tab on this shift, newest first.'), list]);
+    append(clear(root), [heading, h('p', { class: 'pos-muted' }, 'The sales rung up on this terminal during this shift, newest first. Sales not yet sent to the server are marked.'), list]);
 
-    const records = ctx.storage.sales(ctx.state.shift.id).slice(0, SHOWN);
-    if (records.length === 0) {
+    const sales = (await ctx.outbox.shiftSales(ctx.state.shift.id)).slice(0, SHOWN);
+    if (sales.length === 0) {
       list.append(h('li', { class: 'pos-notice' }, 'No sales yet on this shift.'));
       return;
     }
 
-    for (const record of records) {
-      const row = h('li', { class: 'pos-receipt-row pos-card' }, h('span', { class: 'pos-muted' }, 'Loading\u2026'));
-      list.append(row);
-      load(record, row);
-    }
-  }
-
-  async function load(record, row) {
-    try {
-      const sale = await ctx.getSale(record.id);
-      append(clear(row), [
+    for (const sale of sales) {
+      list.append(h('li', { class: 'pos-receipt-row pos-card', 'data-sale': sale.id },
         h('span', { class: 'pos-receipt-row__no' }, sale.receipt_number),
         h('span', { class: 'pos-muted' }, formatTime(sale.sold_at)),
         h('strong', { class: 'pos-receipt-row__total' }, formatPeso(parseMoney(sale.total) ?? 0)),
-        sale.status === 'needs_review' ? h('span', { class: 'pos-pill pos-pill--warn' }, 'Needs review') : null,
-        h('button', { class: 'pos-button', type: 'button', onClick: () => ctx.showReceipt(record.id, { newSale: false }) }, 'Reprint'),
-      ]);
-    } catch (error) {
-      append(clear(row), [
-        h('span', { class: 'pos-field-error' }, `Could not load this sale: ${ctx.errorMessage(error)}`),
-        h('button', { class: 'pos-button', type: 'button', onClick: () => load(record, row) }, 'Try again'),
-      ]);
+        sale.state === 'queued' || sale.state === 'sending' ? h('span', { class: 'pos-pill pos-pill--warn' }, 'Queued') : null,
+        sale.state === 'needs_attention' ? h('a', { class: 'pos-pill pos-pill--attention', href: '#sync' }, 'Needs attention') : null,
+        sale.needs_review ? h('span', { class: 'pos-pill pos-pill--warn' }, 'Needs review') : null,
+        h('button', { class: 'pos-button', type: 'button', disabled: sale.receipt === null, onClick: () => ctx.showReceipt(sale.receipt, { newSale: false, review: sale.needs_review ? (sale.review_reason ?? 'Stock on record did not cover it.') : null }) }, 'Reprint')));
     }
   }
 

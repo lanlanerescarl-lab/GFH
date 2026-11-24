@@ -302,3 +302,26 @@
   .print-sheet { display: block; width: var(--receipt-width); }
   .print-sheet .receipt { width: var(--receipt-width); padding: var(--space-2); }
 }
+
+/* ---- Offline layer (Batch 7.2): waiting badge, snapshot banner, sync screen, one-tab notice. Colors are variables from tokens.css. */
+a.pos-pill { text-decoration: none; }
+.pos-pill--attention { color: var(--pos-attention-ink); border-color: var(--pos-attention-border); background: var(--pos-attention-bg); }
+.pos-status .pos-pill--attention { color: var(--color-status-attention); border-color: var(--color-status-attention); background: transparent; }
+
+.pos-banner { padding: var(--space-2) var(--space-4); background: var(--pos-banner-bg); color: var(--pos-banner-ink); border-bottom: 1px solid var(--pos-banner-border); font-size: var(--pos-banner-size); }
+.pos-banner--warning { background: var(--pos-banner-warn-bg); color: var(--pos-banner-warn-ink); border-bottom-color: var(--pos-banner-warn-border); }
+.pos-banner__line { margin: 0; }
+.pos-banner__line + .pos-banner__line { margin-top: var(--space-1); }
+
+.pos-locked { max-width: 40rem; margin: var(--space-6) auto; padding: 0 var(--space-4); }
+
+.pos-sync__bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--pos-sync-gap); margin: var(--space-3) 0; }
+.pos-sync__summary { margin: 0; font-weight: 700; }
+.pos-sync__notes { display: grid; gap: var(--space-2); margin-bottom: var(--space-3); }
+.pos-sync__list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--pos-sync-gap); }
+.pos-sync-row { display: grid; gap: var(--space-2); }
+.pos-sync-row--attention { border-color: var(--pos-attention-border); }
+.pos-sync-row__main { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-3); }
+.pos-sync-row__total { font-variant-numeric: tabular-nums; margin-left: auto; }
+.pos-sync-row__help { margin: 0; }
+.pos-sync-row p { margin: 0; overflow-wrap: anywhere; }

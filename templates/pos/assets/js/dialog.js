@@ -58,3 +58,19 @@ export function confirmDialog({ title, message, confirmLabel = 'Confirm', cancel
   modal.body.querySelector('button')?.focus();
   return modal.closed.then((value) => value === true);
 }
+
+/**
+ * A refusal: a message the person cannot override, with a link to where they can fix it (the sync screen) and Close.
+ * Resolves true when the link was followed, false when the dialog was closed.
+ */
+export function refusalDialog({ title, message, linkHref = null, linkLabel = '' }) {
+  const modal = openModal({ title });
+  append(modal.body, [
+    h('p', { role: 'alert' }, message),
+    h('div', { class: 'pos-actions' },
+      h('button', { class: 'pos-button', type: 'button', onClick: () => modal.close(false) }, 'Close'),
+      linkHref === null ? null : h('a', { class: 'pos-button pos-button--primary', href: linkHref, onClick: () => modal.close(true) }, linkLabel)),
+  ]);
+  modal.body.querySelector('a, button')?.focus();
+  return modal.closed.then((value) => value === true);
+}

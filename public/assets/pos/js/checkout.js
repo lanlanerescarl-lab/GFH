@@ -1,15 +1,19 @@
 // From the Pay button to a saved sale. The app's one place that turns a priced ticket and a settlement into a sale,
-// sends it through the outbox, and clears the ticket once the server has it.
+// saves it through the outbox, and clears the ticket once it is safe on this device.
 //
-// A sale keeps its id (and receipt number) until the ticket or the payments change, so pressing Retry after a failure
-// sends exactly the same sale. If the first attempt did reach the server, the server answers "duplicate" instead of
-// recording it twice.
+// Batch 7.2: saving is local. The outbox writes the sale to the queue and gives it the next receipt number in one
+// storage transaction, then returns at once; the sync loop sends it to the server in the background. The receipt is
+// built here from the priced ticket (localsale.js), so it prints with or without a connection.
+//
+// A sale keeps its id until the ticket or the payments change, so pressing Retry after a failed save saves exactly the
+// same sale: the outbox treats the same id as the same sale and never takes a second receipt number for it.
 
 import { buildSale, newSaleId } from './sale.js';
 import { emptyTicket } from './ticket.js';
 import { nextReceiptNumber } from './receiptno.js';
 import { toApiMoney } from './money.js';
 import { openPayment } from './payment.js';
+import { receiptBuilder } from './localsale.js';
 
 export function createCheckout(ctx) {
   function signatureOf(priced, settlement) {
@@ -23,14 +27,15 @@ export function createCheckout(ctx) {
     ]);
   }
 
-  function sale(priced, settlement, receiptNumber, existing = null) {
+  /** The sale without a receipt number: the outbox gives it one when it is saved. */
+  function draft(priced, settlement) {
     const { state } = ctx;
     return buildSale({
-      id: existing?.id ?? newSaleId(),
-      receiptNumber,
+      id: newSaleId(),
+      receiptNumber: null,
       terminalId: state.terminal.id,
       shiftId: state.shift.id,
-      soldAt: existing?.sold_at ?? new Date().toISOString(),
+      soldAt: new Date().toISOString(),
       lines: priced.lines,
       payments: settlement.payments,
       rule: state.discount.rule,
@@ -39,45 +44,44 @@ export function createCheckout(ctx) {
   }
 
   /**
-   * Saves the sale. Resolves {result, cash} on success; throws the API's error otherwise, leaving the ticket as it was.
-   * @returns {Promise<{result: object, cash: {cashTendered: number, change: number}}>}
+   * Saves the sale on this device. Resolves {result, cash, receipt} on success; throws otherwise, leaving the ticket as it was.
+   * @returns {Promise<{result: object, cash: {cashTendered: number, change: number}, receipt: object}>}
    */
   async function completeSale(priced, settlement) {
     const { state } = ctx;
-    if (state.nextReceipt === null) await ctx.refreshShift();
 
     const signature = signatureOf(priced, settlement);
     if (state.pending === null || state.pending.signature !== signature) {
-      state.pending = { signature, sale: sale(priced, settlement, state.nextReceipt) };
-    }
-
-    let result;
-    try {
-      result = await ctx.outbox.submit(state.pending.sale);
-    } catch (error) {
-      // Another till or tab used this receipt number: ask the server for the next free one and send the same sale once more.
-      if (error.status === 409 && error.fields?.receipt_number) {
-        await ctx.refreshShift();
-        state.pending = { signature, sale: sale(priced, settlement, state.nextReceipt, state.pending.sale) };
-        result = await ctx.outbox.submit(state.pending.sale);
-      } else {
-        throw error;
-      }
-    }
-
-    // The server's total is the one that counts. A difference means the preview and the server disagree: say so in the console.
-    if (result.total !== toApiMoney(priced.total)) {
-      console.warn('POS price difference: the server worked out a different total than the preview.', { preview: toApiMoney(priced.total), server: result.total, sale: result.sale_id });
+      state.pending = { signature, sale: draft(priced, settlement) };
     }
 
     const cash = { cashTendered: settlement.cashTendered, change: settlement.change };
+    const buildReceipt = receiptBuilder({
+      sale: state.pending.sale,
+      priced,
+      productsByVariant: ctx.snapshot.productsByVariant(),
+      rule: state.discount.rule,
+      idLast4: state.discount.idLast4 || null,
+      terminal: state.terminal,
+      organization: ctx.config.organization,
+      vatRatePercent: ctx.snapshot.get()?.vat_rate_percent ?? 12,
+      cashierName: state.user.name,
+      cash,
+    });
+
+    const result = await ctx.outbox.submit(state.pending.sale, { buildReceipt, cash });
+
+    // The payments add up to the total the preview worked out; a difference means something is wrong in the preview.
+    if (result.total !== toApiMoney(priced.total)) {
+      console.warn('POS price difference: the saved total differs from the preview.', { preview: toApiMoney(priced.total), saved: result.total, sale: result.sale_id });
+    }
+
     state.nextReceipt = nextReceiptNumber(result.receipt_number) ?? state.nextReceipt;
-    ctx.storage.addSale(state.shift.id, { id: result.sale_id, tendered: cash.cashTendered, change: cash.change });
     state.ticket = emptyTicket();
     state.discount = { rule: null, idLast4: '' };
     state.pending = null;
 
-    return { result, cash };
+    return { result, cash, receipt: buildReceipt(result.receipt_number) };
   }
 
   /** Opens the payment dialog; when the sale is saved, shows its receipt. Resolves true if a sale was made. */
@@ -86,11 +90,7 @@ export function createCheckout(ctx) {
     if (!done) return false;
 
     ctx.status.update();
-    await ctx.showReceipt(done.result.sale_id, {
-      newSale: true,
-      cash: done.cash,
-      fallback: done.result,
-    });
+    await ctx.showReceipt(done.receipt, { newSale: true, queued: !ctx.state.online });
     return true;
   }
 

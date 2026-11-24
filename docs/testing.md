@@ -432,3 +432,54 @@ Use a Chrome or Edge window and a Cashier account for the demo organization (the
 16. Layout. At **1024 by 768** the products and the ticket sit side by side, nothing scrolls sideways and every button is easy to hit. At **768 by 1024** the ticket is a bar at the bottom showing the item count and total: tap it, the ticket slides up (quickly, and with no movement if the system asks for reduced motion), review, and Pay. At **390 pixels** wide the same bottom bar works, the status bar wraps without hiding anything, and the payment dialog, keypad and receipt are usable.
 17. Zoom the page to 200 percent and use a screen reader for one sale: totals and messages are announced, buttons have names such as "One more Coffee 250 g", and the dialogs keep the focus inside.
 18. On a tablet with no hardware keyboard note whether the on-screen keyboard opens after every tap on a product (the search box keeps the focus for scanners). Report this if it gets in the way.
+
+## Batch 7.2 POS offline layer: the tests that check it
+
+PHPUnit (`SwOfflineTest`, plus one block in `AdminRouterSmokeTest`):
+
+| Rule | Test |
+| --- | --- |
+| `GET /{org}/pos/sw.js` with no session returns 200, `application/javascript`, `Cache-Control: no-cache` and `Service-Worker-Allowed: /{org}/pos` (the page has no trailing slash, so the scope needs the header) | `SwOfflineTest::testTheWorkerIsServedWithoutASessionWithTheHeadersThatMakeTheScopeWork`; the smoke test requests it signed out |
+| An unknown organization has no worker; POST is refused | `testAnUnknownOrganizationHasNoWorker`, `testThePostMethodIsNotAllowed` |
+| The worker carries a cache name made of the organization and a content hash, the media cache name and the 400-picture limit | `testTheWorkerCarriesACacheNameForThisOrganizationAndAVersion` |
+| The precache list holds only same-origin paths: none to another host, none protocol-relative, none under `/api/`, no repeats | `testThePrecacheListHoldsOnlySameOriginAddressesAndNothingFromTheApi` |
+| The list holds the shell page, every script and stylesheet the rendered shell and layout load, every script published under `pos/js`, the fonts `fonts.css` names, and the branding stylesheet | `testThePrecacheListHoldsTheShellAndTheScriptsAndStylesTheShellAndLayoutLoad` |
+| `public/assets/pos/js` is in step with `templates/pos/assets/js` (the publish script was run) | `testTheScriptsInTheListAreTheSameFilesTheTemplatesPublish` |
+| The worker source holds no CSRF token, no user name or email or id, no password, no session value, and is identical for a signed-in and a signed-out visitor | `testTheWorkerSourceHoldsNoTokenNoNameAndNoSessionValue` |
+| The template makes no external request, strips the token and name from the saved shell, never calls skipWaiting or claim, and has one placeholder | `testTheWorkerTemplateMakesNoExternalRequestAndKeepsNoSecretInTheCache`, `testTheWorkerSourceIsPlainAsciiJavaScript` |
+| The page registers the worker with the explicit scope `{posBase}` after load, and sign-out asks the worker to forget the shell | `testThePageRegistersTheWorkerWithTheExplicitScopeOfThePageItself` |
+| The cache name changes when any kept file changes (a new deployment); an organization's own script wins; fonts come from `fonts.css`; a name that is not a slug is refused | `testTheCacheNameChangesWhenAnyKeptFileChanges`, `testAnOrganizationsOwnScriptWinsAndFontsComeFromFontsCss`, `testAnOrganizationNameThatIsNotASlugIsRefused` |
+
+Node (`node --test` from the project root; all written against the in-memory store in `store.js`, which has the same interface as the IndexedDB adapter in `idb.js`, and with a fake clock, fake fetch and a fake Cache API):
+
+| Rule | Test file |
+| --- | --- |
+| Queue and sync loop: sales go out in receipt-number order; a 201 and an idempotent duplicate answer remove the sale and keep a compact record; a 5xx or network error keeps it and backs off 5 s, 15 s, 45 s, then every 2 minutes (the 30 s timer does not cut a backoff short); a 409 or 422 moves that sale to needs attention while later sales continue; a 401 pauses and resumes (also with the real `api.js` sign-in dialog); a crash between send and removal resends harmlessly; `pendingCount`; no delete function exists | `outbox.test.js` |
+| Receipt counter: starts from the shift's number, formats like `T3-000123`, increments inside one transaction, never repeats across simultaneous submits or across two outboxes on one store, never goes back for the same shift; a failed queue write loses nothing and gives the number back | `counter.test.js`, `outbox.test.js` |
+| Close-shift and sign-out guards (queued, sending and needs-attention all block; other shifts do not block closing); the messages that opening and closing a shift need a connection | `guards.test.js` |
+| Snapshot cache and banner: download stores the snapshot with etag and time; offline or a failed download uses the stored copy and its age; no copy and no connection says so; banner states ok, warning past 24 hours, missing; thumbnail addresses (at most 400) and warming that ignores failures | `snapshot-cache.test.js` |
+| Heartbeat with a fake clock and fake fetch: a ping every 20 s only when idle, real traffic counts as contact, a dead connection is found while `navigator.onLine` still says online, `api.ping` | `heartbeat.test.js` |
+| One tab: Web Lock named after the organization and terminal, BroadcastChannel fallback; the page's worker registration (explicit scope, after load, quiet failure) and the sign-out message | `lock.test.js` |
+| The worker's logic in a vm with a fake Cache API: the saved shell has no token and no name, redirects and errors are never cached, `/api/` and the sign-in page are left to the network, cache first for assets, thumbnails limited and only with `?thumb=1`, sign-out deletes the shell, activate deletes old versions only | `worker.test.js` |
+| Nothing sensitive can be written to the store (tokens, passwords, CSRF values, sessions, cookies, at any depth), and none reaches it in a full sale flow | `store.test.js`, `outbox.test.js` |
+| A sale made offline prints its receipt from the priced ticket with the number it took, and the same receipt can be reprinted from the store before and after it is sent | `localsale.test.js` |
+
+What these tests do not prove: no browser, no service worker and no real IndexedDB were used. `worker.test.js` runs the worker's code against a fake Cache API, and the Node tests run the outbox against the in-memory store. How the real worker installs and controls a page, and how the real IndexedDB adapter behaves, is proven only by the hand-check below.
+
+## Browser hand-check, Batch 7.2 POS offline layer
+
+Use Chrome or Edge with the developer tools open (Application and Network tabs), the demo organization, a Cashier account, a terminal, and a product that has less stock on hand than you will sell. The page must be served over HTTPS or from `localhost` (browsers allow service workers on no other address).
+
+1. Sign in at `/demo/pos/login` as the Cashier, choose a terminal, open a shift. In Application, Service Workers, the worker for `/demo/pos` shows as activated. A worker controls a page after its first reload, so reload once: the page is then listed under Clients. In Storage, IndexedDB, the database `gfh-pos-demo-pos` holds the snapshot and the shift.
+2. Reload once online, then set Network to Offline and reload: the POS still loads, with fonts and styles, on the sell screen, with the snapshot age banner and the Offline pill.
+3. Offline, make three sales (one with a senior discount, one split tender, one that sells more than the stock on hand). Each prints its receipt with a number `T?-000nnn`, consecutive. The badge shows 3 waiting.
+4. Try Close shift and Sign out: both are refused with a link to the sync screen.
+5. Set Network back to Online. The badge counts down to 0 by itself within a minute. In Admin, POS sales shows exactly three new sales, once each, with the same receipt numbers, and the oversell is in the review queue.
+6. Repeat step 3, then close the tab while offline and reopen `/demo/pos` online: the three sales are still waiting and then upload once each. Kill the tab in the middle of a sync and reopen: no sale is doubled.
+7. Open the POS in a second tab: it refuses with a message. Close it.
+8. Open the POS on a second browser profile and a different terminal at the same time: the receipt prefixes differ and no number repeats.
+9. Make a queued sale fail on purpose (for example change its receipt number in Application, IndexedDB to one already used) and sync: it moves to Needs attention with the reason, and the next sale still uploads.
+10. Sign out with an empty queue: the cached shell page is removed from Application, Cache Storage.
+11. Check sizes 1024 by 768, 768 by 1024 and 390 pixels wide for the sync screen and the banners.
+
+Also worth a look while you are there (not numbered because nothing here can fail silently): in Cache Storage, the saved copy of `/demo/pos` contains no CSRF token and no cashier name (open it in the Network or Cache Storage preview and search for your name); nothing under `/demo/api/` is ever in Cache Storage; Local Storage and Session Storage hold no token.

@@ -1,13 +1,10 @@
-// What the POS remembers in the browser, and nothing else. Both are conveniences, never authentication:
-//   localStorage    the last terminal chosen on this device (an id, so the next start skips the choice);
-//   sessionStorage  the ids of this shift's recent sales (plus the cash given and change), for the Receipts screen.
-// No token, password, session or user data is ever written. Storage can be blocked or full; every call copes.
+// What the POS remembers in localStorage, and nothing else: the last terminal chosen on this device (an id, so the next
+// start skips the choice). It is a convenience, never authentication. Sales, the shift and the snapshot live in the
+// IndexedDB store (store.js, idb.js), not here. No token, password, session or user data is ever written. Storage can be
+// blocked or full; every call copes.
 
-const MAX_SALES = 50;
-
-export function createStorage(scope, local = safe(() => globalThis.localStorage), session = safe(() => globalThis.sessionStorage)) {
+export function createStorage(scope, local = safe(() => globalThis.localStorage)) {
   const terminalKey = `gfh.pos.terminal:${scope}`;
-  const salesKey = (shiftId) => `gfh.pos.sales:${scope}:${shiftId}`;
 
   return {
     lastTerminal() {
@@ -20,21 +17,6 @@ export function createStorage(scope, local = safe(() => globalThis.localStorage)
 
     forgetTerminal() {
       remove(local, terminalKey);
-    },
-
-    /** The sales of a shift made on this screen, newest first: [{id, tendered, change}]. */
-    sales(shiftId) {
-      try {
-        const list = JSON.parse(read(session, salesKey(shiftId)) ?? '[]');
-        return Array.isArray(list) ? list.filter((entry) => typeof entry?.id === 'string') : [];
-      } catch {
-        return [];
-      }
-    },
-
-    addSale(shiftId, entry) {
-      const rest = this.sales(shiftId).filter((existing) => existing.id !== entry.id);
-      write(session, salesKey(shiftId), JSON.stringify([entry, ...rest].slice(0, MAX_SALES)));
     },
   };
 }

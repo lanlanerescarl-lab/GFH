@@ -176,6 +176,29 @@ The POS set in `templates/pos/assets/css/tokens.css` is variables only. `templat
 
 Rules the POS keeps: focus is a 3 px outline (`--color-focus`) on every control; no control depends on hover; totals and status messages sit in `aria-live` regions; motion is `--motion-base` or shorter and the shared tokens set it to `0ms` under `prefers-reduced-motion`; icons are inline SVG drawn in `icons.js`, with no icon font; fonts are the self-hosted Inter and Source Serif 4.
 
+### Offline layer additions (Batch 7.2)
+
+Only what the sync screen, the banners and the badges need was added, as variables in `templates/pos/assets/css/tokens.css` (default values come from the shared status tokens, so a theme or an organization's branding recolors them with everything else). `app.css` holds no new hex or `rgb()` value.
+
+| Variable | Default | Used for |
+| --- | --- | --- |
+| `--color-status-attention` | `#fca5a5` | The "needs attention" badge on the dark status bar (the dark bar needs a light red; the pill itself is transparent there) |
+| `--pos-banner-bg` / `--pos-banner-ink` / `--pos-banner-border` | `--color-surface-muted` / `--color-ink` / `--color-border-soft` | The quiet banner that tells how old the prices and stock are |
+| `--pos-banner-warn-bg` / `--pos-banner-warn-ink` / `--pos-banner-warn-border` | `--status-warn-bg` / `--status-warn-ink` / `--status-warn` | The same banner as a warning (past 24 hours, no saved copy and no connection, or storage that would not open) |
+| `--pos-banner-size` | `0.9375rem` | Banner text size |
+| `--pos-attention-bg` / `--pos-attention-ink` / `--pos-attention-border` | `--status-danger-bg` / `--status-danger-ink` / `--status-danger` | A sale the server refused: its badge in the sync and receipts lists, and the row's border |
+| `--pos-sync-gap` | `--space-3` | Space between rows and controls on the sync screen |
+
+| Class | What it is |
+| --- | --- |
+| `.pos-pill--attention` | The "needs attention" badge. The waiting-sales badge in the status bar (`<a class="pos-pill" href="#sync">`) uses it when any sale needs attention, `--warn` when sales only wait, and `--quiet` when none do |
+| `.pos-banner` (`--warning`), `.pos-banner__line` | The banner under the status bar (`#pos-banner`, `role="status"`): snapshot age, and a standing notice when local storage would not open. Shown only when it has something to say |
+| `.pos-sync__bar`, `.pos-sync__summary`, `.pos-sync__notes`, `.pos-sync__list` | The sync screen (`#sync`): a summary and the Sync now button, notices (offline, paused), and the list of waiting sales |
+| `.pos-sync-row` (`--attention`), `.pos-sync-row__main`, `.pos-sync-row__no`, `.pos-sync-row__total`, `.pos-sync-row__help` | One waiting sale: receipt number, time, total, state, attempts, a Retry button, the last problem, and for a refused sale the plain instruction to ask a manager. There is no delete control, by design |
+| `.pos-locked` | The notice shown instead of the screens when the POS is already open in another tab |
+
+The rows wrap (`flex-wrap`) so that the sync screen and the banners work at 1024 by 768, 768 by 1024 and 390 pixels wide without sideways scrolling; long server messages wrap (`overflow-wrap: anywhere`).
+
 ## Shared chart theme
 
 Admin charts and KPI sparklines read their palette from CSS variables so they always match the active theme:

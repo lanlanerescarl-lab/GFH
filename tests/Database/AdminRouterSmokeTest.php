@@ -125,6 +125,13 @@ final class AdminRouterSmokeTest extends DatabaseTestCase
                 $this->assertStringContainsString($marker, $response->body(), "GET $path did not render its page.");
             }
 
+            // Batch 7.2: the POS service worker. Served to a visitor with no session (it holds no secret), as JavaScript with the scope header.
+            $worker = $app->handle(new Request('GET', "/$slug/pos/sw.js"), $signedOut);
+            $this->assertSame(200, $worker->status(), "GET /$slug/pos/sw.js");
+            $this->assertStringStartsWith('application/javascript', (string) $worker->header('Content-Type'));
+            $this->assertSame("/$slug/pos", $worker->header('Service-Worker-Allowed'));
+            $this->assertStringContainsString('self.addEventListener(\'fetch\'', $worker->body());
+
             // Batch 5.4a: the Reports page in each view, through the real router, with the current Manila date.
             $manilaToday = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Manila'));
             foreach ([
