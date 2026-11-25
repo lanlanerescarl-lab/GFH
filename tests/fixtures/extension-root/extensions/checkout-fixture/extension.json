@@ -1,0 +1,8 @@
+{
+  "key": "checkout-fixture",
+  "name": "Checkout fields (test fixture)",
+  "version": "1.0.0",
+  "description": "Test-only. Declares one field of each type, some bad definitions that must be ignored, and a fee that depends on a value.",
+  "entry": "register.php",
+  "hooks": ["checkout.fields", "checkout.adjustments"]
+}

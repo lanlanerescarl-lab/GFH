@@ -180,7 +180,7 @@ final class Services
      */
     public function hooks(): Hooks
     {
-        return $this->once('hooks', static fn (): Hooks => new Hooks());
+        return $this->once('hooks', fn (): Hooks => new Hooks($this->hookLog()));
     }
 
     /**
@@ -192,7 +192,7 @@ final class Services
         $slug = $tenant->organization->slug;
 
         return $this->once('tenant:' . $slug, function () use ($tenant, $slug): TenantServices {
-            $hooks = new Hooks();
+            $hooks = new Hooks($this->hookLog($slug));
             $services = new TenantServices(
                 $tenant->database(),
                 new AuditService($this->core()),
@@ -218,6 +218,22 @@ final class Services
 
             return $services;
         });
+    }
+
+    /**
+     * Where a failing hook callback is reported: the application log, at error level, with the organization named.
+     * The Hooks registry builds the message from the hook name, the extension and the exception's class and cleaned
+     * message; the hook's value and context are never logged.
+     *
+     * @return \Closure(string, array<string, mixed>): void
+     */
+    private function hookLog(?string $slug = null): \Closure
+    {
+        $logger = $this->app->logger();
+
+        return static function (string $message, array $context) use ($logger, $slug): void {
+            $logger->error($message, $slug === null ? $context : $context + ['organization' => $slug]);
+        };
     }
 
     /**

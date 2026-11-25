@@ -1,0 +1,8 @@
+{
+  "key": "throwing-hooks",
+  "name": "Throwing hooks (test fixture)",
+  "version": "1.0.0",
+  "description": "Test-only. Registers callbacks that throw or return the wrong type, between callbacks that behave.",
+  "entry": "register.php",
+  "hooks": ["navigation.admin", "navigation.shop", "product.detail.sections"]
+}

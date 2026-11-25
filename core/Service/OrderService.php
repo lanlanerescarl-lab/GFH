@@ -36,7 +36,10 @@ final class OrderService
         private readonly Hooks $hooks,
         private readonly PaymentProvider $payments,
     ) {
+        $this->checkoutFields = new CheckoutFieldService($hooks);
     }
+
+    private readonly CheckoutFieldService $checkoutFields;
 
     /** Pure rule: what the payment status is for these amounts (all centavos). */
     public static function derivePaymentStatus(int $total, int $depositDue, int $paid): string
@@ -55,6 +58,19 @@ final class OrderService
     }
 
     /**
+     * The values of the extension checkout fields for a price call: only declared ids, and only values that pass the
+     * field rules (anything else is blank). Never an error, because the customer is still filling the form in; the
+     * order itself is checked strictly by createOrder(). The pricing hook sees the same shape either way.
+     *
+     * @param array<mixed> $posted the `checkout` object of the request
+     * @return array<string, string|bool>
+     */
+    public function checkoutValuesForPricing(array $posted): array
+    {
+        return CheckoutFieldService::validate($this->checkoutFields->definitions(), $posted, false)['values'];
+    }
+
+    /**
      * What the checkout page needs: pickup branches, whether delivery is available, payment methods and the
      * extension checkout fields (hook checkout.fields).
      *
@@ -66,7 +82,7 @@ final class OrderService
             'pickup_branches' => $this->repository->pickupBranches(),
             'delivery_available' => $this->repository->deliveryOriginId() !== null,
             'payment_methods' => $this->payments->methods(),
-            'fields' => $this->hooks->filter(Hooks::CHECKOUT_FIELDS, [], []),
+            'fields' => $this->checkoutFields->definitions(),
         ];
     }
 
@@ -76,20 +92,28 @@ final class OrderService
      * @param array<string, mixed>       $customer    the organization customer row (customers table)
      * @param list<array<string, mixed>> $items       each {variant_id, quantity}
      * @param array<string, mixed>       $fulfillment method pickup|delivery, branch_id (pickup), address fields (delivery)
-     * @param array<string, mixed>       $checkout    values of the extension checkout fields
+     * @param array<string, mixed>       $checkout    values of the extension checkout fields, keyed by field id (checked here)
      * @return array<string, mixed> the order as returned by getOrder()
-     * @throws HttpException 422 with field errors, including when stock is short
+     * @throws HttpException 422 with field errors (`checkout.{id}` for an extension field), including when stock is short
      */
     public function createOrder(array $customer, array $items, array $fulfillment, array $checkout, ?string $createdBy = null, string $channel = 'online'): array
     {
         return Database::transaction($this->pdo, function () use ($customer, $items, $fulfillment, $checkout, $createdBy, $channel): array {
+            // Before anything is written: refuse unknown ids, missing required fields and values that break a rule.
+            // The checked values (not the raw ones) are what the pricing hook receives. They are not stored with the
+            // order: the schema has no place for per-order extension data, and Batch 8.3 adds no migration.
+            $checked = CheckoutFieldService::validate($this->checkoutFields->definitions(), $checkout, $channel === 'online');
+            if ($checked['errors'] !== []) {
+                throw HttpException::unprocessable($checked['errors']);
+            }
+
             $where = $this->resolveFulfillment($fulfillment);
 
             $cart = $this->pricing->priceCart($items, [
                 'customer' => ['tier' => $customer['tier'] ?? null, 'type' => $customer['customer_type'] ?? null],
                 'channel' => $channel,
                 'fulfillment' => $where['public'],
-                'checkout' => $checkout,
+                'checkout' => $checked['values'],
             ]);
 
             $context = [

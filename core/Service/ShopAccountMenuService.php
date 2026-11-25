@@ -24,7 +24,7 @@ final class ShopAccountMenuService
     {
         $prefix = $basePath . '/' . $organizationSlug . '/shop';
 
-        $builtIn = $items = [
+        $items = [
             ['label' => 'Profile', 'url' => $prefix . '/account/profile'],
             ['label' => 'Addresses', 'url' => $prefix . '/account/addresses'],
             ['label' => 'Password', 'url' => $prefix . '/account/password'],
@@ -32,17 +32,12 @@ final class ShopAccountMenuService
         ];
 
         // An extension receives only text: where the Shop lives and which organization this is, like navigation.shop.
-        // The extension loader isolates an extension whose entry file fails while it loads, but not a callback that
-        // throws later, when the hook runs. A menu is not worth a broken account page, so such a callback is skipped
-        // and the built-in items stay (Throwable on purpose: a type error in extension code must not take the page down).
-        try {
-            $items = $this->hooks->filter(Hooks::ACCOUNT_MENU, $items, [
-                'organization' => $organizationSlug,
-                'base_url' => $prefix,
-            ]);
-        } catch (\Throwable) {
-            $items = $builtIn;
-        }
+        // A callback that throws, or returns something that is not a list, is skipped by Hooks::filter itself (Batch 8.3),
+        // so the built-in items and the other extensions' items stay and the account page still answers.
+        $items = $this->hooks->filter(Hooks::ACCOUNT_MENU, $items, [
+            'organization' => $organizationSlug,
+            'base_url' => $prefix,
+        ]);
 
         $clean = [];
         foreach (is_array($items) ? $items : [] as $item) {

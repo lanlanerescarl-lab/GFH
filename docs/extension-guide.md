@@ -38,11 +38,20 @@ A tab's form posts to `{admin_base}/products/{id}` with `_csrf`, a hidden `tab` 
 
 The Migrator does not run an extension's `migrations/` folder yet. For a per-product value use an **extension-owned attribute**: a product attribute whose key starts with `ext_` (`ext_care_notes`). Core never shows it in the Admin attribute list or the Shop attribute table or filters, keeps it when the attribute list is saved, and never gives it to the public API. Your hooks get it in `product.attributes` (Shop) and in `current_attributes` (save). Details and limits are in `docs/extensions.md`. **Nothing secret goes in an `ext_` attribute**: it travels with the public product to your Shop hooks, and a value is at most 200 characters.
 
+## 4b. Checkout fields
+
+To ask the customer for something at checkout (a gift note, a company name, a time slot, an "I agree" box), return field definitions from the hook `checkout.fields` and, if a value changes a price, read it in `checkout.adjustments` from `$context['checkout']`. The shape of a definition, the checks the server makes and a working example are in `docs/extensions.md` under "Checkout fields". Three things to know: the server refuses unknown ids and bad values with a 422 on `checkout.{id}`, so you never have to re-check them; a bad definition is ignored and logged, not an error; and **the values are not stored with the order** (the schema has no place for them and Batch 8.3 adds no migration), so a value is only available to the hook that prices that order.
+
 ## 5. Escaping and what is trusted
 
 `bodyHtml` and `contentHtml` are printed exactly as you wrote them, with no escaping, the same trust the Admin gives order panels. So an extension is trusted code: it must pass every value that came from a product, a customer or a request through `htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`. Section and tab `title` and `label` are plain text and the page escapes them. No external hosts, no inline scripts that build HTML from data, no costs or staff ids in anything a customer can see. A CSRF token for a form comes from the hook context (`csrf`); never make one up.
 
-A callback may refuse a save on purpose by throwing `HttpException`. A **registration** that throws (bad manifest, parse error, undeclared hook) is isolated: the extension is skipped, logged once, and the page works without it.
+A callback may refuse a save or a sale on purpose by throwing `HttpException`; that is the only exception that reaches the visitor, with its status and field messages. Two kinds of failure are isolated, and the page works without the broken part:
+
+- A **registration** that throws (bad manifest, parse error, undeclared hook): the whole extension is skipped and logged once.
+- A **callback** that throws anything else when the hook runs, or returns another type than it received (a string or `null` where the hook passes a list): that one callback is skipped, the value from before it is kept, the next callbacks still run, and one line is written to `storage/logs/app.log` (once per request and callback) with the hook, your extension key, the exception class and its message. The visitor sees nothing.
+
+So a rule you depend on must refuse with `HttpException`: any other exception is skipped and the action goes ahead. Keep secrets and customer input out of exception messages (the log keeps them, cut to 300 characters), and do not write to the database from a callback. Details and limits are in `docs/extensions.md` under "When a hook callback fails".
 
 ## 6. Turn an extension on or off
 

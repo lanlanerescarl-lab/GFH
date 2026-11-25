@@ -548,6 +548,10 @@ a.pagination__link:hover { border-color: var(--color-primary); }
 .choice { display: flex; align-items: center; gap: var(--space-3); min-height: var(--touch-target); }
 .choice input { width: 1.5rem; height: 1.5rem; flex: none; }
 .choice label { flex: 1; padding: var(--space-2) 0; }
+.checkout-extra textarea { min-height: 6rem; resize: vertical; }
+.checkout-extra .choice { align-items: flex-start; }
+.checkout-extra .choice input { margin-top: var(--space-2); }
+.checkout-extra label, .checkout-extra .help, .checkout-extra .field-error { overflow-wrap: anywhere; }
 .checkout-panel { margin: 0 0 var(--space-4); }
 .checkout-panel[hidden] { display: none; }
 .checkout__submit { width: 100%; min-height: var(--touch-target); }

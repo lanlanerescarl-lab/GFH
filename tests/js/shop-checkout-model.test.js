@@ -57,8 +57,9 @@ test('server field errors split into form fields and general messages', () => {
     'checkout.note': 'Too long.',
     bad: '',
   });
-  assert.deepEqual(split.fields, { line1: 'This field is required.', branch_id: 'Choose a branch to pick up from.' });
-  assert.equal(split.general.length, 3);
+  // Batch 8.3: `checkout.{id}` is the error of an extension field and is kept under that key for the field's box.
+  assert.deepEqual(split.fields, { line1: 'This field is required.', branch_id: 'Choose a branch to pick up from.', 'checkout.note': 'Too long.' });
+  assert.equal(split.general.length, 2);
   assert.deepEqual(splitErrors(undefined), { fields: {}, general: [] });
 });
 

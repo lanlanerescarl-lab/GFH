@@ -3,6 +3,7 @@
 // No payment is taken here: the page says so, and the order is placed unpaid.
 import { ApiError, fieldErrors } from './api.js';
 import { renderLineList, renderSummary } from './cart-view.js';
+import { extensionFields, fieldKey, fieldTree } from './checkout-fields.js';
 import { addressPrefill, checkoutBody, pricingBody, shortStockNotes, splitErrors } from './checkout-model.js';
 import { announce, clear, el } from './dom.js';
 import { formatPeso, formatQuantity, isPositiveAmount, paymentMethodLabel } from './format.js';
@@ -34,6 +35,7 @@ export function initCheckout(root, { store, api }) {
   let sequence = 0;
   const controls = {};
   const fieldBoxes = {};
+  const extensionInputs = {};
 
   // ---- form building ----
 
@@ -43,6 +45,26 @@ export function initCheckout(root, { store, api }) {
     const error = el('p', { class: 'field-error', id: errorId });
     fieldBoxes[name] = { input, error };
     return el('div', { class: 'field' }, el('label', { for: input.id, text: required ? `${label} (required)` : label }), input, error);
+  }
+
+  // One extension field from its plain tree (checkout-fields.js). Text goes in through el(), as textContent.
+  function build(node) {
+    if (typeof node === 'string') {
+      return node;
+    }
+    return el(node.tag, node.props, node.children.map(build));
+  }
+
+  function extensionBox() {
+    const nodes = options.fields.map((definition) => {
+      const node = build(fieldTree(definition));
+      const input = node.querySelector('[data-ext-field]');
+      const error = node.querySelector('.field-error');
+      fieldBoxes[fieldKey(definition.id)] = { input, error };
+      extensionInputs[definition.id] = input;
+      return node;
+    });
+    return el('fieldset', { class: 'checkout-fieldset checkout-extra' }, el('legend', { text: 'More about your order' }), nodes);
   }
 
   function buildForm() {
@@ -94,6 +116,7 @@ export function initCheckout(root, { store, api }) {
       el('fieldset', { class: 'checkout-fieldset' }, el('legend', { text: 'How would you like to receive your order?' }), radios, methodError),
       pickupPanel,
       deliveryPanel,
+      options.fields.length > 0 ? extensionBox() : null,
       submit);
     syncPanels();
 
@@ -101,7 +124,8 @@ export function initCheckout(root, { store, api }) {
       if (event.target.name === 'method') {
         syncPanels();
         reprice();
-      } else if (event.target.name === 'branch_id' || (currentMethod() === 'delivery' && fieldBoxes[event.target.name])) {
+      } else if (event.target.name === 'branch_id' || (currentMethod() === 'delivery' && fieldBoxes[event.target.name]) || event.target.dataset?.extField) {
+        // An extension field can change a fee (a gift wrap, say), so the price shown stays the price charged.
         reprice();
       }
     });
@@ -123,7 +147,11 @@ export function initCheckout(root, { store, api }) {
     for (const name of ['recipient', 'phone', 'line1', 'barangay', 'city', 'province', 'postal_code']) {
       address[name] = fieldBoxes[name]?.input.value ?? '';
     }
-    return { method: currentMethod(), branch_id: controls.branch?.value ?? '', address };
+    const checkout = {};
+    for (const [id, input] of Object.entries(extensionInputs)) {
+      checkout[id] = input.type === 'checkbox' ? input.checked : input.value;
+    }
+    return { method: currentMethod(), branch_id: controls.branch?.value ?? '', address, checkout };
   }
 
   function prefill(addresses) {
@@ -284,6 +312,7 @@ export function initCheckout(root, { store, api }) {
       return;
     }
     options.pickup_branches = Array.isArray(options.pickup_branches) ? options.pickup_branches : [];
+    options.fields = extensionFields(options.fields);
     loading.hidden = true;
     content.hidden = false;
     buildForm();

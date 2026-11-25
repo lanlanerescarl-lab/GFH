@@ -4,6 +4,8 @@
 
 export const ADDRESS_FIELDS = ['recipient', 'phone', 'line1', 'barangay', 'city', 'province', 'postal_code'];
 
+import { checkoutValues, fieldKey } from './checkout-fields.js';
+
 const text = (value) => (typeof value === 'string' ? value.trim() : '');
 
 /** The cart lines as the API wants them: variant id and quantity, nothing else. */
@@ -37,11 +39,14 @@ export function pricingFulfillment(values) {
   return fulfillmentBody(values);
 }
 
-/** Body for POST /cart/price at checkout. */
-export const pricingBody = (lines, values) => ({ items: itemsFrom(lines), fulfillment: pricingFulfillment(values), checkout: {} });
+/**
+ * Body for POST /cart/price at checkout. `values.checkout` holds what was entered in the extension fields (id => value);
+ * without any it is {} as before. The server keeps only valid values of declared fields.
+ */
+export const pricingBody = (lines, values) => ({ items: itemsFrom(lines), fulfillment: pricingFulfillment(values), checkout: checkoutValues(values.checkout) });
 
-/** Body for POST /checkout. */
-export const checkoutBody = (lines, values) => ({ items: itemsFrom(lines), fulfillment: fulfillmentBody(values), checkout: {} });
+/** Body for POST /checkout. The server checks every value again and refuses an unknown id. */
+export const checkoutBody = (lines, values) => ({ items: itemsFrom(lines), fulfillment: fulfillmentBody(values), checkout: checkoutValues(values.checkout) });
 
 /**
  * The delivery form values from the customer's saved default address (GET /account/addresses), or an empty form.
@@ -62,7 +67,8 @@ export function addressPrefill(response) {
 
 /**
  * Splits the server's field errors into those that belong to a form field and the rest.
- * "fulfillment.line1" belongs to the field "line1"; "items", "items.<id>" and "checkout.*" are general.
+ * "fulfillment.line1" belongs to the field "line1"; "checkout.<id>" (an extension field) is kept under that same key, which
+ * is what checkout.js uses for the field's box; "items", "items.<id>" and any other name are general.
  *
  * @returns {{fields: Record<string, string>, general: string[]}}
  */
@@ -74,6 +80,8 @@ export function splitErrors(fields) {
     }
     if (name.startsWith('fulfillment.')) {
       result.fields[name.slice('fulfillment.'.length)] = message;
+    } else if (/^checkout\.[a-z0-9_]{1,40}$/.test(name) && fieldKey(name.slice('checkout.'.length)) === name) {
+      result.fields[name] = message;
     } else if (!result.general.includes(message)) {
       result.general.push(message);
     }

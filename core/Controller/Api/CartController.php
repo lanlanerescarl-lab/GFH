@@ -25,7 +25,7 @@ final class CartController extends ApiController
 
     /**
      * POST /{org}/api/v1/cart/price: prices a cart on the server. A signed-in customer gets the tiers they qualify for.
-     * Body: items [{variant_id, quantity}], fulfillment (optional), checkout (optional).
+     * Body: items [{variant_id, quantity}], fulfillment (optional), checkout (optional: values of the extension checkout fields).
      */
     public function price(Request $request): Response
     {
@@ -39,7 +39,8 @@ final class CartController extends ApiController
             'customer' => $record === null ? null : ['tier' => $record['tier'], 'type' => $record['customer_type']],
             'channel' => 'online',
             'fulfillment' => is_array($body['fulfillment'] ?? null) ? $body['fulfillment'] : [],
-            'checkout' => is_array($body['checkout'] ?? null) ? $body['checkout'] : [],
+            // Only declared fields with valid values reach the pricing hook; a half-filled form is not an error here.
+            'checkout' => $services->orders()->checkoutValuesForPricing(is_array($body['checkout'] ?? null) ? $body['checkout'] : []),
         ]);
 
         return Response::ok($cart->toArray());

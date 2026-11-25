@@ -93,12 +93,22 @@ final class ShopAccountMenuServiceTest extends TestCase
         $this->assertSame(self::BUILT_IN, array_column($this->items($hooks), 'label'));
     }
 
-    public function testACallbackThatReturnsNotAnArrayLeavesNoMenuItemsButDoesNotBreak(): void
+    public function testACallbackThatReturnsNotAnArrayIsIgnoredAndTheBuiltInMenuStays(): void
     {
+        // Batch 8.3: Hooks::filter ignores a result of another type (it used to leave the page with no menu at all).
         $hooks = new Hooks();
         $hooks->add(Hooks::ACCOUNT_MENU, static fn (array $items): string => 'oops');
 
-        $this->assertSame([], $this->items($hooks));
+        $this->assertSame(self::BUILT_IN, array_column($this->items($hooks), 'label'));
+    }
+
+    public function testAWellBehavedCallbackStillAddsItsItemWhenAnotherOneBreaks(): void
+    {
+        $hooks = new Hooks();
+        $hooks->add(Hooks::ACCOUNT_MENU, static fn (array $items): never => throw new \RuntimeException('extension bug'), 5);
+        $hooks->add(Hooks::ACCOUNT_MENU, static fn (array $items): array => [...$items, ['label' => 'Wishlist', 'url' => '/x/wishlist']], 10);
+
+        $this->assertSame([...self::BUILT_IN, 'Wishlist'], array_column($this->items($hooks), 'label'));
     }
 
     public function testACallbackThatThrowsWhenTheHookRunsLeavesTheBuiltInMenu(): void

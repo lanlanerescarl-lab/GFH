@@ -84,8 +84,8 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form. Each tab is `{id, label, contentHtml}`. The context has `product`, `can_edit`, `admin_base` (for example `/demo/admin`), `csrf` (the token for a form the tab posts), `errors` (field errors of a refused save) and `input` (the extension's own posted fields after a refused save, otherwise empty) |
 | `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects. The value is the payload; the context has `product_id` (null when creating), `actor_id` and `current_attributes` (the stored attributes, `[]` when creating). Throw `HttpException::unprocessable()` to refuse. A tab form posts only its own field, so the payload holds only that field and the other product fields keep their stored values |
 | `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections (`list<array{id: string, title: string, bodyHtml: string}>`) on the Shop product detail page, after the attribute table. See "Shop hooks" below |
-| `checkout.fields` | `Hooks::CHECKOUT_FIELDS` | Extra checkout fields returned by `GET /{org}/api/v1/checkout/options` |
-| `checkout.adjustments` | `Hooks::CHECKOUT_ADJUSTMENTS` | Online cart fees (`delivery_fee`, `assembly_fee`, `installation_fee`), `deposit_due`, `promised_date` and `made_to_order_variants` in `PricingService` |
+| `checkout.fields` | `Hooks::CHECKOUT_FIELDS` | Extra checkout fields (a list of field definitions, see "Checkout fields" below) returned by `GET /{org}/api/v1/checkout/options` and shown by the Shop checkout page |
+| `checkout.adjustments` | `Hooks::CHECKOUT_ADJUSTMENTS` | Online cart fees (`delivery_fee`, `assembly_fee`, `installation_fee`), `deposit_due`, `promised_date` and `made_to_order_variants` in `PricingService`. The context has `checkout` = the checked values of the extension checkout fields (id => text or true/false, see "Checkout fields"), plus `items`, `fulfillment` and the other keys `PricingService` gives it |
 | `order.progress.steps` | `Hooks::ORDER_PROGRESS_STEPS` | The steps in an order's progress path (`context`: `order`, `all_steps`) in `OrderService` |
 | `order.detail.panels` | `Hooks::ORDER_DETAIL_PANELS` | Extra panels on the Admin order detail view |
 | `stock.pick_strategy` | `Hooks::STOCK_PICK_STRATEGY` | Batch picks (`list<array{batch_id: ?string, quantity_milli: int}>`) when issuing stock in `InventoryService`; may throw `HttpException` to refuse a sale |
@@ -97,7 +97,7 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 
 **`navigation.shop`.** The value starts as `[['label' => 'Shop', 'url' => '/{org}/shop/products']]`; add items after it. The context has two text values only: `organization` (the slug) and `base_url` (where the Shop lives, for example `/demo/shop`; build your links from it). Each item needs a `label` and a `url` that starts with a single `/` (a path inside this site); an item with an empty label, an absolute address, a `//` address or a `javascript:` address is dropped, both by `ShopNavigationService` and again by `partials/nav.php`. `current` is set for you when the item's `url` equals the page's path; set it yourself to mark an item current in other cases.
 
-**`account.menu` (Batch 6.3b).** The account menu is shown on the signed-in customer's account pages (`/{org}/shop/account`, `/profile`, `/addresses`, `/password`). The value starts as the built-in items, in this order: `Profile` (`{base_url}/account/profile`), `Addresses` (`{base_url}/account/addresses`), `Password` (`{base_url}/account/password`) and `My orders` (`{base_url}/orders`). Return it with your items added after them. The context has two text values only, like `navigation.shop`: `organization` (the slug) and `base_url` (for example `/demo/shop`; build your links from it). Each item needs a `label` and a `url` that starts with a single `/`; an item with an empty label, a missing or non-text label or url, an absolute, `//`, `javascript:` or backslash address, or an address with a space is dropped, both by `ShopAccountMenuService` and again by `partials/account-menu.php`, and labels are escaped when printed. `current` is set for you when the item's `url` equals the page's path (an address's edit form counts as Addresses and an order as My orders); set it yourself to mark an item current in other cases. A page behind your link is yours to build, and it must check that the visitor is signed in itself. Two layers keep a broken extension from breaking the account pages: the extension loader isolates an entry file that throws while it loads (see below), and `ShopAccountMenuService` catches a callback that throws later, when the menu is built, and shows the built-in items instead (the loader cannot catch that, because it only runs while the entry file loads).
+**`account.menu` (Batch 6.3b).** The account menu is shown on the signed-in customer's account pages (`/{org}/shop/account`, `/profile`, `/addresses`, `/password`). The value starts as the built-in items, in this order: `Profile` (`{base_url}/account/profile`), `Addresses` (`{base_url}/account/addresses`), `Password` (`{base_url}/account/password`) and `My orders` (`{base_url}/orders`). Return it with your items added after them. The context has two text values only, like `navigation.shop`: `organization` (the slug) and `base_url` (for example `/demo/shop`; build your links from it). Each item needs a `label` and a `url` that starts with a single `/`; an item with an empty label, a missing or non-text label or url, an absolute, `//`, `javascript:` or backslash address, or an address with a space is dropped, both by `ShopAccountMenuService` and again by `partials/account-menu.php`, and labels are escaped when printed. `current` is set for you when the item's `url` equals the page's path (an address's edit form counts as Addresses and an order as My orders); set it yourself to mark an item current in other cases. A page behind your link is yours to build, and it must check that the visitor is signed in itself. Two layers keep a broken extension from breaking the account pages: the extension loader isolates an entry file that throws while it loads, and `Hooks::filter` skips a callback that throws, or returns something that is not a list, when the menu is built, keeping the built-in items and the other extensions' items (see "When a hook callback fails" below). Since Batch 8.3 `ShopAccountMenuService` has no catch of its own.
 
 **`product.detail.sections`.** The value starts as `[]`; return it with your sections added. Each section is `['id' => ..., 'title' => ..., 'bodyHtml' => ...]`.
 
@@ -105,7 +105,7 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 - `title` is plain text and the page escapes it. A section without a title is dropped. `id` is reduced to letters, digits and hyphens (it becomes the section's `id` attribute and its anchor); an empty one becomes `section-N`. At most 10 sections are shown.
 - `bodyHtml` (also accepted as `contentHtml`) is **printed as you wrote it, without escaping**, the same trust the Admin gives order panels. The extension must escape anything it prints that a product record, a customer or a request supplied (use `htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`). Do not print costs; you were not given any, and must not look them up.
 
-A hook callback has the signature `fn (mixed $value, array $context): mixed` and returns the modified `$value`. Lower priority numbers (`0` to `100`, default `10`) run first across all loaded extensions.
+A hook callback has the signature `fn (mixed $value, array $context): mixed` and returns the modified `$value`. Lower priority numbers (`0` to `100`, default `10`) run first across all loaded extensions. A callback that throws or returns the wrong type is skipped, not fatal: see "When a hook callback fails" below.
 
 ## Entry file and `ExtensionContext`
 
@@ -142,6 +142,93 @@ return function (ExtensionContext $x): void {
 2. Hook registrations and setting definitions are staged in `ExtensionContext` and only committed to `Hooks` and `SettingsService` **after** the entry file finishes without throwing. An extension that fails halfway leaves no hooks or settings behind.
 3. Any `\Throwable` (missing or invalid `extension.json`, unknown field or hook, registering an undeclared hook, reading a setting during registration, a non-Closure return value, a `ParseError` or runtime exception) is caught.
 4. The failure is recorded in the loader's report (`['loaded' => [...], 'failed' => [$key => $reason]]`, accessible via `Services::extensionReport($slug)`) and logged once through the application logger. All other extensions and the site continue to run normally.
+
+This list is about **registering**. A callback that fails later, when a page runs the hook, is handled by `Hooks::filter()`: see "When a hook callback fails" below.
+
+## When a hook callback fails (Batch 8.3)
+
+`ExtensionLoader` (above) only covers the moment an extension registers its hooks. A callback can also fail later, when a page runs the hook. `Hooks::filter()` is the only place core calls hook callbacks, and it runs **each callback on its own**:
+
+| What the callback does | What happens |
+| --- | --- |
+| Returns a value of the same type | The value is used and passed to the next callback. With nothing registered, or nothing failing, the result is exactly what it was before this rule existed |
+| Throws `HttpException` (any status) | It passes through untouched to the caller, which turns it into the page or JSON error: a refused product save (422 with field messages), a refused sale. Later callbacks of that hook do not run. It is on purpose, not a failure, so it is not logged |
+| Throws anything else (`Exception`, `Error`, `TypeError` from a wrong signature, `ArgumentCountError`, a PHP warning turned into an exception, `PDOException`) | The callback is **skipped**: the value from before it is kept, the next callbacks still run, and the page answers normally |
+| Returns another type than it received (`null`, a string, a number or an object where the hook passes an array) | The result is **ignored** like a skipped callback: the value from before it is kept |
+
+Types are compared as `array`, `string`, `int`, `float`, `bool`, `null` or `object`. A list may come back as a map and an empty array as a full one, because both are arrays. **No hook may change its type today** (`Hooks::MAY_CHANGE_TYPE` is empty); if one ever may, it is named there and in this table.
+
+**The log.** A skipped or ignored callback writes one `ERROR` line to the application log (`storage/logs/app.log`), **once per request and per callback**, however often the hook runs in that request:
+
+```
+Hook callback skipped: navigation.shop (care-notes) RuntimeException: the message {"hook":"navigation.shop","extension":"care-notes","callback":"closure in register.php:14","organization":"demo"}
+```
+
+It names the hook, the extension (the manifest `key`; a callback added from code instead of an extension is named by its class and method, or by the file and line of its closure), the exception's class and its message, or `returned string where array was expected`. It carries **no stack trace** and **never the hook's value or context**, which can hold a customer's input. The exception message is cut to 300 characters, turned into one line, and credentials in an address (`scheme://user:pass@host`) and in `password=`, `secret=`, `token=`, `api_key=`, `csrf=`, `authorization=` or `cookie=` pairs are replaced by `***`. That is a safety net, not a licence: **put no secret and no customer input in an exception message.** The visitor sees no error text at all. If the log file cannot be written, the failure is skipped silently like any other.
+
+**What this does not cover.**
+
+- A fatal error, `exit()` and a time-out inside a callback cannot be caught by any PHP code.
+- Core still checks what a hook returns where the content matters. For example `checkout.adjustments` returning a negative or non-numeric fee is refused with an error (HTTP 500) because core would otherwise charge a wrong price; the type check above does not look inside an array.
+- A callback must not write to the database. A failed SQL statement inside the page's transaction aborts that transaction: the callback is skipped, but the request's own queries then fail too.
+- A callback that is skipped changes what the page shows or does. A hook that you rely on for a rule (for example one that refuses a sale) must refuse with `HttpException`, never by throwing anything else, because anything else is skipped and the sale goes ahead.
+
+## Checkout fields (Batch 8.3)
+
+An extension adds fields to the Shop checkout page (a gift note, a company name, a delivery time slot, an "I agree" box) with the hook `checkout.fields`. The value is a list of field definitions; a callback adds its own and returns the whole list. `OrderService` reads it for `GET /checkout/options`, and the checkout page builds the fields from that answer.
+
+**A field definition** (every key is plain text or a number; unknown keys are ignored):
+
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `id` | Yes | 1 to 40 lower-case letters, digits or underscores (`^[a-z0-9_]{1,40}$`). Unique in the list: the first field with an id wins. It is the key of the value in the `checkout` object |
+| `label` | Yes | Plain text, 1 to 80 characters, shown next to the input (with "(required)" added for a required field) |
+| `type` | Yes | `text` (one line), `textarea`, `select` or `checkbox` |
+| `required` | No | `true` or `false` (default `false`). A required checkbox must be ticked |
+| `options` | For `select` | 1 to 50 objects `{value, label}`: `value` plain text up to 100 characters and unique, `label` plain text up to 80. Ignored for the other types |
+| `help` | No | Plain text up to 200 characters, shown under the input |
+| `max_length` | No | Whole number 1 to 500, for `text` and `textarea` (default 150 and 500). Counts characters, not bytes. Ignored for `select` and `checkbox` |
+
+At most **10** fields are shown. A definition that breaks any rule (an id with a capital letter or a dash, a missing label, a type that is not one of the four, a select without usable options, a duplicate id, `required` that is not a boolean, the eleventh field, an entry that is not an object) is **ignored, and logged once per request** as `Hook value problem: checkout.fields: ...` with the reason; the good fields still work and the customer sees nothing. A callback that throws, or returns something that is not a list, is isolated as described in "When a hook callback fails".
+
+```php
+return function (ExtensionContext $x): void {
+    $x->hook('checkout.fields', static fn (array $fields): array => [
+        ...$fields,
+        ['id' => 'gift_note', 'label' => 'Gift note', 'type' => 'textarea', 'help' => 'We print it on a card.', 'max_length' => 120],
+        ['id' => 'slot', 'label' => 'Delivery time', 'type' => 'select', 'required' => true,
+            'options' => [['value' => 'am', 'label' => 'Morning'], ['value' => 'pm', 'label' => 'Afternoon']]],
+        ['id' => 'gift_wrap', 'label' => 'Gift wrap', 'type' => 'checkbox'],
+    ]);
+
+    // The checked values arrive in the context. A fee that depends on one is part of the price the customer sees.
+    $x->hook('checkout.adjustments', static function (array $adjustments, array $context): array {
+        if (($context['checkout']['gift_wrap'] ?? false) === true) {
+            $adjustments['assembly_fee'] = '30.00';
+        }
+
+        return $adjustments;
+    });
+};
+```
+
+(The manifest lists both hook names in `hooks`.)
+
+**What the server checks.** The page posts the values in the `checkout` object of `POST /checkout`, and the server checks them again whatever the browser did, before any order or reservation is written:
+
+- An id that is not a declared field is refused (`checkout.{id}`: "This field is not part of the checkout."; a key that is not even a valid id is reported as `checkout` without echoing it). With no extension fields at all, every posted id is refused.
+- A required field must have a value (a required checkbox must be ticked).
+- Text is trimmed, must be a string, valid UTF-8, **plain text**: no control characters (a `textarea` may hold line breaks and tabs) and nothing that starts an HTML tag (`<b`, `</`, `<!`, `<?`). A `<` followed by a space or a digit is fine. Values are passed as typed (never rewritten) and must be escaped wherever an extension prints them.
+- Length at most `max_length` characters.
+- A `select` value must be exactly one of the option values (an empty choice is fine unless the field is required).
+- A checkbox is `true`, `false`, `"1"`, `"0"`, `"on"`, `"true"`, `"false"`, `""` or absent; anything else is refused.
+- All problems are returned at once as a 422 with `fields` keyed `checkout.{id}`, and nothing is created. The page shows each message under its field and in the error summary.
+
+**What reaches `checkout.adjustments`.** The context key `checkout` is the checked values: **every declared id**, text as a trimmed string (`""` when blank), a checkbox as `true` or `false`. A value that failed a rule is never passed (it is blank). `POST /cart/price` (the price the page shows while the customer fills the form in) takes the same values but never fails: unknown ids are dropped and invalid values are blank, so a half-filled form still gets a price. Until Batch 8.3 `checkout` was the raw posted object; undeclared data no longer reaches the hook.
+
+**The values are not stored with the order.** The orders schema has no place for per-order extension data, and Batch 8.3 adds no migration. A value reaches the hook that prices the order and is not saved afterwards: an extension that needs it on the order (a gift note to print) has to wait for a place to store it. Do not fake one with another column.
+
+**The page.** The Shop checkout page is built by `checkout.js` from the options. It shows the fields in a "More about your order" group after the delivery choice, each with its label tied to its input, the help text and the error message tied with `aria-describedby`, using the same `.field`, `.choice`, `.help` and `.field-error` markup as the core fields. All text is placed as text, never as markup. The page sends the values in the `checkout` object it already sends, and prices the cart again when a field changes, so a fee that depends on a value is the one charged.
 
 ## Extension-owned product attributes (Batch 8.2)
 

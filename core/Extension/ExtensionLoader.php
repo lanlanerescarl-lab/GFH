@@ -127,7 +127,7 @@ final class ExtensionLoader
             );
         }
         foreach ($context->registrations() as $registration) {
-            $hooks->add($registration['name'], $registration['callback'], $registration['priority']);
+            $hooks->add($registration['name'], $registration['callback'], $registration['priority'], $manifest->key);
         }
         $context->activate();
     }
