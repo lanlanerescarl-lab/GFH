@@ -9,7 +9,6 @@ use Gfh\Core\Http\HttpException;
 use Gfh\Core\Http\Request;
 use Gfh\Core\Http\Response;
 use Gfh\Core\Repository\OrganizationCustomerRepository;
-use Gfh\Core\Service\CustomerAccessService;
 use Gfh\Core\Support\ListQuery;
 
 /**
@@ -69,31 +68,30 @@ final class CartController extends ApiController
             is_array($body['checkout'] ?? null) ? $body['checkout'] : [],
         );
 
-        return Response::ok($order, 201);
+        // createOrder() answers with the staff form of the order; a customer gets the customer-safe form.
+        return Response::ok($services->shopOrders()->forApi($order), 201);
     }
 
-    /** GET /{org}/api/v1/orders: the signed-in customer's own orders. */
+    /**
+     * GET /{org}/api/v1/orders: the signed-in customer's own orders, with the fields of the Shop's order list page.
+     * Orders reach a customer only through ShopOrderService, which owns the list of customer-safe fields.
+     */
     public function myOrders(Request $request): Response
     {
         [$customer, $services] = $this->customerContext($request);
-        $record = $services->orders()->customerForAccount($customer->id);
         $query = ListQuery::fromRequest($request, ['placed' => 'o.placed_at', 'total' => 'o.total', 'number' => 'o.order_number'], '-placed', ['progress_key', 'payment_status', 'from', 'to'], [], ['from', 'to']);
 
-        if ($record === null) {
-            return Response::ok($query->result([], 0));
-        }
-
-        return Response::ok($services->orders()->listOrders($query, (string) $record['id']));
+        return Response::ok($services->shopOrders()->listFor($customer, $query));
     }
 
-    /** GET /{org}/api/v1/orders/{id}: one of the customer's own orders, with tracking. Another customer's order is "not found". */
+    /**
+     * GET /{org}/api/v1/orders/{id}: one of the customer's own orders, with tracking. Another customer's order is "not
+     * found" (the ownership check is CustomerAccessService, run by ShopOrderService). Costs and staff ids are never returned.
+     */
     public function myOrder(Request $request): Response
     {
-        [$customer, $services, $tenant] = $this->customerContext($request);
-        $id = $this->id($request);
+        [$customer, $services] = $this->customerContext($request);
 
-        (new CustomerAccessService(new OrganizationCustomerRepository($tenant->database())))->assertCanViewOrder($customer, $id);
-
-        return Response::ok($services->orders()->getOrder($id));
+        return Response::ok($services->shopOrders()->apiDetailFor($customer, $this->id($request)));
     }
 }

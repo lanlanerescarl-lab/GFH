@@ -8,6 +8,7 @@ use Gfh\Core\Auth\CustomerAccount;
 use Gfh\Core\Auth\Session;
 use Gfh\Core\Http\Request;
 use Gfh\Core\Http\Response;
+use Gfh\Core\Service\ShopOrderService;
 use Gfh\Core\Support\Services;
 use Gfh\Tests\Support\ShopTestCase;
 use Gfh\Tests\Support\TestKit;
@@ -785,5 +786,258 @@ final class ShopAccountFlowTest extends ShopTestCase
 
         $this->assertSame(401, $response->status());
         $this->assertSame([], $this->orderIds());
+    }
+
+    // ------------------------------------------------------------------ cost-leak fix: the customer JSON order routes
+
+    /** Keys a customer must never see at any depth: costs, margins, profit, internal flags and every staff user reference. */
+    private const FORBIDDEN_KEY = '/(^|_)(cost|costs|margin|profit)(_|$)|_by$|^staff|_staff|^user_id$|^notes?$|internal|^refund_review$|^cancellation_reason$/i';
+
+    private const STAFF_REASON = 'Staff-only cancellation reason';
+
+    /** @return list<string> the path of every forbidden key, found recursively */
+    private function forbiddenKeys(mixed $value, string $path = ''): array
+    {
+        $found = [];
+        if (!is_array($value)) {
+            return $found;
+        }
+        foreach ($value as $key => $child) {
+            $here = $path . '/' . $key;
+            if (is_string($key) && preg_match(self::FORBIDDEN_KEY, $key) === 1) {
+                $found[] = $here;
+            }
+            $found = [...$found, ...$this->forbiddenKeys($child, $here)];
+        }
+
+        return $found;
+    }
+
+    /**
+     * @param array<string, mixed> $data the decoded data of the response
+     * @param array<string, string> $secrets values that must not appear anywhere in the raw body
+     */
+    private function assertCustomerSafe(array $data, Response $response, array $secrets, string $context): void
+    {
+        $this->assertSame([], $this->forbiddenKeys($data), $context . ': cost, margin or staff keys in the customer response');
+        foreach ($secrets as $label => $secret) {
+            $this->assertStringNotContainsString($secret, $response->body(), $context . ': ' . $label);
+        }
+    }
+
+    /** @return array<string, string> what a customer response must never contain, as raw text */
+    private function secretsOf(string $staffId): array
+    {
+        return ['the staff user id' => $staffId, 'a cost value' => self::SECRET_COST, 'the staff cancellation reason' => self::STAFF_REASON];
+    }
+
+    /**
+     * Places an order as the customer and, when asked, takes it to a status as a staff member would: a payment by
+     * the staff member, then the step (completing it sells the stock and snapshots the cost) or a cancellation.
+     *
+     * @param array{services: Services, session: Session} $browser
+     * @return array<string, mixed> the checkout response
+     */
+    private function orderIn(string $status, array $browser, string $variant, string $staffId, bool $delivery = false): array
+    {
+        $order = $this->data($this->api($browser, 'POST', '/checkout', $this->checkoutBody($variant, '2', $delivery ? $this->deliveryAddress() : null)), 201);
+        if ($status === 'placed') {
+            return $order;
+        }
+
+        $orders = $this->shop->services->orders();
+        $orders->recordPayment((string) $order['id'], ['method' => 'cash', 'amount' => '50.00'], $staffId);
+        if ($status === 'cancelled') {
+            $orders->cancel((string) $order['id'], self::STAFF_REASON, $staffId);
+        } else {
+            $orders->advance((string) $order['id'], $status, $staffId);
+        }
+
+        return $order;
+    }
+
+    /** @return array<string, array{0: string, 1: bool}> */
+    public static function orderStatuses(): array
+    {
+        return [
+            'placed' => ['placed', false],
+            'confirmed' => ['confirmed', false],
+            'ready' => ['ready', false],
+            'out for delivery' => ['out_for_delivery', true],
+            'completed (fulfilled)' => ['completed', false],
+            'completed delivery order' => ['completed', true],
+            'cancelled' => ['cancelled', false],
+        ];
+    }
+
+    #[DataProvider('orderStatuses')]
+    public function testTheCustomerOrderEndpointNeverReturnsCostsOrStaffIdsInAnyStatus(string $status, bool $delivery): void
+    {
+        $admin = $this->kit->member($this->kit->organizations->findBySlug($this->slug), 'admin@shop.test', 'admin');
+        $browser = $this->browser($this->account('ana@shop.test'));
+        $order = $this->orderIn($status, $browser, $this->stockedVariant(), $admin->id, $delivery);
+        $id = (string) $order['id'];
+
+        // The premise: the database really holds the cost and the staff ids that must stay hidden.
+        if ($status !== 'placed') {
+            $this->assertSame($admin->id, (string) $this->shop->scalar('SELECT recorded_by FROM payments WHERE order_id = ?', [$id]));
+        }
+        if ($status === 'completed') {
+            $this->assertNotNull($this->shop->scalar('SELECT unit_cost FROM order_lines WHERE order_id = ?', [$id]));
+            $this->assertSame($admin->id, (string) $this->shop->scalar('SELECT changed_by FROM order_status_history WHERE order_id = ? ORDER BY changed_at DESC, id DESC LIMIT 1', [$id]));
+        }
+
+        $response = $this->api($browser, 'GET', '/orders/' . $id);
+        $data = $this->data($response);
+        $this->assertSame($id, $data['id']);
+        $this->assertCustomerSafe($data, $response, $this->secretsOf($admin->id), $status);
+    }
+
+    public function testTheCustomerOrderKeepsTheFieldsTheShopAndTheDocsNeed(): void
+    {
+        $admin = $this->kit->member($this->kit->organizations->findBySlug($this->slug), 'admin@shop.test', 'admin');
+        $browser = $this->browser($this->account('ana@shop.test'));
+        $variant = $this->stockedVariant();
+        $delivery = $this->orderIn('completed', $browser, $variant, $admin->id, true);
+        $pickup = $this->orderIn('placed', $browser, $variant, $admin->id);
+
+        $data = $this->data($this->api($browser, 'GET', '/orders/' . $delivery['id']));
+        $keys = array_keys($data);
+        sort($keys);
+        $expected = ['id', 'order_number', 'placed_at', 'fulfillment_method', 'subtotal', 'discount_total', 'delivery_fee', 'assembly_fee', 'installation_fee', 'vat_amount', 'total', 'deposit_due', 'promised_date', 'cancelled_at', 'payment_status', 'progress_key', 'pickup_branch', 'ship_to', 'lines', 'payments', 'history', 'path', 'payment_summary'];
+        sort($expected);
+        $this->assertSame($expected, $keys, 'the exact customer order shape (docs/api.md)');
+
+        $this->assertSame($delivery['id'], $data['id']);
+        $this->assertSame('completed', $data['progress_key']);
+        $this->assertSame('delivery', $data['fulfillment_method']);
+        $this->assertSame('224.00', $data['total']);
+        $this->assertSame('Bacolod', $data['ship_to']['city']);
+        $this->assertNull($data['pickup_branch']);
+
+        $this->assertCount(1, $data['lines']);
+        $this->assertSame(['name', 'sku', 'qty', 'unit_price', 'line_total', 'is_made_to_order'], array_keys($data['lines'][0]));
+        $this->assertSame(['2.000', '112.00', '224.00'], [$data['lines'][0]['qty'], $data['lines'][0]['unit_price'], $data['lines'][0]['line_total']]);
+
+        $this->assertCount(1, $data['payments']);
+        $this->assertSame(['method', 'amount', 'paid_at', 'status'], array_keys($data['payments'][0]));
+        $this->assertSame(['cash', '50.00', 'recorded'], [$data['payments'][0]['method'], $data['payments'][0]['amount'], $data['payments'][0]['status']]);
+        $this->assertSame(['status', 'paid', 'balance', 'deposit_due'], array_keys($data['payment_summary']));
+        $this->assertSame('50.00', $data['payment_summary']['paid']);
+
+        $this->assertNotSame([], $data['history']);
+        foreach ($data['history'] as $entry) {
+            $this->assertSame(['progress_key', 'label', 'changed_at'], array_keys($entry));
+        }
+        $this->assertContains('completed', array_column($data['history'], 'progress_key'));
+        $this->assertSame(['key', 'label', 'maps_to', 'is_terminal', 'current'], array_keys($data['path'][0]));
+
+        $placed = $this->data($this->api($browser, 'GET', '/orders/' . $pickup['id']));
+        $this->assertNull($placed['ship_to']);
+        $this->assertSame(['name', 'address'], array_keys($placed['pickup_branch']));
+    }
+
+    public function testTheOrderListAndTheCheckoutAnswerAreCustomerSafeToo(): void
+    {
+        $admin = $this->kit->member($this->kit->organizations->findBySlug($this->slug), 'admin@shop.test', 'admin');
+        $browser = $this->browser($this->account('ana@shop.test'));
+        $variant = $this->stockedVariant();
+        $done = $this->orderIn('completed', $browser, $variant, $admin->id);
+        $this->orderIn('cancelled', $browser, $variant, $admin->id);
+
+        // POST /checkout: the answer has the same shape as GET /orders/{id} and nothing hidden.
+        $response = $this->api($browser, 'POST', '/checkout', $this->checkoutBody($variant, '1'));
+        $created = $this->data($response, 201);
+        $this->assertCustomerSafe($created, $response, $this->secretsOf($admin->id), 'POST /checkout');
+        $this->assertSame($this->data($this->api($browser, 'GET', '/orders/' . $created['id'])), $created);
+        $this->assertSame('112.00', $created['total']);
+
+        // GET /orders: one item per order, with exactly the fields of the shop's order list page.
+        $response = $this->api($browser, 'GET', '/orders');
+        $list = $this->data($response);
+        $this->assertCustomerSafe($list, $response, $this->secretsOf($admin->id), 'GET /orders');
+        $this->assertCount(3, $list['items']);
+        $this->assertArrayHasKey('pagination', $list);
+        foreach ($list['items'] as $item) {
+            $this->assertSame(ShopOrderService::LIST_FIELDS, array_keys($item));
+        }
+        $this->assertContains($done['id'], array_column($list['items'], 'id'));
+        $this->assertContains(true, array_column($list['items'], 'cancelled'));
+    }
+
+    public function testAnotherCustomersOrderIsStillA404AndAGuestIsStillRefusedOnTheCustomerRoutes(): void
+    {
+        $ana = $this->browser($this->account('ana@shop.test', 'Ana Reyes'));
+        $ben = $this->browser($this->account('ben@shop.test', 'Ben Santos'));
+        $variant = $this->stockedVariant();
+        $benOrder = $this->data($this->api($ben, 'POST', '/checkout', $this->checkoutBody($variant, '1')), 201);
+
+        $theirs = $this->api($ana, 'GET', '/orders/' . $benOrder['id']);
+        $unknown = $this->api($ana, 'GET', '/orders/00000000-0000-4000-8000-0000000000aa');
+        $this->failure($theirs, 404);
+        $this->assertSame($unknown->body(), $theirs->body(), "another customer's order looks like an unknown one");
+        $this->assertStringNotContainsString((string) $benOrder['order_number'], $theirs->body());
+        $this->assertSame([], $this->data($this->api($ana, 'GET', '/orders'))['items'], 'the list holds only the own orders');
+
+        $guest = $this->browser();
+        foreach (['/orders', '/orders/' . $benOrder['id']] as $path) {
+            $response = $this->api($guest, 'GET', $path);
+            $this->assertSame(401, $response->status(), $path);
+            $this->assertStringNotContainsString((string) $benOrder['order_number'], $response->body());
+        }
+    }
+
+    public function testTheStaffOrderEndpointStillReturnsCostsAndStaffIdsAfterFulfilment(): void
+    {
+        $admin = $this->kit->member($this->kit->organizations->findBySlug($this->slug), 'admin@shop.test', 'admin');
+        $browser = $this->browser($this->account('ana@shop.test'));
+        $order = $this->orderIn('completed', $browser, $this->stockedVariant(), $admin->id);
+
+        $staff = $this->browser(null, $admin->id);
+        $response = $this->app->handle(new Request('GET', '/' . $this->slug . '/api/v1/admin/orders/' . $order['id'], cookies: ['gfh_staff' => 'test-session'], server: ['REMOTE_ADDR' => self::IP]), $staff['services']);
+        $data = $this->data($response);
+
+        $this->assertNotNull($data['lines'][0]['unit_cost'], 'staff still see the cost of goods');
+        $this->assertSame($admin->id, $data['payments'][0]['recorded_by'], 'staff still see who recorded a payment');
+        $this->assertContains($admin->id, array_column($data['history'], 'changed_by'), 'staff still see who changed a step');
+        $this->assertNotSame([], $this->forbiddenKeys($data), 'the staff view is not the customer view');
+    }
+
+    public function testTheCustomerApiAndTheShopPagesShareOneWhitelist(): void
+    {
+        $admin = $this->kit->member($this->kit->organizations->findBySlug($this->slug), 'admin@shop.test', 'admin');
+        $account = $this->account('ana@shop.test');
+        $browser = $this->browser($account);
+        $order = $this->orderIn('completed', $browser, $this->stockedVariant(), $admin->id, true);
+
+        $page = $this->shop->services->shopOrders()->detailFor($account, (string) $order['id']);
+        $api = $this->data($this->api($browser, 'GET', '/orders/' . $order['id']));
+
+        // Lines, payments and the delivery address: the page and the API are built from the same field lists.
+        $this->assertSame(ShopOrderService::LINE_FIELDS, array_keys($page['lines'][0]));
+        $this->assertSame(ShopOrderService::LINE_FIELDS, array_keys($api['lines'][0]));
+        $this->assertSame(ShopOrderService::PAYMENT_FIELDS, array_keys($page['payments'][0]));
+        $this->assertSame([...ShopOrderService::PAYMENT_FIELDS, ...ShopOrderService::API_PAYMENT_EXTRA], array_keys($api['payments'][0]));
+        $this->assertSame(ShopOrderService::SHIP_TO_FIELDS, array_keys($page['ship_to']));
+        $this->assertSame(ShopOrderService::SHIP_TO_FIELDS, array_keys($api['ship_to']));
+        foreach (ShopOrderService::ORDER_FIELDS as $field) {
+            $this->assertArrayHasKey($field, $page, 'the page shows ' . $field);
+            $this->assertArrayHasKey($field, $api, 'the API returns ' . $field);
+            $this->assertSame($page[$field], $api[$field], $field . ' is the same on the page and in the API');
+        }
+        $this->assertEqualsCanonicalizing([...ShopOrderService::ORDER_FIELDS, ...ShopOrderService::API_ORDER_EXTRA], array_keys($api), 'the API has no field outside the shared lists');
+
+        // No shared list may name a cost, a margin or a staff reference.
+        foreach ([ShopOrderService::ORDER_FIELDS, ShopOrderService::API_ORDER_EXTRA, ShopOrderService::LINE_FIELDS, ShopOrderService::PAYMENT_FIELDS, ShopOrderService::API_PAYMENT_EXTRA, ShopOrderService::SHIP_TO_FIELDS, ShopOrderService::LIST_FIELDS] as $fields) {
+            foreach ($fields as $field) {
+                $this->assertSame(0, preg_match(self::FORBIDDEN_KEY, $field), $field . ' must never be a customer field');
+            }
+        }
+
+        // The customer controller reads orders only through ShopOrderService, never straight from OrderService.
+        $controller = (string) file_get_contents(dirname(__DIR__, 2) . '/core/Controller/Api/CartController.php');
+        $this->assertStringNotContainsString('->getOrder(', $controller);
+        $this->assertStringNotContainsString('->listOrders(', $controller);
+        $this->assertStringNotContainsString('return Response::ok($order, 201)', $controller);
     }
 }

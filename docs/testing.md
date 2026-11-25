@@ -48,7 +48,11 @@ Every database test runs inside a transaction that is rolled back, so tests do n
 
 ### JavaScript tests (the POS app)
 
-The POS app's pure modules are tested with Node's built-in runner (no package to install; Node 18 or newer). The test files are in `tests/js` and import the modules in `templates/pos/assets/js`.
+The POS app's and the Shop's pure modules are tested with Node's built-in runner (no package to install). The test files are in `tests/js` and import the modules in `templates/pos/assets/js` and `templates/shop/assets/js`.
+
+**Supported Node versions: 18, 20 and 22.** The scripts are ES modules in `.js` files, and Node 22 guesses that on its own while Node 18 and 20.16 do not (they load a `.js` file as CommonJS unless a `package.json` above it says `"type": "module"`). So every folder Node imports from is marked: `tests/js/package.json`, `templates/pos/assets/js/package.json` and `templates/shop/assets/js/package.json` each hold `{"type": "module"}`. They are only for Node: the browser loads the scripts with `<script type="module">`, the file names and script addresses are unchanged, and `bin/publish-assets.php` skips a `package.json` (it lists it as `skipped ... (file type not allowed)`, like the POS one), so none of them reaches `public/assets`. `tests/js/module-marker.test.js` reads the files itself and fails when a Shop or POS script uses `import` or `export` with no marker above it, which a run on Node 22 alone would not notice. Do not fix a load failure with `--experimental-detect-module`; add or repair the marker.
+
+To check the detection guess is not hiding a problem, also run `node --no-experimental-detect-module --test` on Node 22: it must end with the same counts as the plain command. One known exception on Node 18: `tests/js/format.test.js` "a new sale id is a version 4 UUID, also without crypto.randomUUID" fails there, because that test calls the POS `newSaleId()` with the default `globalThis.crypto`, which Node 18 does not define (it is not a Shop test and the browser has it).
 
 ```powershell
 node --test    # from the project root: finds every *.test.js on every Node version (18 and newer)
@@ -483,3 +487,19 @@ Use Chrome or Edge with the developer tools open (Application and Network tabs),
 11. Check sizes 1024 by 768, 768 by 1024 and 390 pixels wide for the sync screen and the banners.
 
 Also worth a look while you are there (not numbered because nothing here can fail silently): in Cache Storage, the saved copy of `/demo/pos` contains no CSRF token and no cashier name (open it in the Network or Cache Storage preview and search for your name); nothing under `/demo/api/` is ever in Cache Storage; Local Storage and Session Storage hold no token.
+
+## Cost-leak fix: the customer order API (tests that check it)
+
+Rule: a signed-in customer never receives a cost, margin or profit field, or a staff user id, from any JSON route. `GET /api/v1/orders/{id}`, `GET /api/v1/orders` and `POST /api/v1/checkout` read orders through `ShopOrderService`, whose field lists (`ORDER_FIELDS`, `LINE_FIELDS`, `PAYMENT_FIELDS`, `SHIP_TO_FIELDS`, `LIST_FIELDS` and the API additions) are the same ones the Shop's order pages use. The staff routes and the Admin and POS screens are unchanged.
+
+PHPUnit (`tests/Database/ShopAccountFlowTest.php`): `testTheCustomerOrderEndpointNeverReturnsCostsOrStaffIdsInAnyStatus` (one data set each for placed, confirmed, ready, out for delivery, completed with a snapshotted cost, a completed delivery order and cancelled, each with a payment and history written by a staff user; the response is checked for forbidden keys at any depth and the raw body for the staff id, the cost value and the staff cancellation reason), `testTheCustomerOrderKeepsTheFieldsTheShopAndTheDocsNeed` (the exact shape in `docs/api.md`), `testTheOrderListAndTheCheckoutAnswerAreCustomerSafeToo`, `testAnotherCustomersOrderIsStillA404AndAGuestIsStillRefusedOnTheCustomerRoutes`, `testTheStaffOrderEndpointStillReturnsCostsAndStaffIdsAfterFulfilment`, and `testTheCustomerApiAndTheShopPagesShareOneWhitelist` (the page and the API are built from the same field lists, no list names a forbidden key, and `CartController` never calls `getOrder()` or `listOrders()` itself).
+
+Not covered: the step `in_production` (it needs a made-to-order line; the other statuses use the same code path).
+
+Break-it proofs (each file copied first, broken, the first failing line seen, restored from the copy with the hash checked, then rerun green): the whitelist removed from `CartController::myOrder` fails the leak tests; removed from the `POST /checkout` answer fails `testTheOrderListAndTheCheckoutAnswerAreCustomerSafeToo`; applied to the staff `OrderAdminController::show` fails `testTheStaffOrderEndpointStillReturnsCostsAndStaffIdsAfterFulfilment`.
+
+### Browser hand-check, cost-leak fix
+
+1. Sign in to the Shop as a customer who has a fulfilled order and open it (`/{org}/shop/orders/{id}`). It must look exactly as it did before: lines, totals, VAT line, payments, timeline and the print receipt.
+2. Open the same order in Admin (`/{org}/admin/orders/{id}`). The staff view must still show the line costs, who recorded each payment and who moved each step.
+3. Optional: while signed in as the customer, open `/{org}/api/v1/orders/{id}` in the browser. The JSON must have no `unit_cost`, `recorded_by`, `changed_by` or `refund_review`.

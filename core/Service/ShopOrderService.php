@@ -19,9 +19,41 @@ use Gfh\Core\Support\ListQuery;
  * Its own job is to pick the fields a customer may see. OrderService::getOrder() is built for staff and carries
  * line costs, the staff user who recorded a payment and who changed a step, so the pages never pass its result on
  * as it is.
+ *
+ * It is also the one place that decides what a customer may see of an order. The JSON API for customers
+ * (GET /orders, GET /orders/{id}, POST /checkout) reads orders through this class too, so the field lists below
+ * are shared by the pages and the API and cannot drift apart. Never add a cost, margin, profit, staff user
+ * reference (recorded_by, changed_by, created_by) or staff-only note to any of them.
  */
 final class ShopOrderService
 {
+    /** Order fields shown on the order page and returned by the API, as the same values. */
+    public const ORDER_FIELDS = [
+        'id', 'order_number', 'placed_at', 'fulfillment_method', 'subtotal', 'discount_total', 'delivery_fee',
+        'assembly_fee', 'installation_fee', 'vat_amount', 'total', 'deposit_due', 'promised_date', 'cancelled_at', 'payment_status',
+    ];
+
+    /** What the API adds to ORDER_FIELDS: the step, the address and branch, the lists, and the path and payment summary. */
+    public const API_ORDER_EXTRA = ['progress_key', 'pickup_branch', 'ship_to', 'lines', 'payments', 'history', 'path', 'payment_summary'];
+
+    /** One order line, on the page and in the API. No cost, no variant or line id. */
+    public const LINE_FIELDS = ['name', 'sku', 'qty', 'unit_price', 'line_total', 'is_made_to_order'];
+
+    /** One payment, on the page and in the API. No reference and never the staff member who recorded it. */
+    public const PAYMENT_FIELDS = ['method', 'amount', 'paid_at'];
+
+    /** What the API adds to each payment: the page lists recorded payments only, the API also says which are not. */
+    public const API_PAYMENT_EXTRA = ['status'];
+
+    /** The delivery address as the customer gave it. */
+    public const SHIP_TO_FIELDS = ['recipient', 'line1', 'barangay', 'city', 'province', 'postal_code', 'phone'];
+
+    /** One row of the customer's order list, on the page and in the API. */
+    public const LIST_FIELDS = [
+        'id', 'order_number', 'placed_at', 'progress_key', 'progress_label', 'payment_status', 'payment_label',
+        'fulfillment_method', 'total', 'cancelled',
+    ];
+
     public function __construct(
         private readonly OrderService $orders,
         private readonly CustomerAccessService $access,
@@ -63,29 +95,8 @@ final class ShopOrderService
         $paid = (string) $order['payment_summary']['paid'];
         $netUnits = (Decimal::parse($total, 2) ?? 0) - (Decimal::parse((string) $order['vat_amount'], 2) ?? 0);
 
-        $payments = [];
-        foreach ($order['payments'] as $payment) {
-            if ($payment['status'] !== 'recorded') {
-                continue;
-            }
-            $payments[] = [
-                'method' => (string) $payment['method'],
-                'amount' => (string) $payment['amount'],
-                'paid_at' => (string) $payment['paid_at'],
-            ];
-        }
-
-        $lines = [];
-        foreach ($order['lines'] as $line) {
-            $lines[] = [
-                'name' => (string) $line['name'],
-                'sku' => (string) $line['sku'],
-                'qty' => (string) $line['qty'],
-                'unit_price' => (string) $line['unit_price'],
-                'line_total' => (string) $line['line_total'],
-                'is_made_to_order' => (bool) $line['is_made_to_order'],
-            ];
-        }
+        // The page lists recorded payments only.
+        $recorded = array_values(array_filter($order['payments'], static fn (array $payment): bool => $payment['status'] === 'recorded'));
 
         return [
             'id' => (string) $order['id'],
@@ -94,7 +105,7 @@ final class ShopOrderService
             'fulfillment_method' => (string) $order['fulfillment_method'],
             'pickup_branch' => $this->pickupBranch($order['pickup_branch_id'] ?? null),
             'ship_to' => $this->shipTo($order['ship_to']),
-            'lines' => $lines,
+            'lines' => $this->lines($order['lines']),
             'subtotal' => (string) $order['subtotal'],
             'discount_total' => (string) $order['discount_total'],
             'delivery_fee' => (string) $order['delivery_fee'],
@@ -110,9 +121,65 @@ final class ShopOrderService
             'payment_label' => Format::paymentStatus((string) $order['payment_status'], $paid, $total),
             'paid' => $paid,
             'balance' => (string) $order['payment_summary']['balance'],
-            'payments' => $payments,
+            'payments' => $this->payments($recorded, false),
             'timeline' => $this->timeline($order),
         ];
+    }
+
+    /**
+     * One of the customer's own orders for the JSON API: the same checks as detailFor(), the same field lists, and
+     * the path, history and payment summary that docs/api.md documents. Costs and staff ids are never in it.
+     *
+     * @return array<string, mixed>
+     * @throws HttpException 404 when the id is unknown, malformed or another customer's
+     */
+    public function apiDetailFor(CustomerAccount $account, string $orderId): array
+    {
+        $this->access->assertCanViewOrder($account, $orderId);
+
+        return $this->forApi($this->orders->getOrder($orderId));
+    }
+
+    /**
+     * The customer-safe form of an order as OrderService::getOrder() returns it. Used by apiDetailFor() and by the
+     * checkout answer, so the API answers the same way wherever it returns an order. A field not named in the
+     * lists of this class is not in the result.
+     *
+     * @param array<string, mixed> $order getOrder() result
+     * @return array<string, mixed>
+     */
+    public function forApi(array $order): array
+    {
+        $result = [];
+        foreach (self::ORDER_FIELDS as $field) {
+            $result[$field] = in_array($field, ['promised_date', 'cancelled_at'], true) && $order[$field] === null ? null : (string) $order[$field];
+        }
+
+        $result['progress_key'] = (string) $order['progress_key'];
+        $result['pickup_branch'] = $this->pickupBranch($order['pickup_branch_id'] ?? null);
+        $result['ship_to'] = $this->shipTo($order['ship_to']);
+        $result['lines'] = $this->lines($order['lines']);
+        $result['payments'] = $this->payments($order['payments'], true);
+        $result['history'] = array_map(static fn (array $entry): array => [
+            'progress_key' => (string) $entry['progress_key'],
+            'label' => (string) $entry['label'],
+            'changed_at' => (string) $entry['changed_at'],
+        ], $order['history']);
+        $result['path'] = array_map(static fn (array $step): array => [
+            'key' => (string) $step['key'],
+            'label' => (string) $step['label'],
+            'maps_to' => (string) $step['maps_to'],
+            'is_terminal' => (bool) $step['is_terminal'],
+            'current' => (bool) $step['current'],
+        ], $order['path']);
+        $result['payment_summary'] = [
+            'status' => (string) $order['payment_summary']['status'],
+            'paid' => (string) $order['payment_summary']['paid'],
+            'balance' => (string) $order['payment_summary']['balance'],
+            'deposit_due' => (string) $order['payment_summary']['deposit_due'],
+        ];
+
+        return $result;
     }
 
     /**
@@ -136,18 +203,16 @@ final class ShopOrderService
      */
     private function listItem(array $row): array
     {
-        return [
-            'id' => (string) $row['id'],
-            'order_number' => (string) $row['order_number'],
-            'placed_at' => (string) $row['placed_at'],
-            'progress_key' => (string) $row['progress_key'],
-            'progress_label' => (string) $row['progress_label'],
-            'payment_status' => (string) $row['payment_status'],
-            'payment_label' => Format::paymentStatus((string) $row['payment_status'], (string) $row['paid_total'], (string) $row['total']),
-            'fulfillment_method' => (string) $row['fulfillment_method'],
-            'total' => (string) $row['total'],
-            'cancelled' => $row['cancelled_at'] !== null,
-        ];
+        $item = [];
+        foreach (self::LIST_FIELDS as $field) {
+            $item[$field] = match ($field) {
+                'payment_label' => Format::paymentStatus((string) $row['payment_status'], (string) $row['paid_total'], (string) $row['total']),
+                'cancelled' => $row['cancelled_at'] !== null,
+                default => (string) $row[$field],
+            };
+        }
+
+        return $item;
     }
 
     /**
@@ -220,10 +285,47 @@ final class ShopOrderService
         }
 
         $address = [];
-        foreach (['recipient', 'line1', 'barangay', 'city', 'province', 'postal_code', 'phone'] as $key) {
+        foreach (self::SHIP_TO_FIELDS as $key) {
             $address[$key] = trim((string) ($shipTo[$key] ?? ''));
         }
 
         return $address;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $lines
+     * @return list<array<string, string|bool>>
+     */
+    private function lines(array $lines): array
+    {
+        $result = [];
+        foreach ($lines as $line) {
+            $row = [];
+            foreach (self::LINE_FIELDS as $field) {
+                $row[$field] = $field === 'is_made_to_order' ? (bool) $line[$field] : (string) $line[$field];
+            }
+            $result[] = $row;
+        }
+
+        return $result;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $payments
+     * @return list<array<string, string>>
+     */
+    private function payments(array $payments, bool $withStatus): array
+    {
+        $fields = $withStatus ? [...self::PAYMENT_FIELDS, ...self::API_PAYMENT_EXTRA] : self::PAYMENT_FIELDS;
+        $result = [];
+        foreach ($payments as $payment) {
+            $row = [];
+            foreach ($fields as $field) {
+                $row[$field] = (string) $payment[$field];
+            }
+            $result[] = $row;
+        }
+
+        return $result;
     }
 }

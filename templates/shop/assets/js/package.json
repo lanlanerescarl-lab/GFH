@@ -1,0 +1,5 @@
+{
+  "type": "module",
+  "private": true,
+  "description": "Marks the Shop modules as ES modules for Node, so tests/js can import them on Node 18, 20 and 22 without any flag. Not published and not used by the browser."
+}

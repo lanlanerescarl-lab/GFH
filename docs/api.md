@@ -66,11 +66,30 @@ Photos: `GET /media/{org}/{mediaId}` (add `?thumb=1` for the 400 px thumbnail). 
 | --- | --- | --- |
 | `GET /checkout/options` | anyone | `pickup_branches`, `delivery_available`, `payment_methods`, `fields` (extension checkout fields) |
 | `POST /cart/price` | anyone (CSRF) | Body `{items: [{variant_id, quantity}], fulfillment?, checkout?}`. Returns the cart priced on the server: `lines` (with `product_name`, `variant_name`, `unit_price`, `tier_applied`, `line_total` and, since Batch 6.2, the variant's own quantity rule: `allow_decimal_qty` (boolean), `qty_step` and `min_qty` (three-decimal text such as `"0.500"`), so a client can offer the right quantity control; the server still enforces the rule), `subtotal`, `discount_total`, `delivery_fee`, `assembly_fee`, `installation_fee`, `total`, `vat_amount`, `net_of_vat`, `deposit_due`, `promised_date`. Client prices are ignored. Pricing is all or nothing: if any line is bad the answer is a 422 with no prices. Besides the existing `items` message (and `items.{SKU}.quantity` for a quantity that breaks the rule), the 422 `fields` carry, since Batch 6.2, one key per bad line named by its variant id: `items.{variant_id}` is `This product is no longer available.` for a variant that is gone or inactive, or `{SKU}: {reason}` when the quantity breaks the variant's rule. Good lines have no key. The existing keys and messages are unchanged |
-| `POST /checkout` | customer | Body `{items, fulfillment, checkout}`. `fulfillment` is `{method: "pickup", branch_id}` or `{method: "delivery", line1, barangay?, city, province, postal_code?, recipient?, phone?}`. Places the order and reserves the stock. 201 with the order |
-| `GET /orders` | customer | The customer's own orders. Sort: `placed`, `total`, `number`. Filters: `progress_key`, `payment_status`, `from`, `to` |
-| `GET /orders/{id}` | customer | One of their own orders with its path, payments and history. Another customer's order is 404 |
+| `POST /checkout` | customer | Body `{items, fulfillment, checkout}`. `fulfillment` is `{method: "pickup", branch_id}` or `{method: "delivery", line1, barangay?, city, province, postal_code?, recipient?, phone?}`. Places the order and reserves the stock. 201 with the order in the customer shape below |
+| `GET /orders` | customer | The customer's own orders. Sort: `placed`, `total`, `number`. Filters: `progress_key`, `payment_status`, `from`, `to`. Each item has exactly the fields of the Shop's order list page (see below) |
+| `GET /orders/{id}` | customer | One of their own orders with its path, payments and history, in the customer shape below. Another customer's order is 404 |
 
 Stock short at checkout is a 422 on `items` ("Not enough stock for: SKU (only 3 available)"), and nothing is created.
+
+### Customer order shape
+
+`GET /orders/{id}` and the `POST /checkout` answer return the same object. **Costs and staff ids are never returned to customers** (no `unit_cost` or other cost, margin or profit field, no `recorded_by`, `changed_by` or other staff user reference, no staff-only flags or notes); staff read those on `GET /admin/orders/{id}`, which is unchanged. The fields are decided in one place, `ShopOrderService`, which the Shop's order pages use too.
+
+| Field | Content |
+| --- | --- |
+| `id`, `order_number`, `placed_at`, `fulfillment_method` (`pickup` or `delivery`), `progress_key`, `payment_status` | Identity, when it was placed, how it is fulfilled, the current step key and the payment status |
+| `subtotal`, `discount_total`, `delivery_fee`, `assembly_fee`, `installation_fee`, `vat_amount`, `total`, `deposit_due` | Money as two-decimal text. VAT is included in `total` |
+| `promised_date`, `cancelled_at` | Text, or `null` |
+| `pickup_branch` | `{name, address}` for a pickup order, otherwise `null` |
+| `ship_to` | `{recipient, line1, barangay, city, province, postal_code, phone}` for a delivery order, otherwise `null` |
+| `lines[]` | `{name, sku, qty, unit_price, line_total, is_made_to_order}`. `qty` has three decimals |
+| `payments[]` | `{method, amount, paid_at, status}` |
+| `history[]` | `{progress_key, label, changed_at}`, oldest first |
+| `path[]` | The steps that apply to this order: `{key, label, maps_to, is_terminal, current}` |
+| `payment_summary` | `{status, paid, balance, deposit_due}` |
+
+Each item of `GET /orders` is `{id, order_number, placed_at, progress_key, progress_label, payment_status, payment_label, fulfillment_method, total, cancelled}` (`cancelled` is a boolean), the same fields as the order list page. Before this fix the order object also carried `unit_cost` on every line, `recorded_by` on every payment, `changed_by` on every history entry, `refund_review`, `cancellation_reason`, `customer_id`, `channel`, `pickup_branch_id`, `ship_from_branch_id`, `updated_at`, the line `id`, `variant_id` and `discount`, the payment `id` and `reference`, and each list item carried `refund_review`, `customer_id`, `customer_name`, `channel`, `deposit_due`, `cancelled_at` and `paid_total`. Nothing in the Shop reads them: the checkout page reads only `id` from the checkout answer.
 
 ## Account (customer)
 
