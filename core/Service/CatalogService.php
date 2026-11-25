@@ -9,6 +9,7 @@ use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Http\HttpException;
 use Gfh\Core\Repository\CatalogRepository;
 use Gfh\Core\Support\Decimal;
+use Gfh\Core\Support\ExtensionAttributes;
 use Gfh\Core\Support\ListQuery;
 use Gfh\Core\Support\Uuid;
 use Gfh\Core\Support\Validation;
@@ -259,7 +260,7 @@ final class CatalogService
     public function createProduct(array $data, ?string $actorId): array
     {
         return Database::transaction($this->pdo, function () use ($data, $actorId): array {
-            $data = (array) $this->hooks->filter(Hooks::PRODUCT_FORM_SAVE, $data, ['product_id' => null, 'actor_id' => $actorId]);
+            $data = (array) $this->hooks->filter(Hooks::PRODUCT_FORM_SAVE, $data, ['product_id' => null, 'actor_id' => $actorId, 'current_attributes' => []]);
             $fields = $this->productFields($data, null);
 
             $variants = is_array($data['variants'] ?? null) ? array_values($data['variants']) : [];
@@ -301,7 +302,9 @@ final class CatalogService
     {
         Database::transaction($this->pdo, function () use ($id, $data, $actorId): void {
             $product = $this->repository->productById($id) ?? throw HttpException::notFound('That product could not be found.');
-            $data = (array) $this->hooks->filter(Hooks::PRODUCT_FORM_SAVE, $data, ['product_id' => $id, 'actor_id' => $actorId]);
+            $stored = json_decode((string) $product['attributes'], true) ?: [];
+            // current_attributes lets an extension that owns an "ext_" attribute add its value to the complete set.
+            $data = (array) $this->hooks->filter(Hooks::PRODUCT_FORM_SAVE, $data, ['product_id' => $id, 'actor_id' => $actorId, 'current_attributes' => $stored]);
             // Fields that were not sent keep their current value.
             $current = [
                 'name' => $product['name'],
@@ -309,10 +312,16 @@ final class CatalogService
                 'brand_id' => $product['brand_id'],
                 'category_id' => $product['category_id'],
                 'supplier_id' => $product['supplier_id'],
-                'attributes' => json_decode((string) $product['attributes'], true) ?: [],
+                'attributes' => $stored,
                 'status' => $product['status'],
             ];
-            $fields = $this->productFields($data + $current, $id);
+            $merged = $data + $current;
+            // The Admin attribute list never shows extension-owned attributes, so a save of that list cannot carry them.
+            // Keeping the stored ones here (a value the hook set wins) is what stops such a save from erasing them.
+            if (is_array($merged['attributes'])) {
+                $merged['attributes'] += ExtensionAttributes::hidden($stored);
+            }
+            $fields = $this->productFields($merged, $id);
 
             $this->repository->updateProduct($id, $fields['name'], $fields['description'], $fields['brand_id'], $fields['category_id'], $fields['supplier_id'], $fields['attributes']);
             $this->audit->organization($this->pdo, 'product.updated', $actorId, 'product', $id, ['name' => $fields['name']]);
@@ -543,6 +552,9 @@ final class CatalogService
         $attributes = [];
         foreach ($facets['attributes'] as $row) {
             $key = (string) $row['key'];
+            if (ExtensionAttributes::isExtensionKey($key)) {
+                continue; // an extension's own data is never a Shop filter
+            }
             $attributes[$key] ??= ['key' => $key, 'type' => (string) $row['type'], 'values' => [], 'min' => null, 'max' => null];
 
             if ($row['type'] === 'number' && is_numeric($row['val'])) {

@@ -503,3 +503,23 @@ Break-it proofs (each file copied first, broken, the first failing line seen, re
 1. Sign in to the Shop as a customer who has a fulfilled order and open it (`/{org}/shop/orders/{id}`). It must look exactly as it did before: lines, totals, VAT line, payments, timeline and the print receipt.
 2. Open the same order in Admin (`/{org}/admin/orders/{id}`). The staff view must still show the line costs, who recorded each payment and who moved each step.
 3. Optional: while signed in as the customer, open `/{org}/api/v1/orders/{id}` in the browser. The JSON must have no `unit_cost`, `recorded_by`, `changed_by` or `refund_review`.
+
+## Batch 8.2a demonstration extension: the tests that check it
+
+Written and verified in the sandbox; owner check pending. PHPUnit 11: 197 unit tests (26380 assertions) and 477 database tests (7349 assertions); Node 239 passing.
+
+- `tests/Database/CareNotesExtensionTest.php` goes through the real App, router and middleware. Feature on: the Admin navigation holds the item, the product form shows the tab, saving stores the note (escaped on the Shop page, never in the attribute table), emptying it removes the section. Feature off: none of the three appears, the stored note is kept and hidden (also after a Details save), and it is back when the feature is switched on again. Also: the 200-character limit and control characters, the section heading setting, a cashier does not see the item, the Details form keeps the note, a name starting `ext_` is refused in the attribute list, and the public API and the Shop filters leave `ext_` attributes out.
+- `tests/Unit/CareNotesBrokenExtensionTest.php`: the care-notes entry file throwing is reported once, leaves no hook behind and does not stop another extension. It runs at loader level; a page-level test of a throwing entry file is not included.
+- `tests/Unit/ExtensionAttributesTest.php`: the `ext_` rule.
+- Break-it proofs run: (a) the `product.detail.sections` hook not registered (4 CareNotes tests fail), (b) the loader ignoring the feature (2 fail: off still shows the section and stores a note). Each file was backed up, broken, restored from the backup, its hash checked and the tests rerun green.
+
+## Browser hand-check, Batch 8.2a demonstration extension
+
+1. Switch the feature on for `demo`: run the "On" command from `docs/extension-guide.md` section 6 (it asks for the `gfh_migrator` password).
+2. Sign in to `/demo/admin` as admin. The header has "Care notes"; it opens the Products list. Open any product: there is a "Care notes" tab after the existing ones.
+3. Type `Wipe with a damp cloth` and Save care note. You land back on the Care notes tab with a saved message. Open `/demo/shop/products/{that product}`: a "Care notes" section shows the text, after the attribute table, and the attribute table has no extra row.
+4. Type 201 characters: the page shows "Enter up to 200 characters." under the field and keeps what you typed; the old note stays.
+5. Open the Details tab and Save details without changes: the Care notes tab still shows the note. In the attribute list there is no `ext_care_notes` row.
+6. Sign in as a cashier: no "Care notes" item.
+7. Run the "Off" command. Reload Admin and the Shop page: no item, no tab, no section, no trace of the text. Run "On" again: the note is back.
+8. Check the tab at 390 pixels wide and with the keyboard only (Tab to the field, Enter to save, the error is announced).

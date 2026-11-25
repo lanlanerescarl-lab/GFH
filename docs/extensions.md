@@ -80,8 +80,8 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | --- | --- | --- |
 | `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app. An item with a `module` is shown only to people who pass `can()` for it; add `action` (`view`, `edit` or `delete`, default `view`) when the page needs more than view |
 | `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Shop app, after the built-in Shop link. See "Shop hooks" below |
-| `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form |
-| `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects |
+| `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form. Each tab is `{id, label, contentHtml}`. The context has `product`, `can_edit`, `admin_base` (for example `/demo/admin`), `csrf` (the token for a form the tab posts), `errors` (field errors of a refused save) and `input` (the extension's own posted fields after a refused save, otherwise empty) |
+| `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects. The value is the payload; the context has `product_id` (null when creating), `actor_id` and `current_attributes` (the stored attributes, `[]` when creating). Throw `HttpException::unprocessable()` to refuse. A tab form posts only its own field, so the payload holds only that field and the other product fields keep their stored values |
 | `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections (`list<array{id: string, title: string, bodyHtml: string}>`) on the Shop product detail page, after the attribute table. See "Shop hooks" below |
 | `checkout.fields` | `Hooks::CHECKOUT_FIELDS` | Extra checkout fields returned by `GET /{org}/api/v1/checkout/options` |
 | `checkout.adjustments` | `Hooks::CHECKOUT_ADJUSTMENTS` | Online cart fees (`delivery_fee`, `assembly_fee`, `installation_fee`), `deposit_due`, `promised_date` and `made_to_order_variants` in `PricingService` |
@@ -139,3 +139,16 @@ return function (ExtensionContext $x): void {
 2. Hook registrations and setting definitions are staged in `ExtensionContext` and only committed to `Hooks` and `SettingsService` **after** the entry file finishes without throwing. An extension that fails halfway leaves no hooks or settings behind.
 3. Any `\Throwable` (missing or invalid `extension.json`, unknown field or hook, registering an undeclared hook, reading a setting during registration, a non-Closure return value, a `ParseError` or runtime exception) is caught.
 4. The failure is recorded in the loader's report (`['loaded' => [...], 'failed' => [$key => $reason]]`, accessible via `Services::extensionReport($slug)`) and logged once through the application logger. All other extensions and the site continue to run normally.
+
+## Extension-owned product attributes (Batch 8.2)
+
+The Migrator runs only the `core` and `org` migrations, so an extension has no table of its own yet. The place for a per-product value is the product's attributes, under a key that starts with `ext_` (`Gfh\Core\Support\ExtensionAttributes::PREFIX`). Core treats such a key as private to extensions:
+
+- The Admin attribute list does not show it, and a name that starts with `ext_` typed there is refused (it would vanish).
+- Saving the Admin attribute list keeps the stored `ext_` values. An extension changes one through `product.form.save`: take the complete set from `$data['attributes']` or, when the form posted none, from `$context['current_attributes']`, set the key, and return it in `$data['attributes']`. An empty value removes the key.
+- The Shop attribute table and the Shop filters never list it, and the public API (`/api/v1/catalog/products/{slug}`) leaves it out. `product.detail.sections` receives the product with it in `attributes`, so the extension that owns the key can print it.
+- It stays in the record when the extension is switched off and is then shown by nothing.
+
+**Nothing secret goes in an `ext_` attribute.** It is public data that reaches Shop hooks with the product, and Admin users with the right permission can read and write it through the product API (`attributes` in `PUT /api/v1/admin/products/{id}`). A value is at most 200 characters, like any attribute.
+
+The demonstration extension `extensions/care-notes/` uses `ext_care_notes`. `docs/extension-guide.md` shows how to write and switch on an extension.

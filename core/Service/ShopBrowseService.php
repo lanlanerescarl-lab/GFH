@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Gfh\Core\Service;
 
 use Gfh\Core\Hooks\Hooks;
+use Gfh\Core\Support\ExtensionAttributes;
 use Gfh\Core\Support\Format;
 use Gfh\Core\Support\ShopQuery;
 
@@ -128,6 +129,12 @@ final class ShopBrowseService
             'selected_variant_id' => $selected,
             'signed_in' => $customer !== null,
         ]);
+
+        // The page's own attribute table never shows an extension's data (ext_); only the hook above received it.
+        if (is_array($product['attributes'] ?? null)) {
+            $visible = ExtensionAttributes::visible($product['attributes']);
+            $product['attributes'] = $visible === [] ? new \stdClass() : $visible;
+        }
 
         return ['product' => $product, 'selected_variant_id' => $selected, 'sections' => $this->sections($raw)];
     }

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Gfh\Core\Controller\Admin;
 
+use Gfh\Core\Auth\Session;
 use Gfh\Core\Auth\StaffUser;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Http\HttpException;
 use Gfh\Core\Http\Request;
 use Gfh\Core\Http\Response;
 use Gfh\Core\Service\CatalogService;
+use Gfh\Core\Support\ExtensionAttributes;
 use Gfh\Core\Support\ListQuery;
 use Gfh\Core\Support\TenantServices;
 use Gfh\Core\Support\Uuid;
@@ -105,6 +107,10 @@ final class ProductsController extends AdminPageController
         }
 
         try {
+            $reserved = $this->reservedAttributeErrors($attributes);
+            if ($reserved !== []) {
+                throw HttpException::unprocessable($reserved);
+            }
             $created = $auth['services']->catalog()->createProduct($payload, $auth['staff']->id);
             $this->flash($request, 'ok', 'Product created.', 'You can now manage variants, price tiers and photos.');
 
@@ -148,16 +154,30 @@ final class ProductsController extends AdminPageController
             'attributes' => $attributes,
         ];
 
-        $updatePayload = $productInput + $this->extraFormFields($post);
-        if (!array_key_exists('attributes', $post) && !array_key_exists('attr_new_key', $post)) {
-            unset($updatePayload['attributes']);
+        // A form that carries only some of the fields (an extension's tab posts its own field and nothing else)
+        // leaves the others as they are: what was not sent keeps its stored value, here and when the page is drawn again.
+        foreach (['name', 'description', 'brand_id', 'category_id', 'supplier_id'] as $field) {
+            if (!array_key_exists($field, $post)) {
+                unset($productInput[$field]);
+            }
         }
+        if (!array_key_exists('attributes', $post) && !array_key_exists('attr_new_key', $post)) {
+            unset($productInput['attributes']);
+        }
+        $extraInput = $this->extraFormFields($post);
+        $updatePayload = $productInput + $extraInput;
+        $tab = $this->returnTab($post);
 
         try {
+            // Names that start with ext_ belong to extensions and have no row in this list; one typed here would vanish.
+            $reserved = $this->reservedAttributeErrors($attributes);
+            if ($reserved !== []) {
+                throw HttpException::unprocessable($reserved);
+            }
             $auth['services']->catalog()->updateProduct($id, $updatePayload, $auth['staff']->id);
             $this->flash($request, 'ok', 'Product details saved.');
 
-            return Response::redirect($this->adminUrl($request, $auth['tenant'], '/products/' . $id . '?tab=details'));
+            return Response::redirect($this->adminUrl($request, $auth['tenant'], '/products/' . $id . '?tab=' . $tab));
         } catch (HttpException $exception) {
             return $this->renderEditForm(
                 $request,
@@ -165,7 +185,12 @@ final class ProductsController extends AdminPageController
                 $auth['staff'],
                 $auth['services'],
                 $id,
-                ['tab' => 'details', 'productInput' => $productInput, 'errors' => $this->errors($exception, 'name')],
+                [
+                    'tab' => $tab,
+                    'productInput' => $productInput,
+                    'errors' => $this->errors($exception, 'name'),
+                    'extensionInput' => $extraInput,
+                ],
                 $exception->status(),
             );
         }
@@ -508,7 +533,7 @@ final class ProductsController extends AdminPageController
         $product = $catalog->getProduct($productId, ['tiers' => true, 'stock' => true])
             ?? throw HttpException::notFound('That product could not be found.');
 
-        $storedAttrs = $product['attributes'] instanceof \stdClass ? [] : (array) $product['attributes'];
+        $storedAttrs = $product['attributes'] instanceof \stdClass ? [] : ExtensionAttributes::visible((array) $product['attributes']);
         $defaultProductInput = [
             'name' => (string) $product['name'],
             'description' => (string) ($product['description'] ?? ''),
@@ -517,15 +542,22 @@ final class ProductsController extends AdminPageController
             'supplier_id' => (string) ($product['supplier_id'] ?? ''),
             'attributes' => $storedAttrs,
         ];
-        $productInput = $state['productInput'] ?? $defaultProductInput;
+        // A save that carried only some fields (an extension tab) draws the rest from the stored product.
+        $productInput = ($state['productInput'] ?? []) + $defaultProductInput;
         $errors = $state['errors'] ?? [];
         $attrs = is_array($productInput['attributes'] ?? null) ? $productInput['attributes'] : [];
 
         $canEdit = $this->can($staff, $tenant, 'products', 'edit');
+        $session = $request->attribute('session');
+        // csrf, errors and input let an extension tab post its own form and show a rejected value again;
+        // input is empty unless the page is drawn again after a refused save.
         $rawTabs = $services->hooks()->filter(Hooks::PRODUCT_FORM_TABS, [], [
             'product' => $product,
             'can_edit' => $canEdit,
             'admin_base' => $this->adminUrl($request, $tenant),
+            'csrf' => $session instanceof Session ? $this->services->csrf($session)->token() : '',
+            'errors' => $errors,
+            'input' => is_array($state['extensionInput'] ?? null) ? $state['extensionInput'] : [],
         ]);
         $extensionTabs = $this->normalizeExtensionTabs(is_array($rawTabs) ? $rawTabs : []);
 
@@ -661,7 +693,7 @@ final class ProductsController extends AdminPageController
         $reserved = [
             '_csrf', 'name', 'status', 'description', 'brand_id', 'category_id', 'supplier_id',
             'attributes', 'attr_new_key', 'attr_new_val', 'sku', 'variant_name', 'retail_price',
-            'trade_price', 'unit', 'reorder_level',
+            'trade_price', 'unit', 'reorder_level', 'tab',
         ];
         $extra = [];
         foreach ($post as $key => $value) {
@@ -671,6 +703,35 @@ final class ProductsController extends AdminPageController
         }
 
         return $extra;
+    }
+
+    /**
+     * The tab to show after a save: the one the form came from when it names a tab (an extension tab posts its own id),
+     * otherwise Details. The page checks the name against the tabs it really has, so a made-up one shows Details.
+     *
+     * @param array<string, mixed> $post
+     */
+    private function returnTab(array $post): string
+    {
+        $tab = is_string($post['tab'] ?? null) ? $post['tab'] : '';
+
+        return preg_match('/^[a-z0-9][a-z0-9-]{0,40}$/D', $tab) === 1 ? $tab : 'details';
+    }
+
+    /**
+     * @param array<string, string> $attributes
+     * @return array<string, string> field errors for attribute names that are reserved for extensions
+     */
+    private function reservedAttributeErrors(array $attributes): array
+    {
+        $errors = [];
+        foreach ($attributes as $key => $value) {
+            if (ExtensionAttributes::isExtensionKey((string) $key)) {
+                $errors['attributes.' . $key] = 'Names that start with ' . ExtensionAttributes::PREFIX . ' are kept for extensions. Choose another name.';
+            }
+        }
+
+        return $errors;
     }
 
     /**

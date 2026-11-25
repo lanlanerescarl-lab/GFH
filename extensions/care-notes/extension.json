@@ -1,0 +1,15 @@
+{
+  "key": "care-notes",
+  "name": "Care notes",
+  "version": "1.0.0",
+  "description": "Demonstration extension: one short care note per product, edited on the Admin product form and shown on the Shop product page.",
+  "entry": "register.php",
+  "hooks": ["navigation.admin", "product.form.tabs", "product.form.save", "product.detail.sections"],
+  "settings": {
+    "care_notes.section_title": {
+      "default": "Care notes",
+      "type": "string",
+      "label": "Heading of the care notes section on the shop product page"
+    }
+  }
+}

@@ -9,6 +9,7 @@ use Gfh\Core\Http\HttpException;
 use Gfh\Core\Http\Request;
 use Gfh\Core\Http\Response;
 use Gfh\Core\Service\CatalogService;
+use Gfh\Core\Support\ExtensionAttributes;
 use Gfh\Core\Support\ListQuery;
 
 /** Public catalog reads for the Shop: anyone can browse. Only active products appear, and never costs. */
@@ -49,6 +50,10 @@ final class CatalogController extends ApiController
         if ($product === null) {
             throw HttpException::notFound('That product could not be found.');
         }
+
+        // An extension's own attributes (ext_) are for its Shop hooks, not for the public API.
+        $attributes = $product['attributes'] ?? [];
+        $product['attributes'] = is_array($attributes) && ExtensionAttributes::visible($attributes) !== [] ? ExtensionAttributes::visible($attributes) : new \stdClass();
 
         return Response::ok($product);
     }
