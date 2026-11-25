@@ -28,6 +28,8 @@ Initial setup for the GFH server (local development or staging/production). Data
    php bin/make-org.php --slug=demo --name="Demo Organization" --short-name=Demo
    ```
 
+   To also copy `orgs/_skeleton` to `orgs/<slug>/` and run the organization migrations when the connection works, add `--from-skeleton` (see `docs/extension-guide.md`, section 8). The database and roles must exist first; the command does not create them.
+
 4. Migrate the organization databases (`MIGRATOR_URL_<SLUG>` in `.env` overrides the stored connection for migrations and seeds only):
 
    ```powershell

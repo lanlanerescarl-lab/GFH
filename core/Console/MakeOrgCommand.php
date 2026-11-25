@@ -10,27 +10,36 @@ use Gfh\Core\Database\Database;
 use Gfh\Core\Repository\OrganizationRepository;
 use Gfh\Core\Security\SecretBox;
 use Gfh\Core\Service\OrganizationRegistry;
+use Gfh\Core\Support\OrganizationSkeleton;
 
 /**
  * php bin/make-org.php --slug=acme --name="Acme Trading" [--short-name=Acme]
- *                      [--schema=public] [--features=a,b] [--branding='{"..."}'] [--no-test]
+ *                      [--schema=public] [--features=a,b] [--branding='{"..."}'] [--no-test] [--from-skeleton]
  * php bin/make-org.php --slug=acme --update-connection [--schema=public] [--no-test]
  *
  * Registers an organization in the core registry with an encrypted connection string, or replaces the stored
  * encrypted connection for an existing organization. The connection is read only from GFH_ORG_CONNECTION
  * or a hidden interactive prompt; a command-line flag is deliberately not supported because shell history stores it.
+ *
+ * --from-skeleton also copies orgs/_skeleton to orgs/{slug} (never overwriting: it refuses when that folder exists,
+ * before anything is registered), registers the organization as usual, runs the organization migrations when the
+ * connection was tested and works, and prints the steps that are left. It does not create the PostgreSQL database
+ * or roles (that needs a superuser; docs/setup.md has the steps). When the folder copy or the migration fails the
+ * organization stays registered, the remaining steps are still printed and the exit code is 1.
  */
 final class MakeOrgCommand extends Command
 {
     /**
      * @param (\Closure(): string)|null           $prompt optional hidden-input callback used in tests
      * @param (\Closure(bool, string): void)|null $writer optional output sink ($isError, $message) used in tests
+     * @param (\Closure(string): int)|null        $migrate optional migration runner ($slug => exit code) used in tests
      */
     public function __construct(
         App $app,
         private readonly ?\PDO $coreConnection = null,
         private readonly ?\Closure $prompt = null,
         private readonly ?\Closure $writer = null,
+        private readonly ?\Closure $migrate = null,
     ) {
         parent::__construct($app);
     }
@@ -38,7 +47,7 @@ final class MakeOrgCommand extends Command
     public function run(array $argv): int
     {
         try {
-            $options = Arguments::parse($argv, ['slug', 'name', 'short-name', 'schema', 'features', 'branding', 'update-connection', 'no-test', 'help']);
+            $options = Arguments::parse($argv, ['slug', 'name', 'short-name', 'schema', 'features', 'branding', 'update-connection', 'no-test', 'from-skeleton', 'help']);
         } catch (\InvalidArgumentException $exception) {
             $this->err($exception->getMessage());
             $this->usage();
@@ -54,7 +63,7 @@ final class MakeOrgCommand extends Command
             }
         }
 
-        foreach (['update-connection', 'no-test'] as $flag) {
+        foreach (['update-connection', 'no-test', 'from-skeleton'] as $flag) {
             if (isset($options[$flag]) && $options[$flag] !== true) {
                 $this->err(sprintf('Option --%s does not take a value.', $flag));
 
@@ -92,6 +101,13 @@ final class MakeOrgCommand extends Command
                 ? array_values(array_filter(array_map('trim', explode(',', (string) $options['features'])), static fn (string $f): bool => $f !== ''))
                 : [];
 
+            // Checked before the connection is asked for, so a taken folder or a bad slug fails at once and registers nothing.
+            $skeleton = null;
+            if (isset($options['from-skeleton'])) {
+                $skeleton = new OrganizationSkeleton($this->app->path());
+                $skeleton->assertCanCopy((string) $options['slug']);
+            }
+
             $connection = ConnectionString::parse($this->connectionUrl());
             $schema = (string) ($options['schema'] ?? 'public');
             $database = new Database($this->app->config());
@@ -120,11 +136,67 @@ final class MakeOrgCommand extends Command
         }
 
         $this->out(sprintf('Registered "%s" (slug %s).', $organization->name, $organization->slug));
-        $this->out('Next steps:');
-        $this->out(sprintf('  1. Set %s in .env to a migrator-role URL (or leave it unset to migrate with the stored connection).', Database::migratorSettingName($organization->slug)));
-        $this->out(sprintf('  2. php bin/migrate.php --org=%s', $organization->slug));
+        if ($skeleton === null) {
+            $this->out('Next steps:');
+            $this->out(sprintf('  1. Set %s in .env to a migrator-role URL (or leave it unset to migrate with the stored connection).', Database::migratorSettingName($organization->slug)));
+            $this->out(sprintf('  2. php bin/migrate.php --org=%s', $organization->slug));
 
-        return 0;
+            return 0;
+        }
+
+        return $this->finishFromSkeleton($organization->slug, $skeleton, !isset($options['no-test']));
+    }
+
+    /** Copies the skeleton, migrates when the connection was tested, prints what is left. Exit code 1 when a step failed. */
+    private function finishFromSkeleton(string $slug, OrganizationSkeleton $skeleton, bool $connectionTested): int
+    {
+        $failed = false;
+        $folderDone = false;
+        $migrated = false;
+
+        try {
+            $files = $skeleton->copy($slug);
+            $folderDone = true;
+            $this->out(sprintf('Copied orgs/_skeleton to orgs/%s (%d files). Nothing in it is a live override.', $slug, count($files)));
+        } catch (\Throwable $exception) {
+            $failed = true;
+            $this->err(sprintf('The organization is registered, but its folder was not created: %s', $exception->getMessage()));
+        }
+
+        if ($connectionTested) {
+            try {
+                $this->out(sprintf('Running the organization migrations for %s ...', $slug));
+                $code = $this->migrate !== null
+                    ? ($this->migrate)($slug)
+                    : (new MigrateCommand($this->app))->run(['bin/migrate.php', '--org=' . $slug]);
+                $migrated = $code === 0;
+                if (!$migrated) {
+                    $this->err(sprintf('The migrations did not finish (exit code %d). The organization stays registered.', $code));
+                }
+            } catch (\Throwable $exception) {
+                $this->err('The migrations did not run: ' . $exception->getMessage() . ' The organization stays registered.');
+            }
+            $failed = $failed || !$migrated;
+        } else {
+            $this->out('The connection was not tested (--no-test), so the migrations were not run.');
+        }
+
+        $this->out('Remaining steps:');
+        $step = 1;
+        $this->out(sprintf('  %d. The PostgreSQL database and roles are not created by this command (that needs a superuser). If they do not exist yet, follow docs/setup.md.', $step++));
+        if (!$migrated) {
+            $this->out(sprintf('  %d. Set %s in .env to a migrator-role URL (or leave it unset to migrate with the stored connection), then run: php bin/migrate.php --org=%s', $step++, Database::migratorSettingName($slug), $slug));
+        }
+        $this->out(sprintf('  %d. As a superuser run database/roles/04_grant_org.sql on the organization database.', $step++));
+        $this->out(sprintf('  %d. Create the first staff account: php bin/create-user.php --email=... --name="..." --org=%s --role=admin (see docs/setup.md for the password options).', $step++, $slug));
+        if (!$folderDone) {
+            $this->out(sprintf('  %d. Create orgs/%s by copying orgs/_skeleton by hand (the folder is optional: without it the organization uses templates/ as it is).', $step++, $slug));
+        } else {
+            $this->out(sprintf('  %d. Read orgs/%s/README.md. Add overrides only where this organization really differs; branding was set at registration (see orgs/%s/branding.example.json for the keys).', $step++, $slug, $slug));
+        }
+        $this->out(sprintf('  %d. To switch an extension on, add its feature: see docs/extension-guide.md, section "Turn an extension on or off".', $step));
+
+        return $failed ? 1 : 0;
     }
 
     /** @param array<string, string|true> $options */
@@ -136,7 +208,7 @@ final class MakeOrgCommand extends Command
             return 2;
         }
 
-        foreach (['name', 'short-name', 'features', 'branding'] as $disallowed) {
+        foreach (['name', 'short-name', 'features', 'branding', 'from-skeleton'] as $disallowed) {
             if (isset($options[$disallowed])) {
                 $this->err(sprintf('Option --%s cannot be used with --update-connection; only the stored connection (and optional --schema) is updated.', $disallowed));
 
@@ -292,6 +364,8 @@ final class MakeOrgCommand extends Command
         $this->out('  --branding=<json>     branding values as a JSON object');
         $this->out('  --update-connection   replace the stored connection for an existing organization');
         $this->out('  --no-test             save without testing the connection first');
+        $this->out('  --from-skeleton       also copy orgs/_skeleton to orgs/<slug> (never overwrites), then run the');
+        $this->out('                        organization migrations if the connection works; exit 1 if a step fails');
         $this->out('Connection input (never passed on the command line):');
         $this->out('  Set GFH_ORG_CONNECTION in the environment, or enter it at the hidden prompt.');
     }

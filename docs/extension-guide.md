@@ -64,6 +64,24 @@ Change `demo` to the organization's slug. The change shows on the next request; 
 
 ## 7. Override rules (templates)
 
-An organization may replace any template file without touching `templates/`: put the file at the same relative path under `orgs/{slug}/` (`orgs/demo/shop/home.php` replaces `templates/shop/home.php` for `demo` only). The organization's file wins, then `templates/`. Prefer replacing a small partial to replacing a whole page, so core changes to the page still reach the organization. Removing the file restores the default.
+An organization may replace any template file without touching `templates/`: put the file at the same relative path under `orgs/{slug}/` (`orgs/demo/shop/partials/home-intro.php` replaces the empty `templates/shop/partials/home-intro.php` for `demo` only, which is how the demonstration organization gets its short introduction on the Shop home page). The organization's file wins, then `templates/`. Prefer replacing a small partial to replacing a whole page, so core changes to the page still reach the organization. Removing the file restores the default.
 
-*(Making a new organization from `orgs/_skeleton` with `bin/make-org.php` is Batch 8.2b and is documented there.)*
+## 8. Make a new organization
+
+`orgs/_skeleton/` is the starting point: a README in its root and in each folder, `branding.example.json`, and nothing that is a live override. `bin/make-org.php --from-skeleton` copies it to `orgs/{slug}/` and registers the organization.
+
+Before you start, the PostgreSQL database and roles for the organization must exist: the command does **not** create them (that needs a superuser; `docs/setup.md` has the steps). Then:
+
+```
+php bin/make-org.php --slug=my-shop --name="My Shop Ltd" --short-name=MyShop --from-skeleton --branding="{...}"
+```
+
+- The slug must pass the same check as every organization slug (3 to 32 lower-case letters, digits and hyphens, starting with a letter). If `orgs/my-shop/` already exists, the command stops **before registering anything** and never overwrites or merges into it; remove or rename the folder yourself if you really want a fresh copy.
+- The connection is never typed on the command line. Set `GFH_ORG_CONNECTION` in the shell session (the limited `gfh_app` URL), or leave it unset and type it at the hidden prompt.
+- The organization is registered as usual. If the connection was tested and works (that is, you did not pass `--no-test`), the command then runs `php bin/migrate.php --org=my-shop` for you. It needs the migrator role: set `MIGRATOR_URL_MY_SHOP` in `.env` first, or the stored connection must be allowed to create tables.
+- It always ends with the steps that are left, with this organization's slug filled in: the database and roles, migrating (only when that did not run), `database/roles/04_grant_org.sql` as a superuser, the first staff account with `bin/create-user.php`, and switching extensions on.
+- Exit code 1 means a step after registration failed (the folder could not be copied, or the migration did not finish). The organization **stays registered**; fix the cause and run the printed step.
+- Without `--from-skeleton` the command works as before: it registers the organization and creates no folder.
+- Branding is a JSON object kept in the registry, set with `--branding` at registration. `orgs/my-shop/branding.example.json` lists the keys it accepts (`primary`, `primary_strong`, `background`, `ink`, `radius_card`, `radius_control`; colors need enough contrast). There is no command yet to change it later.
+
+Then read `orgs/my-shop/README.md`, and add an override only where the organization really differs (section 7).

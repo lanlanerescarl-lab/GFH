@@ -549,3 +549,23 @@ After the reset in `docs/reset-demo.md` (step 10 ends with `2 seed file(s) run`)
 3. In Admin, Products shows 24 products with thumbnails; Inventory shows the new variants at Talisay, Bacolod and (food only) Silay; Procurement lists the three opening purchase orders per supplier.
 4. In the POS app (online), search for a rice cooker: the product tile shows its picture.
 5. Run `php bin/seed.php --demo --org=acme`: it prints one line and stops without touching a database.
+
+## Batch 8.2b skeleton, demo override and make-org: the tests that check it
+
+Written and verified in the sandbox; owner check pending. PHPUnit 11: 213 unit tests (26510 assertions) and 509 database tests (7877 assertions); Node 243 passing.
+
+- `tests/Unit/OrgSkeletonTest.php`: every skeleton folder has a README; no organization name anywhere in the skeleton (content or file names); no `.php` file and nothing but READMEs in the template, extension and seed folders; with a copy of the skeleton installed as an organization every core template still resolves to `templates/`; `branding.example.json` passes `BrandingCss::build` with nothing ignored. The copier: same files and content; never overwrites (an existing folder or file is refused, nothing merged, a second copy refused); bad slugs create nothing; a missing skeleton is refused; a symbolic link in the skeleton is not followed. The default `home-intro` partial prints nothing.
+- `tests/Database/MakeOrgFromSkeletonTest.php` runs `MakeOrgCommand` in a temporary root holding a copy of the skeleton, with the registry in the test core database (no real `orgs/` folder is created): copy, registration and remaining steps; migrations run when the connection works (the runner is injected, so no real migration runs); exit 1 and the steps when the migration fails or throws, organization still registered; an existing folder is refused before anything is registered; bad slugs; no connection on the command line; the flag cannot be combined with `--update-connection`; without the flag nothing changes. The last test registers a second organization with its own branding and checks, through the real App, that `/{slug}/shop/products` shows its name and branding and that its home page has no demo text.
+- `tests/Database/DemoHomeOverrideTest.php`: the demo organization's home page shows the introduction (between the hero and the new-arrivals section, name escaped); another organization's does not; with the override file removed (on a temporary copy) the locator and the rendered partial fall back to the empty default.
+- Break-it proofs run: (b) the organization override lookup ignoring `orgs/` (2 DemoHomeOverride tests fail); (c) `make-org` overwriting an existing folder (the copier test and the make-org refusal test fail). Each file was backed up, broken, restored from the backup, its hash checked and the tests rerun green.
+
+## Browser hand-check, Batch 8.2b skeleton, demo override and make-org
+
+1. Open `/demo/shop`: under the hero a section "Welcome to the demonstration shop" with a link "See what Demo Organization sells"; then the category tiles and new arrivals as before. Open the home page of any other organization: no such section.
+2. Create the database and roles for a new organization as in `docs/setup.md`, then run (PowerShell, `GFH_ORG_CONNECTION` set in the session):
+   `php bin/make-org.php --slug=second-shop --name="Second Shop" --short-name=Second --from-skeleton --branding='{"primary":"#0B6E4F","primary_strong":"#084C38"}'`
+   Expected: connected, registered, `Copied orgs/_skeleton to orgs/second-shop`, the migrations run (or a clear message and exit code 1 if `MIGRATOR_URL_SECOND_SHOP` is missing), then the remaining steps with `second-shop` filled in.
+3. Run the same command again: it stops at once with "already exists", registers nothing and changes nothing in `orgs/second-shop`.
+4. After the remaining steps (grants, a staff account), open `/second-shop/shop/products` and `/second-shop/shop`: its own name, green buttons, no demonstration text. Check at 390 pixels wide.
+5. Open `orgs/second-shop/`: README.md files, `branding.example.json`, and no `.php` file.
+6. Delete `orgs/demo/shop/partials/home-intro.php` temporarily and reload `/demo/shop`: the introduction is gone; put the file back.

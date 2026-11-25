@@ -1,7 +1,8 @@
 <?php
 /**
  * Shop home (GET /{org}/shop): hero, top-level category tiles, newest products.
- * An organization replaces this whole page by adding orgs/{slug}/shop/home.php.
+ * An organization changes one part of it by overriding a partial (partials/home-intro is empty by default) or, as a
+ * last resort, replaces this whole page by adding orgs/{slug}/shop/home.php.
  *
  * @var \Gfh\Core\View\AppView $this
  * @var string $organizationName
@@ -22,6 +23,8 @@ $this->end();
     <p class="shop-hero__line"><?= $this->e($tagline !== '' ? $tagline : 'Browse the full range and find what you need.') ?></p>
     <a class="button shop-hero__cta" href="<?= $this->e($productsUrl) ?>">Shop all products</a>
 </section>
+
+<?= $this->partial('partials/home-intro', ['organizationName' => $organizationName, 'productsUrl' => $productsUrl]) ?>
 
 <?php if ($categories !== []): ?>
 <section class="shop-section" aria-labelledby="shop-categories-title">
