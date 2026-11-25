@@ -638,3 +638,38 @@ a.pagination__link:hover { border-color: var(--color-primary); }
 
 .badge { display: inline-block; padding: var(--space-1) var(--space-3); font-size: var(--text-sm); font-weight: 600; color: var(--color-primary-strong); background: var(--color-chip-bg); border-radius: var(--radius-chip); }
 .badge--muted { color: var(--color-ink); background: var(--color-border-soft); }
+
+/* ---- Batch 6.3b: account pages ---- */
+.account-page { max-width: 40rem; margin: var(--space-5) auto; }
+.account-page.form-page { max-width: var(--form-width); }
+.account-page__who,
+.account-page__count { color: var(--color-muted); overflow-wrap: anywhere; }
+.account-menu { margin: 0 0 var(--space-5); }
+.account-menu ul { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: 0; padding: 0; list-style: none; }
+.account-menu a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 var(--space-4);
+  color: var(--color-primary);
+  font-weight: 600;
+  text-decoration: none;
+  background: var(--color-surface);
+  border: 2px solid var(--color-primary);
+  border-radius: var(--radius-control);
+}
+.account-menu a:hover { color: var(--color-primary-strong); border-color: var(--color-primary-strong); }
+/* The current page is said by aria-current and also drawn solid, so it does not rely on colour alone. */
+.account-menu a[aria-current="page"] { color: var(--color-on-accent); background: var(--color-primary-strong); border-color: var(--color-primary-strong); }
+.shop-header__link[aria-current="page"] { font-weight: 700; text-decoration: underline; text-underline-offset: 0.3em; }
+.field__label { margin: 0 0 var(--space-1); font-weight: 600; }
+.field__static { margin: 0; min-height: var(--touch-target); display: flex; align-items: center; overflow-wrap: anywhere; }
+.address-list { margin: 0 0 var(--space-6); padding: 0; list-style: none; display: grid; gap: var(--space-3); }
+.address-card { padding: var(--space-4); background: var(--color-surface); border: 1px solid var(--color-border-soft); border-radius: var(--radius-card); overflow-wrap: anywhere; }
+.address-card__title { margin: 0 0 var(--space-2); font-weight: 700; }
+.address-card__actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 0; }
+.address-card__actions form { margin: 0; }
+.address-card__actions .button { min-height: var(--touch-target); }
+.account-section { margin: var(--space-6) 0 0; }
+.account-section h2 { font-size: var(--text-lg); }
+.account-section .button { width: 100%; }

@@ -687,7 +687,8 @@ final class ShopAccountFlowTest extends ShopTestCase
         $this->assertStringContainsString('action="' . $this->url('/sign-out') . '"', $signedIn);
         $this->assertStringContainsString('name="_csrf" value="' . $this->token($browser) . '"', $signedIn);
         $this->assertStringNotContainsString('>Register<', $signedIn);
-        $this->assertStringNotContainsString('>Account<', $signedIn, 'the Account link arrives with Batch 6.3b');
+        $this->assertStringContainsString('href="' . $this->url('/account') . '">Account</a>', $signedIn, 'the Account link arrived with Batch 6.3b');
+        $this->assertStringNotContainsString('>Account<', $guest, 'a guest has no Account link');
         $this->assertStringContainsString('data-shop-slug="' . $this->slug . '"', $signedIn);
     }
 

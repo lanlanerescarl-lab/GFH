@@ -25,6 +25,7 @@ use Gfh\Core\Service\AuthService;
 use Gfh\Core\Service\CustomerAccountService;
 use Gfh\Core\Service\PasswordResetService;
 use Gfh\Core\Service\PermissionService;
+use Gfh\Core\Service\ShopAccountMenuService;
 use Gfh\Core\Service\ShopNavigationService;
 use Gfh\Core\Extension\ExtensionLoader;
 use Gfh\Core\Hooks\Hooks;
@@ -267,6 +268,14 @@ final class Services
     public function shopNavigation(Tenant $tenant): ShopNavigationService
     {
         return $this->once('shop-navigation:' . $tenant->organization->slug, fn (): ShopNavigationService => new ShopNavigationService(
+            $this->forTenant($tenant)->hooks(),
+        ));
+    }
+
+    /** The customer account menu for one organization: the built-in items plus that organization's own account.menu hook callbacks. */
+    public function shopAccountMenu(Tenant $tenant): ShopAccountMenuService
+    {
+        return $this->once('shop-account-menu:' . $tenant->organization->slug, fn (): ShopAccountMenuService => new ShopAccountMenuService(
             $this->forTenant($tenant)->hooks(),
         ));
     }

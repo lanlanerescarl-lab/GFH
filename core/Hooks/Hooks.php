@@ -25,6 +25,7 @@ final class Hooks
     public const VALIDATION_ATTRIBUTES = 'validation.attributes';
     public const DASHBOARD_WIDGETS = 'dashboard.widgets';
     public const REPORTS_TABS = 'reports.tabs';
+    public const ACCOUNT_MENU = 'account.menu';
 
     public const NAMES = [
         self::NAVIGATION_ADMIN,
@@ -40,6 +41,7 @@ final class Hooks
         self::VALIDATION_ATTRIBUTES,
         self::DASHBOARD_WIDGETS,
         self::REPORTS_TABS,
+        self::ACCOUNT_MENU,
     ];
 
     /** @var array<string, array<int, list<callable>>> hook name => priority => callbacks */

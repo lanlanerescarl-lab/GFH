@@ -202,6 +202,24 @@ final class ExtensionLoaderTest extends TestCase
         $this->assertSame('key', $this->settingFieldFor('half_done.limit'), 'the settings of a failed extension are not defined');
     }
 
+    public function testAnAccountMenuExtensionLoadsAndAFailingOneIsIsolatedFromTheOthers(): void
+    {
+        $this->extension('orgs/acme/extensions', 'aaa-broken', ['hooks' => ['account.menu']], '<?php return function ($x) {
+            $x->hook("account.menu", fn (array $i) => [...$i, ["label" => "Broken", "url" => "/broken"]]);
+            throw new \RuntimeException("entry bug");
+        };');
+        $this->extension('orgs/acme/extensions', 'bbb-rewards', ['hooks' => ['account.menu']], '<?php return function ($x) {
+            $x->hook("account.menu", fn (array $i) => [...$i, ["label" => "Rewards", "url" => "/acme/shop/rewards"]]);
+        };');
+
+        $report = $this->load();
+
+        $this->assertSame(['bbb-rewards'], $report['loaded']);
+        $this->assertSame('RuntimeException: entry bug', $report['failed']['aaa-broken']);
+        $items = $this->hooks->filter(Hooks::ACCOUNT_MENU, [['label' => 'Profile', 'url' => '/acme/shop/account/profile']]);
+        $this->assertSame(['Profile', 'Rewards'], array_column($items, 'label'), 'the failed extension left nothing behind and the next one loaded');
+    }
+
     public function testAnEntryFileMustReturnAFunction(): void
     {
         $this->extension('orgs/acme/extensions', 'no-function', [], '<?php return 5;');

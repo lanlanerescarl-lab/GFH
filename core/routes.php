@@ -33,6 +33,7 @@ use Gfh\Core\Controller\Api\ProcurementAdminController;
 use Gfh\Core\Controller\Api\ReportController;
 use Gfh\Core\Controller\AuthController;
 use Gfh\Core\Controller\BrandingController;
+use Gfh\Core\Controller\Shop\AccountPagesController as ShopAccountController;
 use Gfh\Core\Controller\Shop\AuthPagesController as ShopAuthController;
 use Gfh\Core\Controller\Shop\CartPagesController as ShopCartController;
 use Gfh\Core\Controller\Shop\HomeController as ShopHomeController;
@@ -95,6 +96,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $shopAuth = new ShopAuthController($services);
     $shopCart = new ShopCartController($services);
     $shopOrders = new ShopOrdersController($services);
+    $shopAccount = new ShopAccountController($services);
 
     $tenant = new TenantMiddleware($services);
     $staffSession = new SessionMiddleware($services, 'staff');
@@ -124,7 +126,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
         $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $posWorker, $branding,
-        $shopHome, $shopListing, $shopProduct, $shopAuth, $shopCart, $shopOrders,
+        $shopHome, $shopListing, $shopProduct, $shopAuth, $shopCart, $shopOrders, $shopAccount,
         $tenant, $staffSession, $customerSession, $csrf, $requireStaff, $requireCustomer,
         $customerOptional, $catalog, $catalogAdmin, $media, $cart, $account, $ordersAdmin, $inventoryAdmin, $procurementAdmin, $posApi, $reports,
     ): void {
@@ -268,6 +270,23 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/shop/orders', static fn (Request $q) => $shopOrders->index($q), [$tenant, $customerSession]);
         $r->get('/shop/orders/{id}', static fn (Request $q) => $shopOrders->show($q), [$tenant, $customerSession]);
         $r->get('/shop/orders/{id}/receipt', static fn (Request $q) => $shopOrders->receipt($q), [$tenant, $customerSession]);
+
+        // --- Shop account pages (Batch 6.3b). Same guard as the order pages (a guest, or a staff session without a
+        // customer sign-in, is sent to the Shop sign-in), CSRF on every write, and the same CustomerAccountService as
+        // the JSON account API. An address id is checked against the signed-in customer's own addresses.
+        $accountPage = [$tenant, $customerSession];
+        $accountWrite = [$tenant, $customerSession, $csrf];
+        $r->get('/shop/account', static fn (Request $q) => $shopAccount->home($q), $accountPage);
+        $r->get('/shop/account/profile', static fn (Request $q) => $shopAccount->profileForm($q), $accountPage);
+        $r->post('/shop/account/profile', static fn (Request $q) => $shopAccount->profileSave($q), $accountWrite);
+        $r->get('/shop/account/addresses', static fn (Request $q) => $shopAccount->addresses($q), $accountPage);
+        $r->post('/shop/account/addresses', static fn (Request $q) => $shopAccount->addressCreate($q), $accountWrite);
+        $r->get('/shop/account/addresses/{id}/edit', static fn (Request $q) => $shopAccount->addressEdit($q), $accountPage);
+        $r->post('/shop/account/addresses/{id}', static fn (Request $q) => $shopAccount->addressUpdate($q), $accountWrite);
+        $r->post('/shop/account/addresses/{id}/default', static fn (Request $q) => $shopAccount->addressDefault($q), $accountWrite);
+        $r->post('/shop/account/addresses/{id}/delete', static fn (Request $q) => $shopAccount->addressDelete($q), $accountWrite);
+        $r->get('/shop/account/password', static fn (Request $q) => $shopAccount->passwordForm($q), $accountPage);
+        $r->post('/shop/account/password', static fn (Request $q) => $shopAccount->passwordSave($q), $accountWrite);
 
         // --- Pages
         $r->get('/admin', static fn (Request $q) => $adminDashboard->index($q), [$tenant, $staffSession, $requireStaff]);

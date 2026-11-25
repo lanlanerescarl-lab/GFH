@@ -104,13 +104,15 @@ abstract class ShopPageController
         $basePath = $request->basePath();
         $slug = $tenant->organization->slug;
         $search = $request->query()['q'] ?? '';
+        $path = $basePath . $request->path();
+        $shopPrefix = $this->shopUrl($request, $tenant);
 
         $view = $this->services->appView($tenant, 'shop', $request, [
-            'navigation' => $this->services->shopNavigation($tenant)->items($basePath, $slug, $basePath . $request->path()),
+            'navigation' => $this->services->shopNavigation($tenant)->items($basePath, $slug, $path),
             'productsUrl' => $this->shopUrl($request, $tenant, '/products'),
             'searchText' => is_string($search) ? mb_substr(trim($search), 0, 100) : '',
             'mediaUrl' => $basePath . '/media/' . $slug,
-            // The header's Cart, Sign in, Register, My orders and Sign out links, and what the page scripts need.
+            // The header's Cart, Sign in, Register, Account, My orders and Sign out links, and what the page scripts need.
             'shopAccount' => [
                 'signedIn' => $this->customerAccount($request) !== null,
                 'csrf' => $this->csrfToken($request),
@@ -118,6 +120,10 @@ abstract class ShopPageController
                 'signInUrl' => $this->shopUrl($request, $tenant, '/sign-in'),
                 'registerUrl' => $this->shopUrl($request, $tenant, '/register'),
                 'ordersUrl' => $this->shopUrl($request, $tenant, '/orders'),
+                'accountUrl' => $this->shopUrl($request, $tenant, '/account'),
+                // The header marks the page the visitor is on (aria-current), so the active link is clear.
+                'accountCurrent' => $path === $shopPrefix . '/account' || str_starts_with($path, $shopPrefix . '/account/'),
+                'ordersCurrent' => $path === $shopPrefix . '/orders' || str_starts_with($path, $shopPrefix . '/orders/'),
                 'signOutUrl' => $this->shopUrl($request, $tenant, '/sign-out'),
                 'apiBase' => $basePath . '/' . $slug . '/api/v1',
                 'slug' => $slug,

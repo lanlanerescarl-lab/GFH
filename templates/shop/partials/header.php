@@ -1,7 +1,8 @@
 <?php
 /**
  * Shop header: brand, search box, the Cart link with its count, the sign-in links (Sign in and Register for a guest,
- * My orders and Sign out for a signed-in customer), the menu button and the navigation. Batch 6.3b adds the Account link.
+ * Account, My orders and Sign out for a signed-in customer), the menu button and the navigation. The link to the page the
+ * visitor is on carries aria-current="page".
  *
  * @var \Gfh\Core\View\AppView $this
  * @var string $organizationName
@@ -14,7 +15,7 @@
 $navigationHtml ??= '';
 $productsUrl ??= '';
 $searchText ??= '';
-$shopAccount ??= ['signedIn' => false, 'csrf' => '', 'cartUrl' => '', 'signInUrl' => '', 'registerUrl' => '', 'ordersUrl' => '', 'signOutUrl' => ''];
+$shopAccount ??= ['signedIn' => false, 'csrf' => '', 'cartUrl' => '', 'signInUrl' => '', 'registerUrl' => '', 'ordersUrl' => '', 'signOutUrl' => '', 'accountUrl' => '', 'accountCurrent' => false, 'ordersCurrent' => false];
 ?>
     <header class="shell-header shop-header">
         <a class="shell-brand shop-header__brand" href="<?= $this->e($homeUrl) ?>"><?= $this->e($organizationName) ?></a>
@@ -26,7 +27,8 @@ $shopAccount ??= ['signedIn' => false, 'csrf' => '', 'cartUrl' => '', 'signInUrl
             <a class="shop-header__link shop-header__cart" href="<?= $this->e($shopAccount['cartUrl']) ?>">Cart<span class="cart-badge" data-cart-badge hidden> <span data-cart-number>0</span><span class="visually-hidden"> products in your cart</span></span></a>
 <?php endif; ?>
 <?php if ($shopAccount['signedIn']): ?>
-            <a class="shop-header__link" href="<?= $this->e($shopAccount['ordersUrl']) ?>">My orders</a>
+            <a class="shop-header__link" href="<?= $this->e($shopAccount['accountUrl']) ?>"<?= !empty($shopAccount['accountCurrent']) ? ' aria-current="page"' : '' ?>>Account</a>
+            <a class="shop-header__link" href="<?= $this->e($shopAccount['ordersUrl']) ?>"<?= !empty($shopAccount['ordersCurrent']) ? ' aria-current="page"' : '' ?>>My orders</a>
             <form class="shop-header__signout" method="post" action="<?= $this->e($shopAccount['signOutUrl']) ?>">
                 <input type="hidden" name="_csrf" value="<?= $this->e($shopAccount['csrf']) ?>">
                 <button class="shop-header__link shop-header__button" type="submit">Sign out</button>

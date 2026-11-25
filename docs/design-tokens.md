@@ -136,6 +136,20 @@ Components in `templates/shop/assets/css/app.css`. Every control is at least `--
 | Progress (`.timeline`) | `partials/order-timeline.php` | Done, current and upcoming steps with dates in words |
 | Receipt (`.receipt`) | `order-receipt.php` | Print styles hide the header, footer and buttons; prints on the printer's own paper (A5 or letter) |
 
+## Online Shop additions (Batch 6.3b)
+
+No new variables and no new colours. New components in `templates/shop/assets/css/app.css`, built only from the tokens above:
+
+| Component | Classes | Notes |
+| --- | --- | --- |
+| Account menu | `.account-menu` (a `nav` with a list of links) | Wrapping row of 48 px (`--touch-target`) bordered links in `--color-primary`; the current page (`aria-current="page"`) is drawn solid (`--color-primary-strong`, `--color-on-accent` text), so it never relies on colour alone. Wraps at 360 px. |
+| Address card | `.address-list`, `.address-card`, `.address-card__title`, `.address-card__actions` | One card per saved address on `--color-surface` with `--color-border-soft`; the Default mark is the existing `.badge` with the word "Default". Buttons wrap under the address. |
+| Account page and section | `.account-page`, `.account-page__who`, `.account-page__count`, `.account-section` | Reading width of 40 rem (forms use `--form-width`); `.account-section` spaces the Add an address and Delete address blocks. |
+| Read-only field | `.field__label`, `.field__static` | The email address on the profile page: shown as text with the same label weight as `label`, 48 px high. |
+| Header current link | `.shop-header__link[aria-current="page"]` | Bold and underlined for the page the visitor is on (Account, My orders). |
+
+Buttons are the existing `.button` and `.button--secondary`; the confirmation is the existing `.alert.alert--ok`; forms use `partials/field` and `partials/form-errors`.
+
 ## POS tokens and components (Batch 7.1)
 
 The POS set in `templates/pos/assets/css/tokens.css` is variables only. `templates/pos/assets/css/app.css` holds no hex or `rgb()` colour and no font name: every colour, font, radius and the main sizes come from a variable, so `/{org}/branding.css` (loaded last) re-themes the whole app.

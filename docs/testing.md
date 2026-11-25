@@ -414,6 +414,50 @@ Node (`node --test`): `pricing.test.js` (the same fixture through `pricing.js`, 
 
 Not covered by any automated test: layout, touch, scanning, printing and the look of every screen. Those are the hand-check below.
 
+## Stage 6 Batch 6.3b acceptance rules and the tests that check them (customer account pages)
+
+PHP tests are in `tests/Database/ShopAccountPagesTest.php` (through the real router, middleware and services, with in-memory sessions, like `ShopAccountFlowTest`), `tests/Unit/ShopAccountMenuServiceTest.php` (the `account.menu` hook without a database) and `testAnAccountMenuExtensionLoadsAndAFailingOneIsIsolatedFromTheOthers` in `tests/Unit/ExtensionLoaderTest.php`. The pages call the same `CustomerAccountService` as the JSON API, so the service rules are tested once, in `CustomerAccountTest`; these tests check what the pages add: the guards, CSRF, ownership, redirects, messages and escaping.
+
+| Rule | Test |
+| --- | --- |
+| A signed-out visitor is sent to the Shop sign-in with a safe `next` on all five page addresses, and the redirect carries no-store. | `testAGuestIsSentToSignInWithNextOnEveryAccountPage` |
+| A staff-only session is treated like a guest; a write from a signed-out or staff-only browser (with a valid token) changes nothing and goes to sign-in. | `testAStaffSessionWithoutACustomerSignInDoesNotOpenAccountPages`, `testAWriteFromASignedOutBrowserChangesNothingAndGoesToSignIn` |
+| After sign-in the visitor returns to the page they asked for. | `testAnAccountHomeSentToSignInComesBackThroughSafeNext` |
+| Each page opens (200) with its content, the account menu, the current page marked, and no-store. | `testEachPageOpensForACustomerWithItsContentTheMenuAndNoStore` |
+| The email is text, not a field. | `testTheEmailIsShownAsTextAndIsNotAFormField` |
+| The header shows Account only when signed in, keeps My orders, and marks the current page. | `testTheHeaderShowsAccountOnlyWhenSignedInKeepsMyOrdersAndMarksTheCurrentPage` |
+| Every write without a valid CSRF token is refused (403) and changes nothing. | `testEveryWriteWithoutAValidCsrfTokenIsRefusedAndChangesNothing` |
+| The profile save changes name and phone only; a posted email or status changes nothing; the confirmation shows once; an error keeps the typed values and shows the summary with the focus mark. | `testASavedProfileChangesNameAndPhoneOnlyAndAPostedEmailChangesNothing`, `testAProfileErrorShowsTheSummaryFocusMarkAndKeepsWhatWasTyped` |
+| Add, edit, make default and delete work through the pages; the first address is the default and a posted default flag is ignored. | `testAddEditMakeDefaultAndDeleteThroughThePages` |
+| Deleting the default promotes the newest remaining address; exactly one default remains. | `testDeletingTheDefaultPromotesTheNewestRemainingAddress` |
+| The limit of 10 is shown (no add form), enforced (409) and lifted by a delete. | `testTheLimitOfTenIsShownAndEnforced` |
+| An address error shows inline messages and keeps the typed values; a refused edit changes nothing. | `testAnAddressErrorShowsInlineMessagesAndKeepsTheTypedValues` |
+| Another customer's, an unknown and a malformed address id give one and the same 404 on edit, save, make default and delete, and change nothing. | `testAnotherCustomersUnknownAndMalformedAddressIdsAreTheSame404AndChangeNothing` |
+| A wrong current password shows an error and counts towards the shared sign-in lockout (429 with Retry-After, even for the right password). | `testAWrongCurrentPasswordShowsAnErrorAndCountsTowardsTheSignInLockout` |
+| The right current password changes it, regenerates the session id, keeps the customer signed in, is audited without any password in the entry, and the new password signs in. | `testTheRightCurrentPasswordChangesItKeepsTheCustomerSignedInAndIsAudited` |
+| The password rules are the API's (the help text reads `PasswordPolicy`); no password is printed back; the page says other devices stay signed in. | `testThePasswordFollowsTheSamePolicyAsTheApiAndNothingTypedIsEchoed` |
+| Names, labels and streets that hold markup are printed as text on every page, also on a refused form. | `testEveryPagePrintsMarkupAsText` |
+| Every account response (pages, errors, 404, redirects) carries `Cache-Control: no-store`. | `testEveryAccountResponseCarriesNoStore` |
+| `account.menu`: unchanged by default; an extension item comes after the built-in ones and gets text values only; unsafe or malformed items are dropped; labels are escaped. | `testWithNothingRegisteredTheMenuIsTheBuiltInItems`, `testAnExtensionItemComesAfterTheBuiltInOnesAndGetsOnlyText`, `testABrokenItemIsDropped`, `testTheAccountMenuHookShowsAnExtensionItemDropsBrokenOnesAndSurvivesAThrowingCallback` |
+| `account.menu`: a throwing entry file is isolated by the loader; a callback that throws when the hook runs leaves the built-in menu. | `testAnAccountMenuExtensionLoadsAndAFailingOneIsIsolatedFromTheOthers`, `testACallbackThatThrowsWhenTheHookRunsLeavesTheBuiltInMenu` |
+
+## Browser hand-check, Batch 6.3b customer account pages
+
+No browser was used to build Batch 6.3b. The pages were tested through the router; layout, touch use, focus and screen-reader behaviour were not seen. Use a demo organization (below it is `demo`) and two customer accounts, A and B. Check at normal width and again at 360 px (DevTools, device toolbar, width 360).
+
+1. **Account link.** Signed out, the header has no Account link. Sign in as A. The header shows Account and My orders, and Sign out. Choose Account: the page "My account" lists Profile, Addresses, Password and My orders as large buttons, and Account in the header is underlined.
+2. **Profile.** Open Profile. The email is shown as plain text with a note that it cannot be changed. Change the full name and the phone number, Save. The page returns to Profile with "Your profile was saved." once; reload: the message is gone and the new name and phone are still there. Try an empty name: the red summary appears at the top, keyboard focus is on it, and the link in it jumps to the Full name field.
+3. **Two addresses and checkout.** Open Addresses ("0 of 10 addresses saved."). Add a first address; it is marked Default. Add a second one and choose Make default on it; only the second shows the Default mark. Put an item in the cart, go to Checkout, choose Delivery: the delivery form is filled from the second address.
+4. **Delete the default.** On the Addresses page open Edit on the default address, read the note under Delete this address, and delete it. The other address is now the default. Open checkout again: it uses that one.
+5. **The eleventh address.** Add addresses until the page says "10 of 10 addresses saved. You have reached the limit." and the Add an address form is gone. Delete one: the form comes back.
+6. **Password.** On Password type a wrong current password with a valid new one: an error on the current password, nothing typed is shown back in any box. Type the right current password with a new one that is too short: an error on the new password. Then the right current password with a good new one twice: "Your password was changed." and you are still signed in. Sign out and sign in with the new password (the old one is refused). Note: other devices stay signed in after a change; the page says so.
+7. **Lockout.** (Use a spare account.) Enter a wrong current password until the page says too many attempts; the right password is then refused too, and sign-in is locked for the same account for a while.
+8. **360 px.** Every page (account home, Profile, Addresses, Edit address, Password, and the header on any page): no sideways scrolling, the header wraps with Cart, Account, My orders and Sign out still reachable and at least 44 px tall, the account menu wraps, address buttons wrap under the address, and the form buttons span the width.
+9. **Another customer's address.** As B, add an address and copy the link of its Edit button. Sign out, sign in as A and open that address: the page says it could not find that address (404), shows nothing of B's, and A's addresses are unchanged. Change the last part of the link to a made-up text: the same page.
+10. **Signed out.** Sign out and open `/demo/shop/account/addresses` directly: you land on Sign in, and after signing in you are back on Addresses.
+11. **Keyboard and screen reader.** Tab through the Addresses page: every label is read with its field, Edit and Make default say which address they belong to, and after a failed submit focus is on the error summary.
+12. **Back button.** After a change, press the browser Back button and reload: the browser does not ask to resend the form (the page redirects after a change) and nothing is repeated.
+
 ## Browser hand-check, Batch 7.1 POS app (online)
 
 Use a Chrome or Edge window and a Cashier account for the demo organization (the seed's `casey` cashier or one you add under Team). Have at least one terminal, a branch with an address, products with stock, a product that allows decimal quantities (for example sold by the kilo), one product with a quantity tier, one product with 0 on hand, a barcode on at least two products, and the senior and PWD discount rules switched on. Open the browser's developer tools Network tab and check that every request goes to your own site.

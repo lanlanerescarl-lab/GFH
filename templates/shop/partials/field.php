@@ -10,6 +10,7 @@
  * @var string $value
  * @var string $error the message, or "" when the field is fine
  * @var string $autocomplete
+ * @var string $inputmode optional virtual keyboard hint (for example numeric)
  * @var bool $required
  * @var string $help optional hint under the field
  */
@@ -17,6 +18,7 @@ $type ??= 'text';
 $value ??= '';
 $error ??= '';
 $autocomplete ??= '';
+$inputmode ??= '';
 $required ??= false;
 $help ??= '';
 $id = 'field-' . $name;
@@ -24,7 +26,7 @@ $describedBy = trim(($help !== '' ? $id . '-help ' : '') . ($error !== '' ? $id 
 ?>
 <div class="field">
     <label for="<?= $this->e($id) ?>"><?= $this->e($label) ?><?= $required ? ' (required)' : '' ?></label>
-    <input id="<?= $this->e($id) ?>" name="<?= $this->e($name) ?>" type="<?= $this->e($type) ?>" value="<?= $this->e($value) ?>"<?= $autocomplete !== '' ? ' autocomplete="' . $this->e($autocomplete) . '"' : '' ?><?= $required ? ' aria-required="true"' : '' ?><?= $error !== '' ? ' aria-invalid="true"' : '' ?><?= $describedBy !== '' ? ' aria-describedby="' . $this->e($describedBy) . '"' : '' ?>>
+    <input id="<?= $this->e($id) ?>" name="<?= $this->e($name) ?>" type="<?= $this->e($type) ?>" value="<?= $this->e($value) ?>"<?= $autocomplete !== '' ? ' autocomplete="' . $this->e($autocomplete) . '"' : '' ?><?= $inputmode !== '' ? ' inputmode="' . $this->e($inputmode) . '"' : '' ?><?= $required ? ' aria-required="true"' : '' ?><?= $error !== '' ? ' aria-invalid="true"' : '' ?><?= $describedBy !== '' ? ' aria-describedby="' . $this->e($describedBy) . '"' : '' ?>>
 <?php if ($help !== ''): ?>
     <p class="help" id="<?= $this->e($id) ?>-help"><?= $this->e($help) ?></p>
 <?php endif; ?>
