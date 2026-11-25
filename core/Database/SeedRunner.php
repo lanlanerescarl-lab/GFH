@@ -13,6 +13,10 @@ use Gfh\Core\App;
  *  - NAME.php  must return a function (PDO $organization, PDO $core, App $app): void. It runs inside a
  *              transaction on the organization database; the core connection is for creating accounts.
  *
+ * A seed function also receives the organization slug as an optional fourth argument (null when the caller does not
+ * know it), so a seed that only makes sense for one organization can refuse to run anywhere else. Older seeds that
+ * declare three parameters simply ignore it.
+ *
  * Seeds are not tracked, so write them to be repeatable (INSERT ... ON CONFLICT DO NOTHING) or run them
  * once on a fresh database.
  */
@@ -20,9 +24,10 @@ final class SeedRunner
 {
     /**
      * @param callable(string): void|null $onFile called with each file name before it runs
+     * @param string|null $slug the organization's slug, handed to every PHP seed as its fourth argument
      * @return int number of files run
      */
-    public function run(string $directory, \PDO $organization, \PDO $core, App $app, ?callable $onFile = null): int
+    public function run(string $directory, \PDO $organization, \PDO $core, App $app, ?callable $onFile = null, ?string $slug = null): int
     {
         if (!is_dir($directory)) {
             return 0;
@@ -60,8 +65,8 @@ final class SeedRunner
                 if (!is_callable($seed)) {
                     throw new \RuntimeException(sprintf('Seed file %s must return a function (PDO $organization, PDO $core, App $app).', $name));
                 }
-                Database::transaction($organization, static function (\PDO $pdo) use ($seed, $core, $app): void {
-                    $seed($pdo, $core, $app);
+                Database::transaction($organization, static function (\PDO $pdo) use ($seed, $core, $app, $slug): void {
+                    $seed($pdo, $core, $app, $slug);
                 });
             }
 

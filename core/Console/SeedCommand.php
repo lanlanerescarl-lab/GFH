@@ -10,7 +10,7 @@ use Gfh\Core\Repository\OrganizationRepository;
 
 /**
  * php bin/seed.php --org=<slug>          loads orgs/<slug>/database/seeds/
- * php bin/seed.php --demo [--org=<slug>] loads database/seeds/demo/ into the "demo" organization (or the one named)
+ * php bin/seed.php --demo                loads database/seeds/demo/ into the "demo" organization (no other slug is accepted)
  */
 final class SeedCommand extends Command
 {
@@ -40,6 +40,14 @@ final class SeedCommand extends Command
             return 2;
         }
 
+        // The demo seeds fill an organization with sample products, customers and sales. They must never reach a real
+        // organization, so --demo with any other slug stops here, before a database connection is opened.
+        if (isset($options['demo']) && $slug !== 'demo') {
+            $this->err('--demo loads sample data and only works for the organization "demo".');
+
+            return 2;
+        }
+
         $directory = isset($options['demo'])
             ? $this->app->path('database/seeds/demo')
             : $this->app->path('orgs/' . $slug . '/database/seeds');
@@ -62,6 +70,7 @@ final class SeedCommand extends Command
                 $core,
                 $this->app,
                 fn (string $file) => $this->out('  ' . $file),
+                $slug,
             );
         } catch (\Throwable $exception) {
             $this->err('Seeding stopped: ' . $exception->getMessage());
@@ -76,8 +85,8 @@ final class SeedCommand extends Command
 
     private function usage(): void
     {
-        $this->out('Usage: php bin/seed.php --org=<slug> | --demo [--org=<slug>]');
+        $this->out('Usage: php bin/seed.php --org=<slug> | --demo');
         $this->out('  --org=<slug>  run orgs/<slug>/database/seeds/ against that organization');
-        $this->out('  --demo        run database/seeds/demo/ against the "demo" organization (or --org)');
+        $this->out('  --demo        run database/seeds/demo/ against the "demo" organization only');
     }
 }

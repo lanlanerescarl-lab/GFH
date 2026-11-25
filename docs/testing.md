@@ -523,3 +523,29 @@ Written and verified in the sandbox; owner check pending. PHPUnit 11: 197 unit t
 6. Sign in as a cashier: no "Care notes" item.
 7. Run the "Off" command. Reload Admin and the Shop page: no item, no tab, no section, no trace of the text. Run "On" again: the note is back.
 8. Check the tab at 390 pixels wide and with the keyboard only (Tab to the field, Enter to save, the error is announced).
+
+## Batch 8.1a demo catalog, photos and seed guards: the tests that check it
+
+PHPUnit (`DemoCatalogSeedTest`; it runs seeds 0001 and 0002 inside the test transaction and deletes the photo files it wrote):
+
+| Rule | Test |
+| --- | --- |
+| The demo has 24 products, the four root categories (Beverages, Pantry and Supplies, Home Appliances, Furniture and Decor), second-level categories under the two new lines, and no brand name that starts with the platform name | `testCatalogHasTwentyFourProductsAcrossThreeLines` |
+| There are decimal-quantity variants (step 0.100, minimum 0.200 on the new one), at least four quantity price tiers, and batch-tracked food with expiry dates in the future | `testDecimalVariantsTiersAndBatchesExist` |
+| Every product has a primary photo; `GET /media/demo/{id}` returns 200, `image/jpeg`, real image bytes of 30 KB or less for all 24, and the thumbnail is smaller | `testEveryProductHasAPrimaryPhotoThatTheMediaRouteServes` |
+| The same arguments draw the same picture bytes; a second view, another product or another line differs; initials skip small words | `testPhotosAreDeterministicAndDistinct` |
+| Running both seeds again adds no row to eleven catalog and stock tables and writes no photo file | `testRunningTheSeedsAgainCreatesNothingNew` |
+| On hand equals the sum of the movements for every variant; every receipt movement belongs to a purchase order and sums to the lines' received quantity; the only negative branch stock is the oversell seed 0001 records on purpose (KN-ESP-250 at SLY-HUB) | `testStockOnHandMatchesTheMovementsAndEveryReceiptTracesToAPurchaseOrder` |
+| The catalog seed refuses every slug but `demo` (`acme`, `Demo`, empty, null), through the class and through the seed file, and changes nothing | `testTheSeedRefusesAnyOtherSlug` |
+| `SeedRunner` hands the slug to each PHP seed as a fourth argument (null when the caller gives none), and a seed that declares three parameters still works | `testSeedRunnerHandsTheSlugToEverySeed` |
+| `SeedCommand` with `--demo --org=<anything but demo>` returns 2 before any seed runs (it prints one line to the error stream, which shows in the PHPUnit output) | `testSeedCommandRefusesDemoWithAnotherOrganizationBeforeAnySeedRuns` |
+
+## Browser hand-check, Batch 8.1a demo catalog and photos
+
+After the reset in `docs/reset-demo.md` (step 10 ends with `2 seed file(s) run`):
+
+1. Open `/demo/shop/products`: 24 products, every card has a coloured picture with initials, and the filters list Home Appliances and Furniture and Decor with their sub-categories.
+2. Open the Digital Rice Cooker 1.8L: two variants (White, Graphite) and a second picture. Open the Air Fryer: the "Buy 2 or more" price shows. Open Dried Mango Cheeks, bulk per kg: quantity steps of 0.1 kg, minimum 0.2.
+3. In Admin, Products shows 24 products with thumbnails; Inventory shows the new variants at Talisay, Bacolod and (food only) Silay; Procurement lists the three opening purchase orders per supplier.
+4. In the POS app (online), search for a rice cooker: the product tile shows its picture.
+5. Run `php bin/seed.php --demo --org=acme`: it prints one line and stops without touching a database.

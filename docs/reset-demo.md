@@ -82,7 +82,7 @@ These steps follow `docs/setup.md` (sections 2.4 and 2.5) and `database/roles/RE
 
 ## Check that it worked
 
-Step 8 should print `applied` for each migration file, and step 10 should end with `1 seed file(s) run`. This prints how many branches the seed created (expected: `3`):
+Step 8 should print `applied` for each migration file, and step 10 should end with `2 seed file(s) run`. This prints how many branches the seed created (expected: `3`); the same check on `products` should give `24`:
 
 ```powershell
 psql -h localhost -U postgres -d gfh_org_demo -t -c "SELECT COUNT(*) FROM branches;"
@@ -92,7 +92,8 @@ Then sign in at `http://localhost:8000/demo/admin/login`. The dashboard, Invento
 
 ## Good to know
 
-- The seed is repeatable but does nothing when the branch `BCD-MAIN` already exists. That is why the database is dropped first.
-- Product photos uploaded earlier stay as files in `storage/uploads/demo/`. After a reset nothing points to them. They do no harm; delete that folder's contents by hand only if you want the space back.
+- The seed is repeatable but does nothing when its anchor already exists: the branch `BCD-MAIN` for the first seed file and the variant `IC-RCK-18W` for the second. That is why the database is dropped first.
+- `php bin/seed.php --demo` only works for the organization `demo`; with any other `--org` it stops before it opens a database. The catalog seed refuses any other slug as well. It stores no password or secret.
+- Product photos uploaded earlier stay as files in `storage/uploads/demo/`. After a reset nothing points to them. They do no harm; delete that folder's contents by hand only if you want the space back. **A reset does not delete orphaned files under `storage/uploads`**, and the seed draws and stores a fresh set of 30 photos (60 files with their thumbnails, about 1 MB) under new random names every time it runs on an empty database, so each reset adds one more set. A seed that fails halfway also leaves the photos it had already written, because files are not part of the database transaction.
 - Shop customers who registered online live in `gfh_core`. After a reset their account remains, but the organization's customer records are new, so they appear as customers without past orders.
 - Never run these steps against `gfh_core` or against the `_test` databases.
