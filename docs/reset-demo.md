@@ -82,7 +82,7 @@ These steps follow `docs/setup.md` (sections 2.4 and 2.5) and `database/roles/RE
 
 ## Check that it worked
 
-Step 8 should print `applied` for each migration file, and step 10 should end with `2 seed file(s) run`. This prints how many branches the seed created (expected: `3`); the same check on `products` should give `24`:
+Step 8 should print `applied` for each migration file, and step 10 should end with `3 seed file(s) run` (the whole run takes under half a minute). This prints how many branches the seed created (expected: `3`); the same check on `products` should give `24`, and `orders` and `pos_sales` should hold a few hundred and about a thousand rows:
 
 ```powershell
 psql -h localhost -U postgres -d gfh_org_demo -t -c "SELECT COUNT(*) FROM branches;"
@@ -92,7 +92,10 @@ Then sign in at `http://localhost:8000/demo/admin/login`. The dashboard, Invento
 
 ## Good to know
 
-- The seed is repeatable but does nothing when its anchor already exists: the branch `BCD-MAIN` for the first seed file and the variant `IC-RCK-18W` for the second. That is why the database is dropped first.
+- The seed is repeatable but does nothing when its anchor already exists: the branch `BCD-MAIN` for the first seed file and the variant `IC-RCK-18W` for the second. The history seed's anchor is the customer `ana.bautista.01@example.test`. That is why the database is dropped first.
+- **The history seed writes past the append-only guard.** `stock_movements` is append-only: nothing can be updated or deleted afterwards, and every service stamps a new movement with the moment it is written. To date about four months of sales, restocking and orders in the past, seed `0003_demo_history.php` creates one temporary `BEFORE INSERT` trigger on `stock_movements` (`gfh_seed_clock`) that replaces the time of each new movement with the time the seed is simulating. The trigger is created and dropped inside the seed's own transaction, so it never exists outside the seed (a test checks this), it works only for the migrator role that owns the table, and the guard against UPDATE, DELETE and TRUNCATE is not touched. Everything else on the dated rows (orders, payments, shifts, purchase orders, batches) is corrected with ordinary updates. Run this seed only on the demo database, never on one that holds real stock history.
+- The history is generated from a fixed random seed, so every reset gives the same shape of data. Dates are relative to the day you run it (the last 119 days, ending today), and the generated identifiers differ from run to run.
+- Seed 0001's own three sales happen today; after the history they get the receipt numbers that follow it, so each terminal's numbers rise with time.
 - `php bin/seed.php --demo` only works for the organization `demo`; with any other `--org` it stops before it opens a database. The catalog seed refuses any other slug as well. It stores no password or secret.
 - Product photos uploaded earlier stay as files in `storage/uploads/demo/`. After a reset nothing points to them. They do no harm; delete that folder's contents by hand only if you want the space back. **A reset does not delete orphaned files under `storage/uploads`**, and the seed draws and stores a fresh set of 30 photos (60 files with their thumbnails, about 1 MB) under new random names every time it runs on an empty database, so each reset adds one more set. A seed that fails halfway also leaves the photos it had already written, because files are not part of the database transaction.
 - Shop customers who registered online live in `gfh_core`. After a reset their account remains, but the organization's customer records are new, so they appear as customers without past orders.
