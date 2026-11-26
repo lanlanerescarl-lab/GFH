@@ -18,7 +18,10 @@ export function renderReceipt(templateId, data) {
   fillList($('[data-list="lines"]', root), data.lines, (line) => h('li', { class: 'receipt__line' },
     h('span', { class: 'receipt__name' }, line.name),
     h('span', { class: 'receipt__calc' }, line.calc),
-    h('span', { class: 'receipt__amount' }, line.lineTotal)));
+    h('span', { class: 'receipt__amount' }, line.lineTotal),
+    // Extension lines under their sale line (Batch 8.3b), as text like everything else on the receipt.
+    ...(line.notes ?? []).map((note) => h('span', { class: 'receipt__note' }, note))));
+  addFooterNotes(root, data.footerNotes);
 
   fillList($('[data-list="payments"]', root), data.payments, (payment) => h('li', { class: 'receipt__payment' },
     h('span', { class: 'receipt__name' }, payment.reference ? `${payment.label} (${payment.reference})` : payment.label),
@@ -31,6 +34,18 @@ export function renderReceipt(templateId, data) {
   }
 
   return root;
+}
+
+/**
+ * Extension lines that print once, under the totals (Batch 8.3b). They go before the footer line, and at the end when a
+ * template has none, so an organization's own receipt template needs no change to print them. Without any, nothing at all.
+ */
+function addFooterNotes(root, notes) {
+  if (!Array.isArray(notes) || notes.length === 0) return;
+  const list = h('ul', { class: 'receipt__notes' }, ...notes.map((note) => h('li', { class: 'receipt__note-item' }, note)));
+  const footer = $('[data-bind="footer"]', root);
+  if (footer !== null) footer.before(list);
+  else root.append(list);
 }
 
 function fillList(list, items, build) {

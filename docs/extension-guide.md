@@ -42,6 +42,10 @@ The Migrator does not run an extension's `migrations/` folder yet. For a per-pro
 
 To ask the customer for something at checkout (a gift note, a company name, a time slot, an "I agree" box), return field definitions from the hook `checkout.fields` and, if a value changes a price, read it in `checkout.adjustments` from `$context['checkout']`. The shape of a definition, the checks the server makes and a working example are in `docs/extensions.md` under "Checkout fields". Three things to know: the server refuses unknown ids and bad values with a 422 on `checkout.{id}`, so you never have to re-check them; a bad definition is ignored and logged, not an error; and **the values are not stored with the order** (the schema has no place for them and Batch 8.3 adds no migration), so a value is only available to the hook that prices that order.
 
+## 4c. POS receipt lines
+
+To print something under a product on the POS receipt (a warranty period, say), keep the value in an `ext_` product attribute and return lines from the hook `pos.receipt.lines`; the lines travel in the terminal snapshot, so they print offline too and a reprint shows what was printed the first time. The shape, the limits (3 lines per product, 120 characters, plain text), a warranty example and what happens when a terminal's snapshot is older than your data are in `docs/extensions.md` under "POS receipt lines". Extra per-line data (serial numbers) and extra payment methods are **not provided**: see "Not provided yet" there.
+
 ## 5. Escaping and what is trusted
 
 `bodyHtml` and `contentHtml` are printed exactly as you wrote them, with no escaping, the same trust the Admin gives order panels. So an extension is trusted code: it must pass every value that came from a product, a customer or a request through `htmlspecialchars($v, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')`. Section and tab `title` and `label` are plain text and the page escapes them. No external hosts, no inline scripts that build HTML from data, no costs or staff ids in anything a customer can see. A CSRF token for a form comes from the hook context (`csrf`); never make one up.

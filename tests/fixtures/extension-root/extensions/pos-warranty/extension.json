@@ -1,0 +1,8 @@
+{
+  "key": "pos-warranty",
+  "name": "POS warranty lines (test fixture)",
+  "version": "1.0.0",
+  "description": "Test-only. Prints the warranty period of a product under its receipt line, and one line under the totals.",
+  "entry": "register.php",
+  "hooks": ["pos.receipt.lines"]
+}

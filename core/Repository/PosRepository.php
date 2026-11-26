@@ -237,6 +237,34 @@ final class PosRepository
         );
     }
 
+    /**
+     * The extension-owned attributes (keys that start with ext_) of every active product that has any, by product id.
+     * Only scalar values, and nothing but the ext_ keys: the other attributes belong to the organization's catalog.
+     * Read only when a pos.receipt.lines callback is registered.
+     *
+     * @return array<string, array<string, string|int|float|bool>>
+     */
+    public function extensionAttributes(): array
+    {
+        $found = [];
+        foreach ($this->rows(
+            "SELECT id, attributes::text AS attributes FROM products WHERE status = 'active' AND EXISTS "
+            . "(SELECT 1 FROM jsonb_object_keys(attributes) AS k WHERE k LIKE 'ext\\_%')",
+        ) as $row) {
+            $decoded = json_decode((string) $row['attributes'], true);
+            if (!is_array($decoded)) {
+                continue;
+            }
+            foreach ($decoded as $key => $value) {
+                if (is_string($key) && str_starts_with($key, 'ext_') && is_scalar($value)) {
+                    $found[(string) $row['id']][$key] = $value;
+                }
+            }
+        }
+
+        return $found;
+    }
+
     /** @return list<array<string, mixed>> */
     public function quantityTiers(): array
     {

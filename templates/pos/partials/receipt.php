@@ -13,6 +13,9 @@
  * data-list names: lines, payments
  * data-show names: cashier, discount, cashGiven, change, address
  *
+ * Extension lines (hook pos.receipt.lines) need nothing here: receipt.js prints them under their sale line, and under the
+ * totals just before the element with data-bind="footer" (at the end when your template has none).
+ *
  * @var \Gfh\Core\View\AppView $this
  */
 ?>

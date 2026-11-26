@@ -8,6 +8,7 @@
 
 import { toApiMoney, toApiQuantity } from './money.js';
 import { receiptData } from './receiptdata.js';
+import { footerNotes, notesForVariant, receiptLinesFrom } from './receipt-lines.js';
 
 /**
  * The sale as GET /pos/sales/{id} would show it, from what the cashier rang up.
@@ -18,25 +19,34 @@ import { receiptData } from './receiptdata.js';
  * @param {Map<string, object>} input.productsByVariant the snapshot's products by variant id
  * @param {{label: string}|null} [input.rule] the discount rule chosen for the sale
  * @param {string|null} [input.idLast4]
+ * @param {unknown} [input.receiptLines] the snapshot's `receipt_lines` (Batch 8.3b); without it nothing is added
  */
-export function serverShapedSale({ sale, priced, productsByVariant, rule = null, idLast4 = null }) {
+export function serverShapedSale({ sale, priced, productsByVariant, rule = null, idLast4 = null, receiptLines = null }) {
+  const extra = receiptLinesFrom(receiptLines);
+  const footer = footerNotes(extra);
   return {
     id: sale.id,
     receipt_number: sale.receipt_number,
     sold_at: sale.sold_at,
     status: 'queued',
-    lines: priced.lines.map((line) => ({
-      name: productsByVariant.get(line.variantId)?.name ?? '',
-      qty: toApiQuantity(line.quantityMilli),
-      unit_price: toApiMoney(line.unitPrice),
-      line_total: toApiMoney(line.lineTotal),
-    })),
+    lines: priced.lines.map((line) => {
+      const notes = notesForVariant(extra, line.variantId);
+      return {
+        name: productsByVariant.get(line.variantId)?.name ?? '',
+        qty: toApiQuantity(line.quantityMilli),
+        unit_price: toApiMoney(line.unitPrice),
+        line_total: toApiMoney(line.lineTotal),
+        // Only when an extension supplied some: without them the sale looks exactly as it did before.
+        ...(notes.length > 0 ? { notes } : {}),
+      };
+    }),
     subtotal: toApiMoney(priced.subtotal),
     discount_total: toApiMoney(priced.discountTotal),
     vat_amount: toApiMoney(priced.vatAmount),
     total: toApiMoney(priced.total),
     discounts: rule === null ? [] : [{ label: rule.label, id_ref_last4: idLast4 || null }],
     payments: sale.payments,
+    ...(footer.length > 0 ? { footer_notes: footer } : {}),
   };
 }
 
@@ -44,9 +54,9 @@ export function serverShapedSale({ sale, priced, productsByVariant, rule = null,
  * A function that builds the receipt fields for a receipt number; the outbox calls it inside the transaction that
  * takes the number, so the stored copy carries the number it was printed with.
  */
-export function receiptBuilder({ sale, priced, productsByVariant, rule, idLast4, terminal, organization, vatRatePercent, cashierName, cash }) {
+export function receiptBuilder({ sale, priced, productsByVariant, rule, idLast4, terminal, organization, vatRatePercent, cashierName, cash, receiptLines = null }) {
   return (receiptNumber) => receiptData({
-    sale: serverShapedSale({ sale: { ...sale, receipt_number: receiptNumber }, priced, productsByVariant, rule, idLast4 }),
+    sale: serverShapedSale({ sale: { ...sale, receipt_number: receiptNumber }, priced, productsByVariant, rule, idLast4, receiptLines }),
     terminal,
     organization,
     vatRatePercent,

@@ -36,6 +36,7 @@ final class Hooks
     public const DASHBOARD_WIDGETS = 'dashboard.widgets';
     public const REPORTS_TABS = 'reports.tabs';
     public const ACCOUNT_MENU = 'account.menu';
+    public const POS_RECEIPT_LINES = 'pos.receipt.lines';
 
     public const NAMES = [
         self::NAVIGATION_ADMIN,
@@ -52,6 +53,7 @@ final class Hooks
         self::DASHBOARD_WIDGETS,
         self::REPORTS_TABS,
         self::ACCOUNT_MENU,
+        self::POS_RECEIPT_LINES,
     ];
 
     /**

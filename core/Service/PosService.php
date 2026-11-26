@@ -32,12 +32,15 @@ final class PosService
         private readonly InventoryService $inventory,
         private readonly AuditService $audit,
         private readonly PaymentProvider $payments,
+        private readonly ?PosReceiptLineService $receiptLines = null,
     ) {
     }
 
     /**
      * Everything a terminal downloads to sell offline: its details, active products with prices and the stock
-     * on record at its branch, quantity price tiers, the active discount rules, payment methods and a content tag.
+     * on record at its branch, quantity price tiers, the active discount rules, payment methods and a content tag. When an
+     * extension registers pos.receipt.lines, also `receipt_lines` (see PosReceiptLineService); with none registered the
+     * snapshot is exactly what it was before Batch 8.3b.
      *
      * @return array<string, mixed>
      */
@@ -51,7 +54,8 @@ final class PosService
         }
 
         $items = [];
-        foreach ($this->repository->snapshotVariants((string) $terminal['branch_id']) as $row) {
+        $variantRows = $this->repository->snapshotVariants((string) $terminal['branch_id']);
+        foreach ($variantRows as $row) {
             $items[] = [
                 'variant_id' => $row['variant_id'],
                 'product_id' => $row['product_id'],
@@ -81,6 +85,11 @@ final class PosService
             'discount_rules' => $this->repository->activeDiscountRules(),
             'products' => $items,
         ];
+
+        $receiptLines = $this->receiptLines?->forSnapshot($terminal, $variantRows);
+        if ($receiptLines !== null) {
+            $data['receipt_lines'] = $receiptLines;
+        }
 
         $data['etag'] = sha1(json_encode($data, JSON_THROW_ON_ERROR));
         $data['generated_at'] = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('c');

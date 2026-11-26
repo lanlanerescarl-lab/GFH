@@ -81,6 +81,7 @@ All valid hook names are listed in `Gfh\Core\Hooks\Hooks::NAMES`:
 | `navigation.admin` | `Hooks::NAVIGATION_ADMIN` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Admin app. An item with a `module` is shown only to people who pass `can()` for it; add `action` (`view`, `edit` or `delete`, default `view`) when the page needs more than view |
 | `navigation.shop` | `Hooks::NAVIGATION_SHOP` | Header navigation items (`list<array{label: string, url: string, current?: bool}>`) in the Shop app, after the built-in Shop link. See "Shop hooks" below |
 | `account.menu` | `Hooks::ACCOUNT_MENU` | Items of the customer account menu in the Shop (`list<array{label: string, url: string, current?: bool}>`), after the built-in Profile, Addresses, Password and My orders. See "Shop hooks" below |
+| `pos.receipt.lines` | `Hooks::POS_RECEIPT_LINES` | Extra lines on the POS receipt: a list of `{text, variant_id?}`. Run while the terminal snapshot is built, not when a sale is made. See "POS receipt lines" below |
 | `product.form.tabs` | `Hooks::PRODUCT_FORM_TABS` | Extra tabs on the Admin product form. Each tab is `{id, label, contentHtml}`. The context has `product`, `can_edit`, `admin_base` (for example `/demo/admin`), `csrf` (the token for a form the tab posts), `errors` (field errors of a refused save) and `input` (the extension's own posted fields after a refused save, otherwise empty) |
 | `product.form.save` | `Hooks::PRODUCT_FORM_SAVE` | Product form save payload / side effects. The value is the payload; the context has `product_id` (null when creating), `actor_id` and `current_attributes` (the stored attributes, `[]` when creating). Throw `HttpException::unprocessable()` to refuse. A tab form posts only its own field, so the payload holds only that field and the other product fields keep their stored values |
 | `product.detail.sections` | `Hooks::PRODUCT_DETAIL_SECTIONS` | Extra sections (`list<array{id: string, title: string, bodyHtml: string}>`) on the Shop product detail page, after the attribute table. See "Shop hooks" below |
@@ -229,6 +230,72 @@ return function (ExtensionContext $x): void {
 **The values are not stored with the order.** The orders schema has no place for per-order extension data, and Batch 8.3 adds no migration. A value reaches the hook that prices the order and is not saved afterwards: an extension that needs it on the order (a gift note to print) has to wait for a place to store it. Do not fake one with another column.
 
 **The page.** The Shop checkout page is built by `checkout.js` from the options. It shows the fields in a "More about your order" group after the delivery choice, each with its label tied to its input, the help text and the error message tied with `aria-describedby`, using the same `.field`, `.choice`, `.help` and `.field-error` markup as the core fields. All text is placed as text, never as markup. The page sends the values in the `checkout` object it already sends, and prices the cart again when a field changes, so a fee that depends on a value is the one charged.
+
+## POS receipt lines (Batch 8.3b)
+
+An extension prints extra text on the POS receipt: the warranty period under a product, a line about claims under the totals. The hook is `pos.receipt.lines`. It is meant for text that depends on the product or the terminal, not on the sale.
+
+**Why it runs when the snapshot is built.** Since Batch 7.2 the terminal builds its receipt in the browser, from the snapshot it already holds, at the moment the sale is saved, whether the sale is online or offline; the server builds no POS receipt and `GET /pos/sales/{id}` is not used to print. So the only place a server-side extension can add receipt text, without changing the sale API or the offline queue, is the snapshot. `PosService::snapshot()` (`GET /pos/terminals/{id}/snapshot`) runs the hook and adds the result as the snapshot key `receipt_lines`.
+
+**The hook.** The value starts as `[]`. A callback adds lines and returns the list. A line is an object:
+
+| Key | Required | Meaning |
+| --- | --- | --- |
+| `text` | Yes | One line of plain text, 1 to **120** characters (counted as characters, not bytes), no line break or other control character, nothing that starts an HTML tag (`<b`, `</`, `<!`, `<?`). Edge spaces are trimmed |
+| `variant_id` | No | A variant in this snapshot. The line is printed under **every sale line of that variant**. Without it the line is printed **once, under the totals**, before the receipt's footer line |
+
+At most **3** lines per variant and **3** under the totals; a repeated line for the same place is kept once. The context has `terminal` (`id`, `code`, `name`, `branch_id`, `branch_name`) and `variants`: every variant in the snapshot as `{variant_id, product_id, sku, name, attributes}`, where `attributes` holds **only the product's extension-owned `ext_` attributes** (see "Extension-owned product attributes"), never the rest of the catalog's attributes.
+
+**The server enforces the limits.** A line that breaks a rule (too long, a tag or control character, a variant that is not in the snapshot, a fourth line) is dropped and logged as `Hook value problem: pos.receipt.lines: ...` (once per request for each dropped line, variant or footer); at most five are logged per snapshot and one more line counts the rest. The terminal never sees an error for it. The terminal repeats the same checks before it prints, so a damaged snapshot cannot put anything but short plain text on a receipt. A callback that throws, or returns something that is not a list, is skipped as described in "When a hook callback fails". A callback that throws an `HttpException` makes the snapshot go out **without any receipt lines** (and is logged): a refusal means nothing for a receipt line, and the terminal must always get its prices and stock.
+
+**With nothing registered nothing changes.** `receipt_lines` is added only when a callback is registered **and** at least one line is valid; otherwise the snapshot has exactly the keys, and the same `etag`, it had before, and every receipt is built and printed exactly as before. The key looks like this (`variants` is an object keyed by variant id, and a part that is empty is left out):
+
+```json
+"receipt_lines": {
+  "variants": { "0b1f...": ["Warranty: 12 months"] },
+  "footer": ["Keep this receipt for warranty claims."]
+}
+```
+
+**A warranty example** (Home Appliances). The warranty period of each product is an extension-owned attribute, `ext_warranty_months`, set by the extension's own Admin tab exactly as `extensions/care-notes/` does for `ext_care_notes`:
+
+```php
+$x->hook('pos.receipt.lines', static function (array $lines, array $context): array {
+    $any = false;
+    foreach ($context['variants'] as $variant) {
+        $months = $variant['attributes']['ext_warranty_months'] ?? null;
+        if (is_int($months) && $months > 0) {
+            $lines[] = ['variant_id' => $variant['variant_id'], 'text' => sprintf('Warranty: %d month%s', $months, $months === 1 ? '' : 's')];
+            $any = true;
+        }
+    }
+    if ($any) {
+        $lines[] = ['text' => 'Keep this receipt for warranty claims.'];
+    }
+
+    return $lines;
+});
+```
+
+(The manifest lists `pos.receipt.lines` in `hooks`.) The hook runs once per snapshot download over every variant, so keep the callback quick: no database access, no network.
+
+**Offline, reprints and an older snapshot.**
+
+- The terminal copies the lines from the snapshot it holds **when the sale is saved**, and keeps them in the receipt it stores. A sale made offline therefore prints the same lines as an online one, and a reprint (before or after the sale is sent) prints exactly what was printed the first time. A later change never alters a receipt that was already printed.
+- The terminal downloads a snapshot when it is started with a connection, when a shift is opened and when the cashier presses "Refresh prices and stock"; there is no timer. If the warranty data changed on the server after the last download, the terminal keeps printing the **old** lines: a changed period prints the old period, a product that gained a warranty prints none, and a product whose warranty was removed still prints it, until the next download. The `etag` changes with the lines, so the terminal's saved copy is replaced at that download. After 24 hours without a download the banner warns, and selling is never blocked.
+- This is different from what the brief for 8.3 assumed (a server-built receipt for online sales): there is none, so online and offline sales behave the same.
+- The server does not store what was printed. The sale record, `POST /pos/sales`, the offline queue's payload and the database are unchanged, and the lines are not on `GET /pos/sales/{id}` or in the Admin sale view.
+
+**Receipt templates.** The lines under a sale line are added by `receipt.js` inside the line's own element, so any layout shows them. The lines under the totals are placed before the element with `data-bind="footer"` and at the end of the receipt when a template has none, so an organization's own `receipt.php` needs no change. The `.receipt__note` and `.receipt__notes` classes style them; the text is always set as text, never as markup.
+
+## Not provided yet
+
+Two hooks were considered for the POS and are **not provided**. They are not in `Hooks::NAMES`, so `ExtensionContext::hook()` refuses them and an extension that registers one fails to load (logged). Do not write an extension for them.
+
+- **`pos.line.fields` (extra data on each sale line, such as a serial number).** The terminal sends only the variant, quantity, price and discount of a line, and the server reads nothing else. A value typed at the till has to travel in a new key of the sale (`lines[].fields` of `POST /pos/sales`), which changes the **sale API contract**; it has to be held by the **offline queue** (the sale payload the terminal stores until it can send it) and entered on the POS screen; and `pos_sale_lines` has **no column** to keep it in, so it needs a database migration. Serial numbers cannot be worked out on the server.
+- **`pos.tender.types` (extra payment methods).** The `payments.method` column has a database check that allows only `cash`, `gcash`, `maya`, `card`, `bank_transfer` and `cod`, so a sale paid another way would fail to save with a server error, and the terminal would keep retrying it. The terminal also hard-codes which methods need a reference number (`tender.js`), so it cannot ask for the reference an extension method needs: the sale would be refused at upload, after it was rung up and printed. The list of methods is shared with the online checkout and the Admin order payments, which a POS-only type must not reach.
+
+Each needs a decision on the sale contract, the offline queue and the database before it can be built.
 
 ## Extension-owned product attributes (Batch 8.2)
 

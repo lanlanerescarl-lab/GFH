@@ -67,6 +67,8 @@ export function createCheckout(ctx) {
       vatRatePercent: ctx.snapshot.get()?.vat_rate_percent ?? 12,
       cashierName: state.user.name,
       cash,
+      // The extension lines of the snapshot this terminal holds now (Batch 8.3b); none when no extension supplies any.
+      receiptLines: ctx.snapshot.get()?.receipt_lines ?? null,
     });
 
     const result = await ctx.outbox.submit(state.pending.sale, { buildReceipt, cash });

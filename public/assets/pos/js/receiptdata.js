@@ -9,7 +9,8 @@ const money = (text) => formatPeso(parseMoney(text) ?? 0);
 
 /**
  * @param {object} input
- * @param {object} input.sale the sale as GET /pos/sales/{id} returns it (lines, payments, discounts)
+ * @param {object} input.sale the sale as GET /pos/sales/{id} returns it (lines, payments, discounts), plus the optional
+ *   `notes` of a line and `footer_notes` of the sale that localsale.js adds from the snapshot's receipt_lines
  * @param {object} input.terminal the snapshot's terminal (code, branch_name, branch_address)
  * @param {string} input.organization the organization's name
  * @param {number} input.vatRatePercent the snapshot's vat_rate_percent
@@ -35,6 +36,8 @@ export function receiptData({ sale, terminal, organization, vatRatePercent, cash
       name: line.name,
       calc: `${formatQuantity(parseQuantity(line.qty) ?? 0)} \u00D7 ${money(line.unit_price)}`,
       lineTotal: money(line.line_total),
+      // Extension lines (Batch 8.3b, receipt-lines.js): present only when there are some, so a receipt without them is unchanged.
+      ...(Array.isArray(line.notes) && line.notes.length > 0 ? { notes: line.notes } : {}),
     })),
     subtotal: money(sale.subtotal),
     discount: discountAmount > 0 ? `-${formatPeso(discountAmount)}` : '',
@@ -50,5 +53,6 @@ export function receiptData({ sale, terminal, organization, vatRatePercent, cash
     })),
     cashGiven: cash !== null && cash.cashTendered > 0 ? formatPeso(cash.cashTendered) : '',
     change: cash !== null && cash.cashTendered > 0 ? formatPeso(cash.change) : '',
+    ...(Array.isArray(sale.footer_notes) && sale.footer_notes.length > 0 ? { footerNotes: sale.footer_notes } : {}),
   };
 }

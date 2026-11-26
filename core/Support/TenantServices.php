@@ -27,6 +27,7 @@ use Gfh\Core\Service\InventoryService;
 use Gfh\Core\Service\MediaService;
 use Gfh\Core\Service\OrderService;
 use Gfh\Core\Service\PermissionService;
+use Gfh\Core\Service\PosReceiptLineService;
 use Gfh\Core\Service\PosService;
 use Gfh\Core\Service\PricingService;
 use Gfh\Core\Service\ProcurementService;
@@ -134,7 +135,8 @@ final class TenantServices
     public function pos(): PosService
     {
         return $this->once('pos', fn (): PosService => new PosService(
-            $this->organization, new PosRepository($this->organization), $this->pricing(), $this->inventory(), $this->audit, $this->payments(),
+            $this->organization, $posRepository = new PosRepository($this->organization), $this->pricing(), $this->inventory(), $this->audit, $this->payments(),
+            new PosReceiptLineService($this->hooks, $posRepository),
         ));
     }
 
