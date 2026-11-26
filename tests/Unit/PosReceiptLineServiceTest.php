@@ -148,8 +148,9 @@ final class PosReceiptLineServiceTest extends TestCase
 
     public function testWithNoCallbackRegisteredNothingIsAddedAndTheDatabaseIsNotTouched(): void
     {
-        // The repository would fail on this connection if it were used: the service must stop at has().
-        $pdo = new \PDO('sqlite::memory:');
+        // A stub connection: the repository would fail on it if it were used, so the service must stop at has().
+        // (No database driver is needed, and the project requires only pdo_pgsql.)
+        $pdo = $this->createStub(\PDO::class);
         $service = new PosReceiptLineService(new Hooks(), new PosRepository($pdo));
 
         $this->assertNull($service->forSnapshot(['id' => 't', 'code' => 'T3', 'name' => 'n', 'branch_id' => 'b'], [['variant_id' => self::A]]));
