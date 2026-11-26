@@ -46,6 +46,8 @@ php phpunit.phar --filter testCashierCannotEditProductsOrPrices
 
 Every database test runs inside a transaction that is rolled back, so tests do not affect each other or leave data behind.
 
+The full suite needs more than PHP's default 128 MB memory limit (the whole run peaks at about 146 MB), so `phpunit.xml.dist` raises the limit to 1 GB for the run and no flag is needed. If a run stops with `Allowed memory size ... exhausted`, run it as `php -d memory_limit=1G phpunit.phar`. The database tests skip themselves unless `GFH_TEST_CORE_URL` and `GFH_TEST_ORG_URL` are set in the same PowerShell window: a result with hundreds of skipped tests means the variables were not set, not that the code is broken.
+
 ### JavaScript tests (the POS app)
 
 The POS app's and the Shop's pure modules are tested with Node's built-in runner (no package to install). The test files are in `tests/js` and import the modules in `templates/pos/assets/js` and `templates/shop/assets/js`.
