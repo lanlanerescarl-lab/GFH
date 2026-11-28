@@ -1,0 +1,208 @@
+[
+  {
+    "id": "usr-001",
+    "name": "Maria Lourdes Santos",
+    "email": "maria.santos@gfh.local",
+    "groupRole": "super_admin",
+    "memberships": [],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T19:32:00+08:00",
+    "created": "2025-03-12T09:00:00+08:00"
+  },
+  {
+    "id": "usr-002",
+    "name": "Ramon Villanueva",
+    "email": "ramon.v@gfh.local",
+    "groupRole": "super_admin",
+    "memberships": [
+      {
+        "org": "fnb",
+        "role": "Admin",
+        "status": "Active",
+        "joined": "2025-05-04"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T17:18:00+08:00",
+    "created": "2025-05-02T10:00:00+08:00"
+  },
+  {
+    "id": "usr-003",
+    "name": "Alyssa Mendoza",
+    "email": "alyssa.m@gfh.local",
+    "groupRole": "group_viewer",
+    "memberships": [],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T15:05:00+08:00",
+    "created": "2025-08-19T09:00:00+08:00"
+  },
+  {
+    "id": "usr-004",
+    "name": "Jose Mari Cruz",
+    "email": "jose.cruz@gfh.local",
+    "memberships": [
+      {
+        "org": "fnb",
+        "role": "Manager",
+        "status": "Active",
+        "joined": "2025-06-14"
+      },
+      {
+        "org": "ha",
+        "role": "Staff",
+        "status": "Active",
+        "joined": "2026-01-09"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T13:44:00+08:00",
+    "created": "2025-06-13T09:00:00+08:00"
+  },
+  {
+    "id": "usr-005",
+    "name": "Carla de Leon",
+    "email": "carla.deleon@gfh.local",
+    "memberships": [
+      {
+        "org": "ha",
+        "role": "Admin",
+        "status": "Active",
+        "joined": "2025-07-22"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-26T18:20:00+08:00",
+    "created": "2025-07-21T09:00:00+08:00"
+  },
+  {
+    "id": "usr-006",
+    "name": "Miguel Bautista",
+    "email": "miguel.b@gfh.local",
+    "memberships": [
+      {
+        "org": "fd",
+        "role": "Manager",
+        "status": "Active",
+        "joined": "2025-09-01"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T11:12:00+08:00",
+    "created": "2025-08-30T09:00:00+08:00"
+  },
+  {
+    "id": "usr-007",
+    "name": "Janelle Garcia",
+    "email": "janelle.g@gfh.local",
+    "memberships": [
+      {
+        "org": "fnb",
+        "role": "Cashier",
+        "status": "Active",
+        "joined": "2026-02-10"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T18:55:00+08:00",
+    "created": "2026-02-10T09:00:00+08:00"
+  },
+  {
+    "id": "usr-008",
+    "name": "Paolo Reyes",
+    "email": "paolo.r@gfh.local",
+    "memberships": [
+      {
+        "org": "ha",
+        "role": "Cashier",
+        "status": "Active",
+        "joined": "2026-04-17"
+      },
+      {
+        "org": "fd",
+        "role": "Staff",
+        "status": "Active",
+        "joined": "2026-06-08"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-25T16:38:00+08:00",
+    "created": "2026-04-16T09:00:00+08:00"
+  },
+  {
+    "id": "usr-009",
+    "name": "Angela Navarro",
+    "email": "angela.n@gfh.local",
+    "memberships": [
+      {
+        "org": "fd",
+        "role": "Admin",
+        "status": "Active",
+        "joined": "2025-11-23"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-27T10:01:00+08:00",
+    "created": "2025-11-22T09:00:00+08:00"
+  },
+  {
+    "id": "usr-010",
+    "name": "Noel Aquino",
+    "email": "noel.a@gfh.local",
+    "memberships": [
+      {
+        "org": "fnb",
+        "role": "Staff",
+        "status": "Inactive",
+        "joined": "2026-01-18"
+      }
+    ],
+    "status": "Inactive",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-08-11T08:42:00+08:00",
+    "created": "2026-01-17T09:00:00+08:00"
+  },
+  {
+    "id": "usr-011",
+    "name": "Bianca Lim",
+    "email": "bianca.lim@gfh.local",
+    "memberships": [
+      {
+        "org": "ha",
+        "role": "Staff",
+        "status": "Active",
+        "joined": "2026-11-25"
+      }
+    ],
+    "status": "Pending",
+    "passwordConfigured": false,
+    "lastSignIn": null,
+    "created": "2026-11-25T14:30:00+08:00"
+  },
+  {
+    "id": "usr-012",
+    "name": "Ernesto Flores",
+    "email": "ernesto.f@gfh.local",
+    "groupRole": "group_viewer",
+    "memberships": [
+      {
+        "org": "fd",
+        "role": "Staff",
+        "status": "Active",
+        "joined": "2026-03-07"
+      }
+    ],
+    "status": "Active",
+    "passwordConfigured": true,
+    "lastSignIn": "2026-11-24T09:18:00+08:00",
+    "created": "2026-03-06T09:00:00+08:00"
+  }
+]

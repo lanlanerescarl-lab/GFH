@@ -1,0 +1,18 @@
+{
+  "care_notes": {
+    "label": "Care Notes",
+    "description": "Verified demonstration extension (extensions/care-notes/extension.json): adds a care note tab in Admin and a section in Shop."
+  },
+  "batches": {
+    "label": "Batch Tracking",
+    "description": "Tracks batch codes, expiry dates, and bins on receiving."
+  },
+  "cold_chain": {
+    "label": "Cold-Chain Monitoring",
+    "description": "Supports temperature- and expiry-sensitive goods."
+  },
+  "made_to_order": {
+    "label": "Made-to-Order Workflow",
+    "description": "Enables production steps on orders."
+  }
+}

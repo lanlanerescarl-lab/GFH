@@ -1,0 +1,385 @@
+[
+  {
+    "id": "98df42a0-77c1-4b3d-9000-0bc3a6d80000",
+    "time": "2026-11-27T11:38:00.000Z",
+    "actor": "Maria Lourdes Santos",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "user.created",
+    "entity": "user",
+    "entityId": "usr-011",
+    "summary": "Created pending account for Bianca Lim",
+    "details": {
+      "summary": "Created pending account for Bianca Lim",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9001-0bc3a6d80001",
+    "time": "2026-11-27T10:56:00.000Z",
+    "actor": "Maria Lourdes Santos",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "password_reset.issued",
+    "entity": "user",
+    "entityId": "usr-011",
+    "summary": "Issued one-time password reset link",
+    "details": {
+      "summary": "Issued one-time password reset link",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9002-0bc3a6d80002",
+    "time": "2026-11-27T10:14:00.000Z",
+    "actor": "Ramon Villanueva",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "membership.role_changed",
+    "entity": "membership",
+    "entityId": "mem-044",
+    "summary": "Changed F&B membership from Staff to Manager",
+    "details": {
+      "summary": "Changed F&B membership from Staff to Manager",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9003-0bc3a6d80003",
+    "time": "2026-11-27T09:32:00.000Z",
+    "actor": "Janelle Garcia",
+    "actorRole": "Cashier",
+    "scope": "Core Group",
+    "org": "fnb",
+    "action": "auth.staff_login",
+    "entity": "user",
+    "entityId": "usr-007",
+    "summary": "Successful staff sign-in to F&B",
+    "details": {
+      "summary": "Successful staff sign-in to F&B",
+      "source": "core_audit_log",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9004-0bc3a6d80004",
+    "time": "2026-11-27T08:50:00.000Z",
+    "actor": "System (CLI)",
+    "actorRole": "System",
+    "scope": "Core Group",
+    "org": "fd",
+    "action": "user.created",
+    "entity": "user",
+    "entityId": "usr-009",
+    "summary": "Created F&D Admin account via bin/create-user.php",
+    "details": {
+      "summary": "Created F&D Admin account via bin/create-user.php",
+      "source": "core_audit_log",
+      "organization": "fd",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9005-0bc3a6d80005",
+    "time": "2026-11-27T08:08:00.000Z",
+    "actor": "Carla de Leon",
+    "actorRole": "Admin",
+    "scope": "Organization",
+    "org": "ha",
+    "action": "stock.adjusted",
+    "entity": "product_variant",
+    "entityId": "HA-FAN-16",
+    "summary": "Recorded receiving adjustment of 12 units",
+    "details": {
+      "summary": "Recorded receiving adjustment of 12 units",
+      "source": "org_contract.audit_events",
+      "organization": "ha",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9006-0bc3a6d80006",
+    "time": "2026-11-27T07:26:00.000Z",
+    "actor": "Miguel Bautista",
+    "actorRole": "Manager",
+    "scope": "Organization",
+    "org": "fd",
+    "action": "order.status_changed",
+    "entity": "order",
+    "entityId": "ORD-FD-2941",
+    "summary": "Moved order to In Production",
+    "details": {
+      "summary": "Moved order to In Production",
+      "source": "org_contract.audit_events",
+      "organization": "fd",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9007-0bc3a6d80007",
+    "time": "2026-11-27T06:44:00.000Z",
+    "actor": "Paolo Reyes",
+    "actorRole": "Cashier",
+    "scope": "Organization",
+    "org": "ha",
+    "action": "price.updated",
+    "entity": "product_variant",
+    "entityId": "HA-KTL-20",
+    "summary": "Updated promotional price",
+    "details": {
+      "summary": "Updated promotional price",
+      "source": "org_contract.audit_events",
+      "organization": "ha",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9008-0bc3a6d80008",
+    "time": "2026-11-27T06:02:00.000Z",
+    "actor": "Alyssa Mendoza",
+    "actorRole": "Group Viewer",
+    "scope": "Core Group",
+    "action": "auth.staff_login",
+    "entity": "user",
+    "entityId": "usr-003",
+    "summary": "Successful group sign-in",
+    "details": {
+      "summary": "Successful group sign-in",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9009-0bc3a6d80009",
+    "time": "2026-11-27T05:20:00.000Z",
+    "actor": "Unknown",
+    "actorRole": "—",
+    "scope": "Core Group",
+    "org": "fnb",
+    "action": "auth.staff_login_failed",
+    "entity": "user",
+    "entityId": "unknown",
+    "summary": "Rejected F&B staff sign-in attempt",
+    "details": {
+      "summary": "Rejected F&B staff sign-in attempt",
+      "source": "core_audit_log",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9010-0bc3a6d80010",
+    "time": "2026-11-27T04:38:00.000Z",
+    "actor": "Angela Navarro",
+    "actorRole": "Admin",
+    "scope": "Organization",
+    "org": "fd",
+    "action": "membership.role_changed",
+    "entity": "membership",
+    "entityId": "mem-061",
+    "summary": "Changed organization role to Staff",
+    "details": {
+      "summary": "Changed organization role to Staff",
+      "source": "org_contract.audit_events",
+      "organization": "fd",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9011-0bc3a6d80011",
+    "time": "2026-11-27T03:56:00.000Z",
+    "actor": "Maria Lourdes Santos",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "permission.override_updated",
+    "entity": "organization_role_permissions",
+    "entityId": "orp-fnb-manager",
+    "summary": "Updated F&B Manager permissions",
+    "details": {
+      "summary": "Updated F&B Manager permissions",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila",
+      "demonstration_only": true
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9012-0bc3a6d80012",
+    "time": "2026-11-27T03:14:00.000Z",
+    "actor": "Jose Mari Cruz",
+    "actorRole": "Manager",
+    "scope": "Organization",
+    "org": "fnb",
+    "action": "stock.adjusted",
+    "entity": "product_variant",
+    "entityId": "FNB-COFFEE-500",
+    "summary": "Cycle count adjustment of -2 units",
+    "details": {
+      "summary": "Cycle count adjustment of -2 units",
+      "source": "org_contract.audit_events",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9013-0bc3a6d80013",
+    "time": "2026-11-27T02:32:00.000Z",
+    "actor": "Carla de Leon",
+    "actorRole": "Admin",
+    "scope": "Organization",
+    "org": "ha",
+    "action": "order.status_changed",
+    "entity": "order",
+    "entityId": "ORD-HA-1882",
+    "summary": "Marked order For Delivery",
+    "details": {
+      "summary": "Marked order For Delivery",
+      "source": "org_contract.audit_events",
+      "organization": "ha",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9014-0bc3a6d80014",
+    "time": "2026-11-27T01:50:00.000Z",
+    "actor": "Janelle Garcia",
+    "actorRole": "Cashier",
+    "scope": "Organization",
+    "org": "fnb",
+    "action": "pos.sale_completed",
+    "entity": "pos_sale",
+    "entityId": "POS-FNB-88287",
+    "summary": "Completed POS sale",
+    "details": {
+      "summary": "Completed POS sale",
+      "source": "org_contract.audit_events",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9015-0bc3a6d80015",
+    "time": "2026-11-27T01:08:00.000Z",
+    "actor": "Miguel Bautista",
+    "actorRole": "Manager",
+    "scope": "Organization",
+    "org": "fd",
+    "action": "stock.adjusted",
+    "entity": "product_variant",
+    "entityId": "FD-LAMP-021",
+    "summary": "Reserved 4 units for order",
+    "details": {
+      "summary": "Reserved 4 units for order",
+      "source": "org_contract.audit_events",
+      "organization": "fd",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9016-0bc3a6d80016",
+    "time": "2026-11-27T00:26:00.000Z",
+    "actor": "Maria Lourdes Santos",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "user.profile_updated",
+    "entity": "user",
+    "entityId": "usr-008",
+    "summary": "Updated profile for Paolo Reyes",
+    "details": {
+      "summary": "Updated profile for Paolo Reyes",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9017-0bc3a6d80017",
+    "time": "2026-11-26T23:44:00.000Z",
+    "actor": "Ramon Villanueva",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "action": "membership.added",
+    "entity": "membership",
+    "entityId": "mem-074",
+    "summary": "Added HA membership for Paolo Reyes",
+    "details": {
+      "summary": "Added HA membership for Paolo Reyes",
+      "source": "core_audit_log",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9018-0bc3a6d80018",
+    "time": "2026-11-26T23:02:00.000Z",
+    "actor": "Angela Navarro",
+    "actorRole": "Admin",
+    "scope": "Organization",
+    "org": "fd",
+    "action": "price.updated",
+    "entity": "product_variant",
+    "entityId": "FD-SOFA-310",
+    "summary": "Updated retail price",
+    "details": {
+      "summary": "Updated retail price",
+      "source": "org_contract.audit_events",
+      "organization": "fd",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9019-0bc3a6d80019",
+    "time": "2026-11-26T22:20:00.000Z",
+    "actor": "Jose Mari Cruz",
+    "actorRole": "Manager",
+    "scope": "Organization",
+    "org": "fnb",
+    "action": "order.status_changed",
+    "entity": "order",
+    "entityId": "ORD-FNB-8291",
+    "summary": "Moved order to Confirmed",
+    "details": {
+      "summary": "Moved order to Confirmed",
+      "source": "org_contract.audit_events",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9020-0bc3a6d80020",
+    "time": "2026-11-26T21:38:00.000Z",
+    "actor": "Unknown",
+    "actorRole": "—",
+    "scope": "Core Group",
+    "org": "ha",
+    "action": "auth.staff_login_failed",
+    "entity": "user",
+    "entityId": "unknown",
+    "summary": "Rejected HA staff sign-in attempt",
+    "details": {
+      "summary": "Rejected HA staff sign-in attempt",
+      "source": "core_audit_log",
+      "organization": "ha",
+      "recorded_at": "Asia/Manila"
+    }
+  },
+  {
+    "id": "98df42a0-77c1-4b3d-9021-0bc3a6d80021",
+    "time": "2026-11-26T20:56:00.000Z",
+    "actor": "Maria Lourdes Santos",
+    "actorRole": "Super Admin",
+    "scope": "Core Group",
+    "org": "fnb",
+    "action": "membership.deactivated",
+    "entity": "membership",
+    "entityId": "usr-010-fnb",
+    "summary": "Deactivated Noel Aquino's last active membership (F&B); account set inactive",
+    "details": {
+      "summary": "Deactivated Noel Aquino's last active membership (F&B); account set inactive",
+      "source": "core_audit_log",
+      "organization": "fnb",
+      "recorded_at": "Asia/Manila"
+    }
+  }
+]

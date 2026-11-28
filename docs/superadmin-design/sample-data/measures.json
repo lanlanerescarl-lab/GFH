@@ -1,0 +1,31 @@
+{
+  "fnb": [
+    {
+      "label": "Cold-chain compliance",
+      "value": "98.6",
+      "unit": "%",
+      "asOf": "27 Nov 2026, 7:45 PM"
+    },
+    {
+      "label": "Batches expiring in 7 days",
+      "value": "14",
+      "unit": "batches",
+      "asOf": "27 Nov 2026, 7:45 PM"
+    }
+  ],
+  "ha": [],
+  "fd": [
+    {
+      "label": "Made-to-order lead time",
+      "value": "12.4",
+      "unit": "days avg.",
+      "asOf": "27 Nov 2026, 7:40 PM"
+    },
+    {
+      "label": "Assembly service completion",
+      "value": "94.2",
+      "unit": "%",
+      "asOf": "27 Nov 2026, 7:40 PM"
+    }
+  ]
+}
