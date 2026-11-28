@@ -512,6 +512,172 @@
   display: none;
 }
 
+/* Flash banners (SA.2a) */
+.sa-flash {
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border-soft);
+  border-left: 4px solid var(--status-info);
+  border-radius: var(--radius-control);
+  background: var(--status-info-bg);
+  color: var(--status-info-ink);
+}
+
+.sa-flash--ok {
+  border-left-color: var(--status-ok);
+  background: var(--status-ok-bg);
+  color: var(--status-ok-ink);
+}
+
+.sa-flash--warn {
+  border-left-color: var(--status-warn);
+  background: var(--status-warn-bg);
+  color: var(--status-warn-ink);
+}
+
+.sa-flash--danger {
+  border-left-color: var(--status-danger);
+  background: var(--status-danger-bg);
+  color: var(--status-danger-ink);
+}
+
+.sa-flash__title {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.sa-flash__message {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-xs);
+}
+
+/* Users and Access list & detail (SA.2a) */
+.sa-membership-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sa-membership-pill {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+}
+
+.sa-membership-pill__org {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.sa-membership-pill__role {
+  color: var(--color-muted);
+}
+
+.sa-section__subhead {
+  margin: 0 0 var(--space-3);
+  font-family: var(--font-heading);
+  font-size: var(--text-md);
+  color: var(--color-heading);
+}
+
+.sa-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sa-inline-form {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.sa-inline-select {
+  min-height: 44px;
+  min-width: 8rem;
+}
+
+.sa-inline-error {
+  margin: var(--space-2) 0 0;
+}
+
+.sa-form-card {
+  max-width: 48rem;
+}
+
+.sa-stack-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.sa-form-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.sa-form-grid .field {
+  margin: 0;
+}
+
+.sa-form-grid input,
+.sa-form-grid select {
+  min-height: 44px;
+  width: 100%;
+}
+
+.sa-form-grid__full {
+  grid-column: 1 / -1;
+}
+
+.sa-form-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(200px, 100%), 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.sa-form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sa-reset-org-note {
+  margin: 0;
+  align-self: center;
+}
+
+.sa-reset-card {
+  gap: var(--space-4);
+  max-width: 48rem;
+}
+
+.sa-reset-box {
+  padding: var(--space-4);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.sa-reset-box__url {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  word-break: break-all;
+}
+
 /* Breakpoints from docs/superadmin-design/design-brief.md (1023, 767, 480, down to 320 px) */
 @media (max-width: 1023px) {
   .sa-shell {

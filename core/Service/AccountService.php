@@ -275,7 +275,17 @@ final class AccountService
             throw HttpException::unprocessable(['user' => 'That person is not on this team.']);
         }
 
-        Database::transaction($this->core, function () use ($actor, $organization, $targetUserId, $membership, $newRole): void {
+        Database::transaction($this->core, function () use ($actor, $organization, $targetUserId, $target, $membership, $newRole): void {
+            if ($newRole !== 'admin') {
+                $this->assertNotLastActiveAdmin(
+                    $organization,
+                    $target,
+                    $membership,
+                    'role',
+                    'This person is the last active Admin of this organization and cannot be moved to another role.',
+                );
+            }
+
             $this->memberships->update($targetUserId, $organization->id, $newRole, (string) $membership['status']);
             $this->audit->core('membership.role_changed', $actor->id, $organization->id, 'user', $targetUserId, [
                 'from' => $membership['role'],
@@ -299,6 +309,14 @@ final class AccountService
         }
 
         Database::transaction($this->core, function () use ($actor, $organization, $targetUserId, $target, $membership): void {
+            $this->assertNotLastActiveAdmin(
+                $organization,
+                $target,
+                $membership,
+                'user',
+                'This person is the last active Admin of this organization and cannot be deactivated.',
+            );
+
             $this->memberships->update($targetUserId, $organization->id, (string) $membership['role'], 'inactive');
             $this->audit->core('membership.deactivated', $actor->id, $organization->id, 'user', $targetUserId, ['role' => $membership['role']]);
 
@@ -476,6 +494,32 @@ final class AccountService
     {
         if ($actor->id !== null && $actor->id === $targetUserId) {
             throw HttpException::forbidden($message);
+        }
+    }
+
+    /**
+     * Protects an organization from being left with no active Admin who can sign in and manage it.
+     *
+     * @param array<string, mixed> $target
+     * @param array<string, mixed> $membership
+     */
+    private function assertNotLastActiveAdmin(
+        Organization $organization,
+        array $target,
+        array $membership,
+        string $field,
+        string $message,
+    ): void {
+        if (
+            (string) $membership['role'] !== 'admin'
+            || (string) $membership['status'] !== 'active'
+            || (string) $target['status'] !== 'active'
+        ) {
+            return;
+        }
+
+        if ($this->memberships->countOtherActiveAdminsForUpdate($organization->id, (string) $target['id']) === 0) {
+            throw HttpException::unprocessable([$field => $message]);
         }
     }
 }
