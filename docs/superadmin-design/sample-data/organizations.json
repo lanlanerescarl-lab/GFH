@@ -1,0 +1,47 @@
+[
+  {
+    "slug": "fnb",
+    "name": "Food & Beverages",
+    "short": "F&B",
+    "status": "Active",
+    "features": [
+      "batches",
+      "cold_chain",
+      "care_notes"
+    ],
+    "schema": "public",
+    "template": "v1.0.0",
+    "migration": "v7",
+    "contract": "v1",
+    "refreshed": "2026-11-27T19:45:00+08:00"
+  },
+  {
+    "slug": "ha",
+    "name": "Home Appliances",
+    "short": "HA",
+    "status": "Active",
+    "features": [
+      "warranty_tracking"
+    ],
+    "schema": "public",
+    "template": "v1.0.0",
+    "migration": "v7",
+    "contract": "v1",
+    "refreshed": "2026-11-27T19:42:00+08:00"
+  },
+  {
+    "slug": "fd",
+    "name": "Furniture & Decor",
+    "short": "F&D",
+    "status": "Active",
+    "features": [
+      "made_to_order",
+      "assembly_service"
+    ],
+    "schema": "public",
+    "template": "v1.0.0",
+    "migration": "v7",
+    "contract": "v1",
+    "refreshed": "2026-11-27T19:40:00+08:00"
+  }
+]

@@ -1,0 +1,122 @@
+[
+  {
+    "id": "alt-001",
+    "org": "fnb",
+    "severity": "Warning",
+    "type": "Expiring Batch",
+    "entity": "stock_batch",
+    "entityId": "FNB-2611-04",
+    "message": "Batch FNB-2611-04 of FNB-MILK-1L expires on 30 Nov 2026",
+    "time": "2026-11-27T19:30:00+08:00"
+  },
+  {
+    "id": "alt-002",
+    "org": "fd",
+    "severity": "Warning",
+    "type": "Overdue Delivery",
+    "entity": "order",
+    "entityId": "SO-20261121-0148",
+    "message": "Delivery for order SO-20261121-0148 was due on 24 Nov 2026",
+    "time": "2026-11-27T18:42:00+08:00"
+  },
+  {
+    "id": "alt-003",
+    "org": "ha",
+    "severity": "Critical",
+    "type": "Out of Stock",
+    "entity": "product_variant",
+    "entityId": "HA-RICE-18L",
+    "message": "Rice cooker variant HA-RICE-18L is out of stock",
+    "time": "2026-11-27T17:18:00+08:00"
+  },
+  {
+    "id": "alt-004",
+    "org": "fnb",
+    "severity": "Warning",
+    "type": "Low Stock",
+    "entity": "product_variant",
+    "entityId": "FNB-COFFEE-500",
+    "message": "Coffee beans FNB-COFFEE-500 are below reorder level",
+    "time": "2026-11-27T16:55:00+08:00"
+  },
+  {
+    "id": "alt-005",
+    "org": "fd",
+    "severity": "Warning",
+    "type": "Low Stock",
+    "entity": "product_variant",
+    "entityId": "FD-LAMP-021",
+    "message": "Table lamp FD-LAMP-021 has 3 units remaining",
+    "time": "2026-11-27T15:30:00+08:00"
+  },
+  {
+    "id": "alt-006",
+    "org": "fnb",
+    "severity": "Warning",
+    "type": "POS Needs Review",
+    "entity": "pos_sale",
+    "entityId": "POS-FNB-88291",
+    "message": "POS sale POS-FNB-88291 requires variance review",
+    "time": "2026-11-27T14:26:00+08:00"
+  },
+  {
+    "id": "alt-007",
+    "org": "ha",
+    "severity": "Warning",
+    "type": "Overdue Delivery",
+    "entity": "order",
+    "entityId": "SO-20261123-0182",
+    "message": "Delivery for order SO-20261123-0182 was due on 26 Nov 2026",
+    "time": "2026-11-27T13:40:00+08:00"
+  },
+  {
+    "id": "alt-008",
+    "org": "fd",
+    "severity": "Critical",
+    "type": "Out of Stock",
+    "entity": "product_variant",
+    "entityId": "FD-CHAIR-104",
+    "message": "Dining chair FD-CHAIR-104 is out of stock",
+    "time": "2026-11-27T12:12:00+08:00"
+  },
+  {
+    "id": "alt-009",
+    "org": "fnb",
+    "severity": "Critical",
+    "type": "Expiring Batch",
+    "entity": "stock_batch",
+    "entityId": "FNB-2611-19",
+    "message": "Batch FNB-2611-19 expired on 25 Nov 2026",
+    "time": "2026-11-27T11:04:00+08:00"
+  },
+  {
+    "id": "alt-010",
+    "org": "ha",
+    "severity": "Warning",
+    "type": "Low Stock",
+    "entity": "product_variant",
+    "entityId": "HA-FAN-16",
+    "message": "Stand fan HA-FAN-16 has reached reorder level",
+    "time": "2026-11-27T10:28:00+08:00"
+  },
+  {
+    "id": "alt-011",
+    "org": "fd",
+    "severity": "Warning",
+    "type": "POS Needs Review",
+    "entity": "pos_sale",
+    "entityId": "POS-FD-11028",
+    "message": "POS sale POS-FD-11028 requires discount review",
+    "time": "2026-11-27T09:35:00+08:00"
+  },
+  {
+    "id": "alt-012",
+    "org": "fnb",
+    "severity": "Critical",
+    "type": "Out of Stock",
+    "entity": "product_variant",
+    "entityId": "FNB-OAT-1L",
+    "message": "Oat milk FNB-OAT-1L is out of stock",
+    "time": "2026-11-27T08:48:00+08:00"
+  }
+]

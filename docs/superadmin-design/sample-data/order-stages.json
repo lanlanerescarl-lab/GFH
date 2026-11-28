@@ -1,0 +1,92 @@
+{
+  "fnb": [
+    {
+      "label": "Pending",
+      "stageKey": "pending",
+      "sortOrder": 1,
+      "group": "Open",
+      "count": 7
+    },
+    {
+      "label": "Confirmed",
+      "stageKey": "confirmed",
+      "sortOrder": 2,
+      "group": "In Progress",
+      "count": 6
+    },
+    {
+      "label": "Fulfilled",
+      "stageKey": "fulfilled",
+      "sortOrder": 3,
+      "group": "In Progress",
+      "count": 5
+    },
+    {
+      "label": "Delivered",
+      "stageKey": "delivered",
+      "sortOrder": 4,
+      "group": "Complete",
+      "count": 268
+    }
+  ],
+  "ha": [
+    {
+      "label": "Order Confirmed",
+      "stageKey": "order_confirmed",
+      "sortOrder": 1,
+      "group": "Open",
+      "count": 4
+    },
+    {
+      "label": "For Delivery",
+      "stageKey": "for_delivery",
+      "sortOrder": 2,
+      "group": "In Progress",
+      "count": 5
+    },
+    {
+      "label": "Installation Scheduled",
+      "stageKey": "installation_scheduled",
+      "sortOrder": 3,
+      "group": "In Progress",
+      "count": 3
+    },
+    {
+      "label": "Completed",
+      "stageKey": "completed",
+      "sortOrder": 4,
+      "group": "Complete",
+      "count": 62
+    }
+  ],
+  "fd": [
+    {
+      "label": "Design Confirmed",
+      "stageKey": "design_confirmed",
+      "sortOrder": 1,
+      "group": "Open",
+      "count": 7
+    },
+    {
+      "label": "In Production",
+      "stageKey": "in_production",
+      "sortOrder": 2,
+      "group": "In Progress",
+      "count": 10
+    },
+    {
+      "label": "For Assembly",
+      "stageKey": "for_assembly",
+      "sortOrder": 3,
+      "group": "In Progress",
+      "count": 6
+    },
+    {
+      "label": "Delivered",
+      "stageKey": "delivered",
+      "sortOrder": 4,
+      "group": "Complete",
+      "count": 39
+    }
+  ]
+}

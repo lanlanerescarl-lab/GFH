@@ -19,6 +19,9 @@ final class AssetPublisher
 {
     public const EXTENSIONS = ['css', 'js', 'mjs', 'woff2', 'woff', 'svg', 'png', 'jpg', 'jpeg', 'webp', 'gif', 'ico'];
 
+    /** Template folders published into public/assets/{app}/ (includes Super Admin, which organizations cannot override). */
+    public const TEMPLATE_APPS = [...TemplateLocator::APPS, 'superadmin'];
+
     public function __construct(private readonly string $rootPath)
     {
     }
@@ -33,12 +36,12 @@ final class AssetPublisher
         $skipped = [];
 
         if (!$dryRun) {
-            foreach ([...TemplateLocator::APPS, 'orgs'] as $folder) {
+            foreach ([...self::TEMPLATE_APPS, 'orgs'] as $folder) {
                 $this->removeTree($assets . '/' . $folder);
             }
         }
 
-        foreach (TemplateLocator::APPS as $app) {
+        foreach (self::TEMPLATE_APPS as $app) {
             $copied += $this->copyTree(
                 $this->rootPath . '/templates/' . $app . '/assets',
                 $assets . '/' . $app,

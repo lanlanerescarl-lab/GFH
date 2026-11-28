@@ -1,0 +1,23 @@
+{
+  "fnb": {
+    "activeOrders": 18,
+    "openPOs": 9,
+    "overduePOs": 2,
+    "lowStock": 14,
+    "outOfStock": 4
+  },
+  "ha": {
+    "activeOrders": 12,
+    "openPOs": 7,
+    "overduePOs": 1,
+    "lowStock": 8,
+    "outOfStock": 2
+  },
+  "fd": {
+    "activeOrders": 23,
+    "openPOs": 11,
+    "overduePOs": 3,
+    "lowStock": 6,
+    "outOfStock": 3
+  }
+}
