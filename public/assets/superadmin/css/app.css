@@ -171,6 +171,335 @@
   font-size: var(--text-sm);
 }
 
+/* Sections, typography and metadata utilities (SA.1b) */
+.sa-section {
+  margin-bottom: var(--space-6);
+}
+
+.sa-section:last-child {
+  margin-bottom: 0;
+}
+
+.sa-section__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.sa-section__title {
+  margin: 0;
+  font-family: var(--font-heading);
+  font-size: var(--text-xl);
+  color: var(--color-heading);
+}
+
+.sa-kicker {
+  margin: 0 0 var(--space-1);
+  font-size: var(--text-xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-muted);
+}
+
+.sa-muted {
+  color: var(--color-muted);
+  font-size: var(--text-sm);
+}
+
+.sa-mono {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.sa-kpi-grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(210px, 100%), 1fr));
+  margin-bottom: 0;
+}
+
+/* Filter bars */
+.sa-filter-card {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4);
+}
+
+.sa-filter-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr));
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.sa-filter-form--orgs {
+  grid-template-columns: minmax(min(220px, 100%), 2fr) minmax(min(160px, 100%), 1fr) auto;
+}
+
+.sa-filter-field {
+  margin: 0;
+  min-width: 0;
+}
+
+.sa-filter-field--wide {
+  grid-column: span 2;
+}
+
+.sa-filter-field input,
+.sa-filter-field select {
+  min-height: 44px;
+  width: 100%;
+}
+
+.sa-filter-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sa-filter-btn {
+  min-height: 44px;
+}
+
+/* Table cell helpers */
+.sa-table-link {
+  display: inline-block;
+  font-weight: 600;
+  color: var(--color-primary-strong);
+  text-decoration: none;
+}
+
+.sa-table-link:hover {
+  text-decoration: underline;
+}
+
+.sa-cell-sub {
+  display: block;
+  margin-top: 2px;
+  font-size: var(--text-xs);
+  color: var(--color-muted);
+}
+
+.sa-cell-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.sa-cell-nowrap {
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-cell-summary {
+  max-width: 28rem;
+  overflow-wrap: anywhere;
+}
+
+.sa-cell-action {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.sa-action-link {
+  min-height: 44px;
+}
+
+.sa-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.sa-table-empty {
+  padding: var(--space-4);
+}
+
+/* Pagination */
+.sa-pagination {
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.sa-pagination__controls {
+  flex-wrap: wrap;
+}
+
+.sa-page-btn {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.sa-pagination__ellipsis {
+  padding: 0 var(--space-1);
+  color: var(--color-muted);
+}
+
+/* Organization detail */
+.sa-breadcrumb {
+  margin: 0 0 var(--space-3);
+}
+
+.sa-back-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: none;
+}
+
+.sa-back-link:hover {
+  color: var(--color-primary-strong);
+  text-decoration: underline;
+}
+
+.sa-info-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border-soft);
+  border-left: 4px solid var(--status-neutral);
+  border-radius: var(--radius-control);
+}
+
+.sa-info-banner__text {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-muted);
+}
+
+.sa-detail-card {
+  gap: var(--space-5);
+}
+
+.sa-detail-subsection {
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border-soft);
+}
+
+.sa-dl {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.sa-dl--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+  gap: var(--space-4);
+}
+
+.sa-dl__row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.sa-dl dt {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.sa-dl dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.sa-dl--pairs .sa-dl__row {
+  padding: var(--space-2) var(--space-3);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.sa-branding-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.sa-branding-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--color-surface-muted);
+  border: 1px solid var(--color-border-soft);
+  border-radius: var(--radius-control);
+}
+
+.sa-branding-item__label {
+  font-size: var(--text-xs);
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.sa-branding-item__value {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.sa-swatch {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--space-1);
+  border: 1px solid var(--color-border);
+  flex-shrink: 0;
+}
+
+/* Audit Event Inspect drawer */
+.sa-audit-drawer {
+  width: min(480px, 100vw);
+}
+
+.sa-drawer-close {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+.sa-audit-detail {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.sa-audit-detail__summary {
+  margin: 0;
+  font-size: var(--text-md);
+  font-weight: 600;
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+}
+
+.sa-audit-detail__section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.sa-audit-detail__value {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
 /* Backdrop behind the mobile sidebar drawer */
 .sa-backdrop {
   position: fixed;
@@ -258,6 +587,14 @@
   .sa-main {
     padding: var(--space-4);
   }
+
+  .sa-filter-form--orgs {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-filter-field--wide {
+    grid-column: span 1;
+  }
 }
 
 @media (max-width: 480px) {
@@ -282,8 +619,17 @@
     justify-content: space-between;
   }
 
-  .sa-notice-card {
+  .sa-notice-card,
+  .sa-filter-card {
     padding: var(--space-4);
+  }
+
+  .sa-filter-actions {
+    width: 100%;
+  }
+
+  .sa-filter-actions .sa-filter-btn {
+    flex: 1 1 auto;
   }
 }
 

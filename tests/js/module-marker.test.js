@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // The apps whose scripts Node imports in tests/js. The Admin scripts are not imported by any Node test yet.
-const SCRIPT_FOLDERS = ['templates/shop/assets', 'templates/pos/assets', 'tests/js'];
+const SCRIPT_FOLDERS = ['templates/shop/assets', 'templates/pos/assets', 'templates/superadmin/assets', 'tests/js'];
 
 const MODULE_SYNTAX = /^\s*(import\s+[\w{*'"]|export\s+(default|const|let|var|function|class|async|\{|\*))/m;
 
