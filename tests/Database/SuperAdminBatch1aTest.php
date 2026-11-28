@@ -95,7 +95,7 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
             'overview' => ['/superadmin', 'Group Overview', 'Consolidated performance and operational health across', false],
             'organizations' => ['/superadmin/organizations', 'Organizations', 'Registered organizations, reporting contracts and data freshness. Existing records are read-only.', false],
             'reports' => ['/superadmin/reports', 'Consolidated Reports', 'Group reporting built only from documented organization reporting views.', true],
-            'users' => ['/superadmin/users', 'Users and Access', 'Group-level roles are held on the account; organization roles are held per membership.', true],
+            'users' => ['/superadmin/users', 'Users and Access', 'Group-level roles are held on the account; organization roles are held per membership.', false],
             'audit' => ['/superadmin/audit', 'Audit Log', 'Append-only history across group governance and organization registry actions.', false],
             'settings' => ['/superadmin/settings', 'System Settings', 'Organization role-permission matrix, organization controls and platform reference.', true],
         ];

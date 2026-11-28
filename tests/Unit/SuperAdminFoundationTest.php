@@ -89,7 +89,7 @@ final class SuperAdminFoundationTest extends TestCase
         return new PermissionService(new MembershipRepository($pdo), new PermissionRepository($pdo));
     }
 
-    public function testSuperAdminRoutesAreExactlyTheDocumentedSetAndOnlySignInAndSignOutArePost(): void
+    public function testSuperAdminRoutesAreExactlyTheDocumentedSetAndWritesAreProtected(): void
     {
         $found = array_map(
             static fn (Route $route): string => $route->method . ' ' . $route->pattern,
@@ -106,8 +106,18 @@ final class SuperAdminFoundationTest extends TestCase
             'GET /superadmin/settings',
             'GET /superadmin/sign-in',
             'GET /superadmin/users',
+            'GET /superadmin/users/new-group',
+            'GET /superadmin/users/new-staff',
+            'GET /superadmin/users/{id}',
             'POST /superadmin/sign-in',
             'POST /superadmin/sign-out',
+            'POST /superadmin/users/group',
+            'POST /superadmin/users/staff',
+            'POST /superadmin/users/{id}/memberships',
+            'POST /superadmin/users/{id}/memberships/{orgId}/deactivate',
+            'POST /superadmin/users/{id}/memberships/{orgId}/reactivate',
+            'POST /superadmin/users/{id}/memberships/{orgId}/role',
+            'POST /superadmin/users/{id}/reset-link',
         ];
         $this->assertSame($expected, $found);
 
@@ -117,7 +127,17 @@ final class SuperAdminFoundationTest extends TestCase
         ));
         $nonGetLabels = array_map(static fn (Route $r): string => $r->method . ' ' . $r->pattern, $nonGet);
         sort($nonGetLabels);
-        $this->assertSame(['POST /superadmin/sign-in', 'POST /superadmin/sign-out'], $nonGetLabels);
+        $this->assertSame([
+            'POST /superadmin/sign-in',
+            'POST /superadmin/sign-out',
+            'POST /superadmin/users/group',
+            'POST /superadmin/users/staff',
+            'POST /superadmin/users/{id}/memberships',
+            'POST /superadmin/users/{id}/memberships/{orgId}/deactivate',
+            'POST /superadmin/users/{id}/memberships/{orgId}/reactivate',
+            'POST /superadmin/users/{id}/memberships/{orgId}/role',
+            'POST /superadmin/users/{id}/reset-link',
+        ], $nonGetLabels);
     }
 
     public function testEverySuperAdminRouteUsesStaffSessionNeverTenantAndProtectsWritesWithCsrf(): void

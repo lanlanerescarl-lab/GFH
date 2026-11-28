@@ -19,6 +19,7 @@ use Gfh\Core\Repository\PasswordResetRepository;
 use Gfh\Core\Repository\PermissionRepository;
 use Gfh\Core\Repository\SuperAdminAuditRepository;
 use Gfh\Core\Repository\SuperAdminOrganizationRepository;
+use Gfh\Core\Repository\SuperAdminUserRepository;
 use Gfh\Core\Repository\UserRepository;
 use Gfh\Core\Service\AccountService;
 use Gfh\Core\Service\AdminNavigationService;
@@ -34,6 +35,8 @@ use Gfh\Core\Service\SuperAdminAuthService;
 use Gfh\Core\Service\SuperAdminNavigationService;
 use Gfh\Core\Service\SuperAdminOrganizationQueryService;
 use Gfh\Core\Service\SuperAdminOverviewService;
+use Gfh\Core\Service\SuperAdminUserQueryService;
+use Gfh\Core\Service\SuperAdminUserService;
 use Gfh\Core\Extension\ExtensionLoader;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Tenancy\Tenant;
@@ -354,6 +357,26 @@ final class Services
     {
         return $this->once('superadmin-audit', fn (): SuperAdminAuditQueryService => new SuperAdminAuditQueryService(
             new SuperAdminAuditRepository($this->core()),
+            $this->permissions(),
+        ));
+    }
+
+    /** Read-only Super Admin Users and Access queries (core DB only; never selects password_hash or connection_encrypted). */
+    public function superAdminUserQueries(): SuperAdminUserQueryService
+    {
+        return $this->once('superadmin-user-queries', fn (): SuperAdminUserQueryService => new SuperAdminUserQueryService(
+            new SuperAdminUserRepository($this->core()),
+            $this->permissions(),
+        ));
+    }
+
+    /** Super Admin Users and Access write coordinator (delegates account and reset rules to AccountService/PasswordResetService). */
+    public function superAdminUsers(): SuperAdminUserService
+    {
+        return $this->once('superadmin-users', fn (): SuperAdminUserService => new SuperAdminUserService(
+            new SuperAdminUserRepository($this->core()),
+            $this->accounts(),
+            $this->resets(),
             $this->permissions(),
         ));
     }

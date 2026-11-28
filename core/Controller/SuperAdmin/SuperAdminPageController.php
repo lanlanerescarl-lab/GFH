@@ -32,6 +32,11 @@ abstract class SuperAdminPageController
         return $staff;
     }
 
+    protected function can(StaffUser $staff, string $module, string $action): bool
+    {
+        return $this->services->permissions()->can($staff, null, $module, $action);
+    }
+
     /** @param array<string, mixed> $data */
     protected function render(
         Request $request,
@@ -46,7 +51,16 @@ abstract class SuperAdminPageController
             ->forPage($staff, $module, $request->basePath(), $currentPath);
 
         $session = $request->attribute('session');
-        $csrf = $session instanceof Session ? $this->services->csrf($session)->token() : '';
+        $csrf = '';
+        $flash = null;
+        if ($session instanceof Session) {
+            $csrf = $this->services->csrf($session)->token();
+            $storedFlash = $session->get('_superadmin_flash');
+            if (is_array($storedFlash)) {
+                $flash = $storedFlash;
+                $session->forget('_superadmin_flash');
+            }
+        }
 
         $view = $this->services->superAdminView($request, [
             'navigation' => $navigation,
@@ -55,9 +69,44 @@ abstract class SuperAdminPageController
             'isGroupViewer' => $staff->orgRole === 'group_viewer',
             'logoutUrl' => $request->basePath() . '/superadmin/sign-out',
             'csrf' => $csrf,
+            'flash' => $flash,
         ]);
 
         return Response::html($view->render($template, $data), $status, ['Cache-Control' => 'no-store']);
+    }
+
+    /** Stores a one-time confirmation banner in the session. Never pass secrets or reset links here. */
+    protected function flash(Request $request, string $tone, string $title, string $message = ''): void
+    {
+        $session = $request->attribute('session');
+        if ($session instanceof Session) {
+            $session->put('_superadmin_flash', [
+                'tone' => $tone,
+                'title' => $title,
+                'message' => $message,
+            ]);
+        }
+    }
+
+    protected function text(Request $request, string $key, string $default = ''): string
+    {
+        $value = $request->input($key, $default);
+
+        return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * Extracts field errors from a client HttpException (4xx), rethrowing 5xx server faults.
+     *
+     * @return array<string, string>
+     */
+    protected function errorsOf(HttpException $exception, string $fallbackField): array
+    {
+        if ($exception->status() >= 500) {
+            throw $exception;
+        }
+
+        return $exception->fields() !== [] ? $exception->fields() : [$fallbackField => $exception->getMessage()];
     }
 
     protected function staff(Request $request): StaffUser

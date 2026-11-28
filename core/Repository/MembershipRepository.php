@@ -74,6 +74,29 @@ final class MembershipRepository
         return (int) $statement->fetchColumn();
     }
 
+    /**
+     * Locks active Admin memberships in one organization and returns how many other active users still hold an active
+     * Admin membership there. Must be called inside a transaction so concurrent demotions or deactivations serialize.
+     */
+    public function countOtherActiveAdminsForUpdate(string $organizationId, string $exceptUserId): int
+    {
+        $statement = $this->core->prepare(
+            'SELECT m.user_id FROM memberships m JOIN users u ON u.id = m.user_id '
+            . "WHERE m.organization_id = :organization_id AND m.role = 'admin' AND m.status = 'active' AND u.status = 'active' "
+            . 'FOR UPDATE OF m',
+        );
+        $statement->execute(['organization_id' => $organizationId]);
+
+        $count = 0;
+        foreach ($statement->fetchAll(\PDO::FETCH_COLUMN) as $userId) {
+            if ((string) $userId !== $exceptUserId) {
+                ++$count;
+            }
+        }
+
+        return $count;
+    }
+
     public function create(string $userId, string $organizationId, string $role, string $status = 'active'): void
     {
         $statement = $this->core->prepare(

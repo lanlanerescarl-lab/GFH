@@ -14,6 +14,7 @@
  * @var bool $isGroupViewer optional
  * @var string|null $logoutUrl optional
  * @var string|null $csrf optional
+ * @var array{tone?: string, title?: string, message?: string}|null $flash optional
  */
 $bare ??= false;
 $navigation ??= [];
@@ -22,6 +23,7 @@ $staffRole ??= null;
 $isGroupViewer ??= false;
 $logoutUrl ??= null;
 $csrf ??= null;
+$flash ??= null;
 $navigationHtml = $bare ? '' : trim($this->partial('partials/nav', ['navigation' => $navigation]));
 ?>
 <!doctype html>
@@ -87,6 +89,20 @@ $navigationHtml = $bare ? '' : trim($this->partial('partials/nav', ['navigation'
                 <div class="sa-readonly-banner" role="status">
                     <span class="badge badge--info"><span class="badge__dot" aria-hidden="true"></span>View only</span>
                     <p class="sa-readonly-banner__text">Group Viewer access. You can browse all group pages, and write actions are not available.</p>
+                </div>
+<?php endif; ?>
+<?php if (is_array($flash) && !empty($flash['title'])): ?>
+<?php
+    $flashTone = in_array((string) ($flash['tone'] ?? 'info'), ['ok', 'warn', 'danger', 'info'], true)
+        ? (string) $flash['tone']
+        : 'info';
+    $flashMessage = is_string($flash['message'] ?? null) ? $flash['message'] : '';
+?>
+                <div class="sa-flash sa-flash--<?= $this->e($flashTone) ?>" role="<?= $flashTone === 'danger' ? 'alert' : 'status' ?>">
+                    <p class="sa-flash__title"><?= $this->e((string) $flash['title']) ?></p>
+<?php if ($flashMessage !== ''): ?>
+                    <p class="sa-flash__message"><?= $this->e($flashMessage) ?></p>
+<?php endif; ?>
                 </div>
 <?php endif; ?>
                 <?= $this->section('content') ?>

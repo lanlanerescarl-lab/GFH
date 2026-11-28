@@ -130,6 +130,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $staffSession, $csrf, $requireGroup,
     ): void {
         $groupPage = [$staffSession, $requireGroup];
+        $groupWrite = [$staffSession, $csrf, $requireGroup];
 
         $r->get('/sign-in', static fn (Request $q) => $superAdminAuth->signInForm($q), [$staffSession]);
         $r->post('/sign-in', static fn (Request $q) => $superAdminAuth->signInSubmit($q), [$staffSession, $csrf]);
@@ -140,6 +141,16 @@ return static function (Router $router, App $app, ?Services $services = null): v
         $r->get('/organizations/{slug}', static fn (Request $q) => $superAdminOrganizations->show($q), $groupPage);
         $r->get('/reports', static fn (Request $q) => $superAdminReports->index($q), $groupPage);
         $r->get('/users', static fn (Request $q) => $superAdminUsers->index($q), $groupPage);
+        $r->get('/users/new-staff', static fn (Request $q) => $superAdminUsers->newStaffForm($q), $groupPage);
+        $r->post('/users/staff', static fn (Request $q) => $superAdminUsers->createStaff($q), $groupWrite);
+        $r->get('/users/new-group', static fn (Request $q) => $superAdminUsers->newGroupForm($q), $groupPage);
+        $r->post('/users/group', static fn (Request $q) => $superAdminUsers->createGroup($q), $groupWrite);
+        $r->get('/users/{id}', static fn (Request $q) => $superAdminUsers->show($q), $groupPage);
+        $r->post('/users/{id}/memberships', static fn (Request $q) => $superAdminUsers->addMembership($q), $groupWrite);
+        $r->post('/users/{id}/memberships/{orgId}/role', static fn (Request $q) => $superAdminUsers->changeRole($q), $groupWrite);
+        $r->post('/users/{id}/memberships/{orgId}/deactivate', static fn (Request $q) => $superAdminUsers->deactivateMembership($q), $groupWrite);
+        $r->post('/users/{id}/memberships/{orgId}/reactivate', static fn (Request $q) => $superAdminUsers->reactivateMembership($q), $groupWrite);
+        $r->post('/users/{id}/reset-link', static fn (Request $q) => $superAdminUsers->issueResetLink($q), $groupWrite);
         $r->get('/audit', static fn (Request $q) => $superAdminAudit->index($q), $groupPage);
         $r->get('/settings', static fn (Request $q) => $superAdminSettings->index($q), $groupPage);
     });
