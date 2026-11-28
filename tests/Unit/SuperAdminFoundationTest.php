@@ -101,6 +101,7 @@ final class SuperAdminFoundationTest extends TestCase
             'GET /superadmin',
             'GET /superadmin/audit',
             'GET /superadmin/organizations',
+            'GET /superadmin/organizations/{slug}',
             'GET /superadmin/reports',
             'GET /superadmin/settings',
             'GET /superadmin/sign-in',
@@ -301,7 +302,7 @@ final class SuperAdminFoundationTest extends TestCase
     {
         $root = dirname(__DIR__, 2);
 
-        foreach (['css/app.css', 'js/shell.js'] as $file) {
+        foreach (['css/app.css', 'js/shell.js', 'js/audit-drawer.js'] as $file) {
             $source = $root . '/templates/superadmin/assets/' . $file;
             $published = $root . '/public/assets/superadmin/' . $file;
             $this->assertFileExists($source);
@@ -312,8 +313,10 @@ final class SuperAdminFoundationTest extends TestCase
         $css = (string) file_get_contents($root . '/templates/superadmin/assets/css/app.css');
         $this->assertSame(0, preg_match('/#[0-9a-fA-F]{3,8}\b|rgba?\(|hsla?\(/', $css), 'Super Admin CSS must use CSS variables only.');
 
-        $js = (string) file_get_contents($root . '/templates/superadmin/assets/js/shell.js');
-        $this->assertStringNotContainsString('innerHTML', $js, 'Super Admin JS must not use innerHTML.');
+        foreach (['js/shell.js', 'js/audit-drawer.js'] as $script) {
+            $js = (string) file_get_contents($root . '/templates/superadmin/assets/' . $script);
+            $this->assertStringNotContainsString('innerHTML', $js, 'Super Admin JS must not use innerHTML: ' . $script);
+        }
 
         $findings = NoExternalHostsTest::scan($root, ['templates/superadmin', 'public/assets/superadmin']);
         $this->assertSame([], $findings, "External hosts found:\n" . implode("\n", $findings));

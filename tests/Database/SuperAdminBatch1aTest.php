@@ -88,16 +88,16 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
         );
     }
 
-    /** @return array<string, array{string, string, string}> */
+    /** @return array<string, array{string, string, string, bool}> */
     public static function sixPages(): array
     {
         return [
-            'overview' => ['/superadmin', 'Group Overview', 'Consolidated performance and operational health across GFH organizations.'],
-            'organizations' => ['/superadmin/organizations', 'Organizations', 'Registered organizations, reporting contracts and data freshness. Existing records are read-only.'],
-            'reports' => ['/superadmin/reports', 'Consolidated Reports', 'Group reporting built only from documented organization reporting views.'],
-            'users' => ['/superadmin/users', 'Users and Access', 'Group-level roles are held on the account; organization roles are held per membership.'],
-            'audit' => ['/superadmin/audit', 'Audit Log', 'Append-only history across group governance and organization registry actions.'],
-            'settings' => ['/superadmin/settings', 'System Settings', 'Organization role-permission matrix, organization controls and platform reference.'],
+            'overview' => ['/superadmin', 'Group Overview', 'Consolidated performance and operational health across', false],
+            'organizations' => ['/superadmin/organizations', 'Organizations', 'Registered organizations, reporting contracts and data freshness. Existing records are read-only.', false],
+            'reports' => ['/superadmin/reports', 'Consolidated Reports', 'Group reporting built only from documented organization reporting views.', true],
+            'users' => ['/superadmin/users', 'Users and Access', 'Group-level roles are held on the account; organization roles are held per membership.', true],
+            'audit' => ['/superadmin/audit', 'Audit Log', 'Append-only history across group governance and organization registry actions.', false],
+            'settings' => ['/superadmin/settings', 'System Settings', 'Organization role-permission matrix, organization controls and platform reference.', true],
         ];
     }
 
@@ -108,6 +108,7 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
         string $path,
         string $title,
         string $subtitle,
+        bool $isPlaceholder,
     ): void {
         $superAdmin = $this->kit->staff('sa-' . bin2hex(random_bytes(3)) . '@example.test', TestKit::PASSWORD, 'super_admin', 'active', 'Maria Santos');
         $viewer = $this->kit->staff('gv-' . bin2hex(random_bytes(3)) . '@example.test', TestKit::PASSWORD, 'group_viewer', 'active', 'Carlo Reyes');
@@ -118,7 +119,11 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
         $saBody = $saResponse->body();
         $this->assertStringContainsString($title, $saBody);
         $this->assertStringContainsString($subtitle, $saBody);
-        $this->assertStringContainsString('This page is built in a later batch.', $saBody);
+        if ($isPlaceholder) {
+            $this->assertStringContainsString('This page is built in a later batch.', $saBody);
+        } else {
+            $this->assertStringNotContainsString('This page is built in a later batch.', $saBody);
+        }
         $this->assertStringContainsString('Maria Santos', $saBody);
         $this->assertStringContainsString('Super Admin', $saBody);
         $this->assertStringNotContainsString('View only', $saBody);
@@ -138,11 +143,15 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
         $this->assertStringContainsString('Carlo Reyes', $gvBody);
         $this->assertStringContainsString('Group Viewer', $gvBody);
         $this->assertStringContainsString('View only', $gvBody);
-        $this->assertStringContainsString('This page is built in a later batch.', $gvBody);
+        if ($isPlaceholder) {
+            $this->assertStringContainsString('This page is built in a later batch.', $gvBody);
+        } else {
+            $this->assertStringNotContainsString('This page is built in a later batch.', $gvBody);
+        }
     }
 
     #[DataProvider('sixPages')]
-    public function testOrganizationRolesWithoutGroupRoleAreRefusedWith403OnEveryPage(string $path, string $title, string $subtitle): void
+    public function testOrganizationRolesWithoutGroupRoleAreRefusedWith403OnEveryPage(string $path, string $title, string $subtitle, bool $isPlaceholder): void
     {
         $org = $this->kit->organization('org-' . bin2hex(random_bytes(3)));
 
@@ -152,12 +161,12 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
 
             $this->assertSame(403, $response->status(), "$role on $path must receive 403");
             $this->assertSame('no-store', $response->header('Cache-Control'));
-            $this->assertStringNotContainsString('This page is built in a later batch.', $response->body());
+            $this->assertStringNotContainsString($subtitle, $response->body());
         }
     }
 
     #[DataProvider('sixPages')]
-    public function testGuestIsRedirectedToSignInWithSafeNextOnEveryPage(string $path, string $title, string $subtitle): void
+    public function testGuestIsRedirectedToSignInWithSafeNextOnEveryPage(string $path, string $title, string $subtitle, bool $isPlaceholder): void
     {
         $response = $this->request($this->browser(), 'GET', $path);
 
@@ -167,7 +176,7 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
     }
 
     #[DataProvider('sixPages')]
-    public function testSignedInCustomerIsRefusedOnEveryPage(string $path, string $title, string $subtitle): void
+    public function testSignedInCustomerIsRefusedOnEveryPage(string $path, string $title, string $subtitle, bool $isPlaceholder): void
     {
         $customer = $this->kit->auth->registerCustomer('Ana Customer', 'cust-' . bin2hex(random_bytes(3)) . '@example.test', TestKit::PASSWORD);
 
@@ -175,7 +184,7 @@ final class SuperAdminBatch1aTest extends DatabaseTestCase
         $response = $this->request($this->browser(null, $customer->id), 'GET', $path);
         $this->assertSame(302, $response->status(), $path);
         $this->assertSame('/superadmin/sign-in?next=' . rawurlencode($path), $response->header('Location'));
-        $this->assertStringNotContainsString('This page is built in a later batch.', $response->body());
+        $this->assertStringNotContainsString($subtitle, $response->body());
 
         // Even if a customer UUID were placed into the staff session, SessionMiddleware ignores it.
         $tampered = $this->request($this->browser($customer->id, $customer->id), 'GET', $path);

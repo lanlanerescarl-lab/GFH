@@ -50,6 +50,57 @@ final class BrandingCss
      */
     public static function build(array $branding): array
     {
+        $checked = self::inspect($branding);
+        $variables = [];
+
+        foreach (self::COLORS as $key => $variable) {
+            if (isset($checked['values'][$key])) {
+                $variables[$variable] = $checked['values'][$key];
+            }
+        }
+        foreach (self::FONTS as $key => [$variable, $fallback]) {
+            if (isset($checked['values'][$key])) {
+                $variables[$variable] = '"' . $checked['values'][$key] . '", ' . $fallback;
+            }
+        }
+        foreach (self::RADII as $key => $variable) {
+            if (isset($checked['values'][$key])) {
+                $variables[$variable] = $checked['values'][$key];
+            }
+        }
+
+        $lines = ["/* Branding variables generated from the organization's settings. Do not edit. */"];
+        if ($variables !== []) {
+            $lines[] = ':root {';
+            foreach ($variables as $name => $value) {
+                $lines[] = '  ' . $name . ': ' . $value . ';';
+            }
+            $lines[] = '}';
+        }
+
+        return ['css' => implode("\n", $lines) . "\n", 'ignored' => $checked['ignored']];
+    }
+
+    /**
+     * Returns only the validated branding values that build() accepts (unknown keys, invalid formats,
+     * and colors failing the 4.5:1 WCAG contrast check are omitted).
+     *
+     * @param array<mixed> $branding
+     * @return array<string, string>
+     */
+    public static function validated(array $branding): array
+    {
+        return self::inspect($branding)['values'];
+    }
+
+    /**
+     * Single source of truth for branding key validation and WCAG contrast checks.
+     *
+     * @param array<mixed> $branding
+     * @return array{values: array<string, string>, ignored: list<string>}
+     */
+    private static function inspect(array $branding): array
+    {
         $ignored = [];
         $known = [...array_keys(self::COLORS), ...array_keys(self::FONTS), ...array_keys(self::RADII)];
         foreach (array_keys($branding) as $key) {
@@ -93,14 +144,14 @@ final class BrandingCss
             }
         }
 
-        $variables = [];
-        foreach (self::COLORS as $key => $variable) {
+        $values = [];
+        foreach (array_keys(self::COLORS) as $key) {
             if (isset($colors[$key])) {
-                $variables[$variable] = $colors[$key];
+                $values[$key] = $colors[$key];
             }
         }
 
-        foreach (self::FONTS as $key => [$variable, $fallback]) {
+        foreach (array_keys(self::FONTS) as $key) {
             if (!array_key_exists($key, $branding)) {
                 continue;
             }
@@ -109,10 +160,10 @@ final class BrandingCss
                 $ignored[] = $key;
                 continue;
             }
-            $variables[$variable] = '"' . $name . '", ' . $fallback;
+            $values[$key] = $name;
         }
 
-        foreach (self::RADII as $key => $variable) {
+        foreach (array_keys(self::RADII) as $key) {
             if (!array_key_exists($key, $branding)) {
                 continue;
             }
@@ -121,19 +172,10 @@ final class BrandingCss
                 $ignored[] = $key;
                 continue;
             }
-            $variables[$variable] = $pixels . 'px';
+            $values[$key] = $pixels . 'px';
         }
 
-        $lines = ["/* Branding variables generated from the organization's settings. Do not edit. */"];
-        if ($variables !== []) {
-            $lines[] = ':root {';
-            foreach ($variables as $name => $value) {
-                $lines[] = '  ' . $name . ': ' . $value . ';';
-            }
-            $lines[] = '}';
-        }
-
-        return ['css' => implode("\n", $lines) . "\n", 'ignored' => $ignored];
+        return ['values' => $values, 'ignored' => $ignored];
     }
 
     /** WCAG contrast ratio between two colors, from 1 (identical) to 21 (black on white). */

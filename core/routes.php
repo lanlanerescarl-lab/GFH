@@ -137,6 +137,7 @@ return static function (Router $router, App $app, ?Services $services = null): v
 
         $r->get('', static fn (Request $q) => $superAdminOverview->index($q), $groupPage);
         $r->get('/organizations', static fn (Request $q) => $superAdminOrganizations->index($q), $groupPage);
+        $r->get('/organizations/{slug}', static fn (Request $q) => $superAdminOrganizations->show($q), $groupPage);
         $r->get('/reports', static fn (Request $q) => $superAdminReports->index($q), $groupPage);
         $r->get('/users', static fn (Request $q) => $superAdminUsers->index($q), $groupPage);
         $r->get('/audit', static fn (Request $q) => $superAdminAudit->index($q), $groupPage);

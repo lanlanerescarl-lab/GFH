@@ -17,6 +17,8 @@ use Gfh\Core\Repository\MembershipRepository;
 use Gfh\Core\Repository\OrganizationRepository;
 use Gfh\Core\Repository\PasswordResetRepository;
 use Gfh\Core\Repository\PermissionRepository;
+use Gfh\Core\Repository\SuperAdminAuditRepository;
+use Gfh\Core\Repository\SuperAdminOrganizationRepository;
 use Gfh\Core\Repository\UserRepository;
 use Gfh\Core\Service\AccountService;
 use Gfh\Core\Service\AdminNavigationService;
@@ -27,8 +29,11 @@ use Gfh\Core\Service\PasswordResetService;
 use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Service\ShopAccountMenuService;
 use Gfh\Core\Service\ShopNavigationService;
+use Gfh\Core\Service\SuperAdminAuditQueryService;
 use Gfh\Core\Service\SuperAdminAuthService;
 use Gfh\Core\Service\SuperAdminNavigationService;
+use Gfh\Core\Service\SuperAdminOrganizationQueryService;
+use Gfh\Core\Service\SuperAdminOverviewService;
 use Gfh\Core\Extension\ExtensionLoader;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Tenancy\Tenant;
@@ -52,7 +57,8 @@ final class Services
     private array $extensionReports = [];
 
     /**
-     * @param array<string, Session>|null $testSessions test-only in-memory sessions keyed by scope ('staff', 'customer')
+     * @param array<string, Session>|null    $testSessions         test-only in-memory sessions keyed by scope ('staff', 'customer')
+     * @param (\Closure(): \PDO)|null        $orgConnectionFactory optional test-only factory invoked if an org database is ever requested
      */
     public function __construct(
         private readonly App $app,
@@ -61,6 +67,7 @@ final class Services
         private readonly ?\PDO $orgConnection = null,
         private readonly ?string $sessionPath = null,
         private readonly ?array $testSessions = null,
+        private readonly ?\Closure $orgConnectionFactory = null,
     ) {
     }
 
@@ -170,12 +177,18 @@ final class Services
 
     public function tenants(): TenantResolver
     {
-        return $this->once('tenants', fn (): TenantResolver => new TenantResolver(
-            $this->organizations(),
-            $this->permissions(),
-            $this->database(),
-            $this->orgConnection,
-        ));
+        return $this->once('tenants', function (): TenantResolver {
+            $connection = $this->orgConnectionFactory !== null
+                ? ($this->orgConnectionFactory)()
+                : $this->orgConnection;
+
+            return new TenantResolver(
+                $this->organizations(),
+                $this->permissions(),
+                $this->database(),
+                $connection,
+            );
+        });
     }
 
     /**
@@ -313,6 +326,34 @@ final class Services
     public function superAdminNavigation(): SuperAdminNavigationService
     {
         return $this->once('superadmin-navigation', fn (): SuperAdminNavigationService => new SuperAdminNavigationService(
+            $this->permissions(),
+        ));
+    }
+
+    /** Read-only Super Admin organization registry queries (core DB only; never reads connection_encrypted). */
+    public function superAdminOrganizationQueries(): SuperAdminOrganizationQueryService
+    {
+        return $this->once('superadmin-organizations', fn (): SuperAdminOrganizationQueryService => new SuperAdminOrganizationQueryService(
+            new SuperAdminOrganizationRepository($this->core()),
+            $this->permissions(),
+        ));
+    }
+
+    /** Read-only Super Admin Overview queries (core DB only). */
+    public function superAdminOverview(): SuperAdminOverviewService
+    {
+        return $this->once('superadmin-overview', fn (): SuperAdminOverviewService => new SuperAdminOverviewService(
+            new SuperAdminOrganizationRepository($this->core()),
+            new SuperAdminAuditRepository($this->core()),
+            $this->permissions(),
+        ));
+    }
+
+    /** Read-only Super Admin audit log queries (core DB only). */
+    public function superAdminAuditQueries(): SuperAdminAuditQueryService
+    {
+        return $this->once('superadmin-audit', fn (): SuperAdminAuditQueryService => new SuperAdminAuditQueryService(
+            new SuperAdminAuditRepository($this->core()),
             $this->permissions(),
         ));
     }
