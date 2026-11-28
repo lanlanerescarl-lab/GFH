@@ -27,12 +27,16 @@ use Gfh\Core\Service\PasswordResetService;
 use Gfh\Core\Service\PermissionService;
 use Gfh\Core\Service\ShopAccountMenuService;
 use Gfh\Core\Service\ShopNavigationService;
+use Gfh\Core\Service\SuperAdminAuthService;
+use Gfh\Core\Service\SuperAdminNavigationService;
 use Gfh\Core\Extension\ExtensionLoader;
 use Gfh\Core\Hooks\Hooks;
 use Gfh\Core\Tenancy\Tenant;
 use Gfh\Core\Tenancy\TenantResolver;
 use Gfh\Core\View\AppView;
 use Gfh\Core\View\AssetUrls;
+use Gfh\Core\View\SuperAdminAssetUrls;
+use Gfh\Core\View\SuperAdminView;
 use Gfh\Core\View\TemplateLocator;
 
 /**
@@ -294,6 +298,39 @@ final class Services
         return $this->once('shop-account-menu:' . $tenant->organization->slug, fn (): ShopAccountMenuService => new ShopAccountMenuService(
             $this->forTenant($tenant)->hooks(),
         ));
+    }
+
+    /** Group-level sign-in guard for /superadmin. Never opens an organization database. */
+    public function superAdminAuth(): SuperAdminAuthService
+    {
+        return $this->once('superadmin-auth', fn (): SuperAdminAuthService => new SuperAdminAuthService(
+            $this->auth(),
+            $this->permissions(),
+        ));
+    }
+
+    /** Super Admin sidebar builder driven by Modules::groupAllows and PermissionService::can. */
+    public function superAdminNavigation(): SuperAdminNavigationService
+    {
+        return $this->once('superadmin-navigation', fn (): SuperAdminNavigationService => new SuperAdminNavigationService(
+            $this->permissions(),
+        ));
+    }
+
+    /**
+     * The view for the Super Admin console. Resolves only inside templates/superadmin/.
+     *
+     * @param array<string, mixed> $extra
+     */
+    public function superAdminView(Request $request, array $extra = []): SuperAdminView
+    {
+        $basePath = $request->basePath();
+
+        return new SuperAdminView($this->app->path('templates/superadmin'), $extra + [
+            'basePath' => $basePath,
+            'homeUrl' => $basePath . '/superadmin',
+            'assets' => new SuperAdminAssetUrls($basePath),
+        ]);
     }
 
     /** The session for one kind of person. Secure cookies on HTTPS and always in production. */

@@ -43,9 +43,17 @@ use Gfh\Core\Controller\Shop\ProductListController as ShopListingController;
 use Gfh\Core\Controller\Pos\PosServiceWorkerController;
 use Gfh\Core\Controller\Pos\PosShellController;
 use Gfh\Core\Controller\StaffPagesController;
+use Gfh\Core\Controller\SuperAdmin\AuditController as SuperAdminAuditController;
+use Gfh\Core\Controller\SuperAdmin\AuthController as SuperAdminAuthController;
+use Gfh\Core\Controller\SuperAdmin\OrganizationsController as SuperAdminOrganizationsController;
+use Gfh\Core\Controller\SuperAdmin\OverviewController as SuperAdminOverviewController;
+use Gfh\Core\Controller\SuperAdmin\ReportsController as SuperAdminReportsController;
+use Gfh\Core\Controller\SuperAdmin\SettingsController as SuperAdminSettingsController;
+use Gfh\Core\Controller\SuperAdmin\UsersController as SuperAdminUsersController;
 use Gfh\Core\Controller\SystemController;
 use Gfh\Core\Http\Middleware\CsrfMiddleware;
 use Gfh\Core\Http\Middleware\RequireCustomerMiddleware;
+use Gfh\Core\Http\Middleware\RequireGroupMiddleware;
 use Gfh\Core\Http\Middleware\RequireStaffMiddleware;
 use Gfh\Core\Http\Middleware\SessionMiddleware;
 use Gfh\Core\Http\Middleware\TenantMiddleware;
@@ -102,8 +110,38 @@ return static function (Router $router, App $app, ?Services $services = null): v
     $staffSession = new SessionMiddleware($services, 'staff');
     $customerSession = new SessionMiddleware($services, 'customer');
     $csrf = new CsrfMiddleware();
+    $requireGroup = new RequireGroupMiddleware();
     $requireStaff = new RequireStaffMiddleware($services);
     $requireCustomer = new RequireCustomerMiddleware();
+
+    $superAdminAuth = new SuperAdminAuthController($services);
+    $superAdminOverview = new SuperAdminOverviewController($services);
+    $superAdminOrganizations = new SuperAdminOrganizationsController($services);
+    $superAdminReports = new SuperAdminReportsController($services);
+    $superAdminUsers = new SuperAdminUsersController($services);
+    $superAdminAudit = new SuperAdminAuditController($services);
+    $superAdminSettings = new SuperAdminSettingsController($services);
+
+    // Super Admin group console (SA.1a). Registered before /{org} so /superadmin/... is never treated as an
+    // organization slug. Uses the shared staff session (gfh_staff) and never opens an organization database.
+    $router->group('/superadmin', static function (Router $r) use (
+        $superAdminAuth, $superAdminOverview, $superAdminOrganizations, $superAdminReports,
+        $superAdminUsers, $superAdminAudit, $superAdminSettings,
+        $staffSession, $csrf, $requireGroup,
+    ): void {
+        $groupPage = [$staffSession, $requireGroup];
+
+        $r->get('/sign-in', static fn (Request $q) => $superAdminAuth->signInForm($q), [$staffSession]);
+        $r->post('/sign-in', static fn (Request $q) => $superAdminAuth->signInSubmit($q), [$staffSession, $csrf]);
+        $r->post('/sign-out', static fn (Request $q) => $superAdminAuth->signOut($q), [$staffSession, $csrf]);
+
+        $r->get('', static fn (Request $q) => $superAdminOverview->index($q), $groupPage);
+        $r->get('/organizations', static fn (Request $q) => $superAdminOrganizations->index($q), $groupPage);
+        $r->get('/reports', static fn (Request $q) => $superAdminReports->index($q), $groupPage);
+        $r->get('/users', static fn (Request $q) => $superAdminUsers->index($q), $groupPage);
+        $r->get('/audit', static fn (Request $q) => $superAdminAudit->index($q), $groupPage);
+        $r->get('/settings', static fn (Request $q) => $superAdminSettings->index($q), $groupPage);
+    });
 
     // Reading the catalog needs no sign-in; a session is opened only if the visitor already has one (for tier prices).
     $customerOptional = new SessionMiddleware($services, 'customer', true);
@@ -122,7 +160,9 @@ return static function (Router $router, App $app, ?Services $services = null): v
     // Product photos: public, long-cached, streamed from storage/uploads through this route only.
     $router->get('/media/{org:[a-z][a-z0-9-]*}/{id}', static fn (Request $q) => $media->serve($q), [$tenant]);
 
-    $router->group('/{org:[a-z][a-z0-9-]*}', static function (Router $r) use (
+    // Reserved slug "superadmin" is excluded here too so unknown /superadmin/... paths answer 404 directly
+    // instead of falling through to TenantMiddleware as an organization lookup.
+    $router->group('/{org:(?!superadmin(?:/|$))[a-z][a-z0-9-]*}', static function (Router $r) use (
         $auth, $pages, $adminDashboard, $adminInventory, $adminProducts, $adminBrands, $adminCategories,
         $adminSuppliers, $adminPurchaseOrders, $adminOrders, $adminCustomers, $adminPosSales, $adminReports, $adminTeam,
         $adminSettings, $adminBranches, $adminTerminals, $adminDiscounts, $adminOrderSteps, $adminGeneralSettings, $posShell, $posWorker, $branding,
